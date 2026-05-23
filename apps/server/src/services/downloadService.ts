@@ -59,8 +59,11 @@ export class DownloadService {
         ...task,
         status: shouldResume ? "queued" : task.status,
         phase: shouldResume ? "queued" : (task.phase ?? task.status),
-        logs: task.logs ?? [],
+        logs: shouldResume
+          ? [...(task.logs ?? []), { time: new Date().toISOString(), phase: "queued", message: "Task recovered after service restart" }]
+          : (task.logs ?? []),
         error: shouldResume ? undefined : task.error,
+        current: shouldResume ? undefined : task.current,
       });
     }
     await this.saveTasks();
@@ -192,8 +195,9 @@ export class DownloadService {
         chapterPages.push({ episodeId, pages: await this.runtime.comicPages(task.sourceKey, task.comicId, episodeId) });
       }
       const total = chapterPages.reduce((sum, item) => sum + item.pages.images.length, 0);
+      const completed = await this.completedImageCount(task.id, chapterPages.flatMap((item) => item.pages.images));
       this.throwIfCancelled(task);
-      this.update(task, { title, episodeId: task.all ? "__all__" : episodeIds[0], total, completed: 0, outputDir });
+      this.update(task, { title, episodeId: task.all ? "__all__" : episodeIds[0], total, completed, outputDir });
 
       for (const item of chapterPages) {
         const chapterTitle = chapters?.[item.episodeId] ?? item.episodeId;
@@ -257,7 +261,6 @@ export class DownloadService {
         const completedFile = await this.completedFilePath(task.id, imageKey);
         if (completedFile) {
           this.storage?.saveDownloadItem({ taskId: task.id, imageKey, filePath: completedFile, status: "completed" });
-          this.update(task, { completed: task.completed + 1 });
           continue;
         }
         this.update(task, { current: imageKey });
@@ -310,6 +313,14 @@ export class DownloadService {
     } catch {
       return null;
     }
+  }
+
+  private async completedImageCount(taskId: string, imageKeys: string[]) {
+    let completed = 0;
+    for (const imageKey of imageKeys) {
+      if (await this.completedFilePath(taskId, imageKey)) completed += 1;
+    }
+    return completed;
   }
 
   private async saveTasks() {
