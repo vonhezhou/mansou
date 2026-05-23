@@ -10,6 +10,48 @@ import { config } from "../config/config.js";
 
 let sourceDataStore = new SourceDataStore();
 
+function reportPluginAsyncError(sourceKey: string, error: unknown) {
+  console.warn(`[${sourceKey}] plugin async task failed`, error);
+}
+
+function guardPluginAsync<T>(sourceKey: string, value: T): T {
+  if (value && typeof (value as { catch?: unknown }).catch === "function") {
+    (value as unknown as Promise<unknown>).catch((error) => reportPluginAsyncError(sourceKey, error));
+  }
+  return value;
+}
+
+function createGuardedTimeout(sourceKey: string) {
+  return (callback: (...args: unknown[]) => unknown, delay?: number, ...args: unknown[]) =>
+    setTimeout(() => {
+      try {
+        guardPluginAsync(sourceKey, callback(...args));
+      } catch (error) {
+        reportPluginAsyncError(sourceKey, error);
+      }
+    }, delay);
+}
+
+function createGuardedInterval(sourceKey: string) {
+  return (callback: (...args: unknown[]) => unknown, delay?: number, ...args: unknown[]) =>
+    setInterval(() => {
+      try {
+        guardPluginAsync(sourceKey, callback(...args));
+      } catch (error) {
+        reportPluginAsyncError(sourceKey, error);
+      }
+    }, delay);
+}
+
+function createGuardedPromise(sourceKey: string) {
+  function GuardedPromise<T>(this: unknown, executor: ConstructorParameters<typeof Promise<T>>[0]) {
+    return guardPluginAsync(sourceKey, new Promise<T>(executor));
+  }
+  Object.setPrototypeOf(GuardedPromise, Promise);
+  GuardedPromise.prototype = Promise.prototype;
+  return GuardedPromise;
+}
+
 class ComicSourceBase {
   static sources: Record<string, VeneraComicSource> = {};
 
@@ -125,11 +167,15 @@ export class SourceRuntime {
     const className = findClassName(script);
     const preludeSourceKey = path.basename(filePath, ".js");
     const api = await createRuntimeApi(preludeSourceKey, this.dataStore, this.cookieStore);
+    const GuardedPromise = createGuardedPromise(preludeSourceKey);
     const sandbox = {
       console,
-      setTimeout,
+      setTimeout: createGuardedTimeout(preludeSourceKey),
+      setInterval: createGuardedInterval(preludeSourceKey),
       clearTimeout,
-      fetch: fetchWithProxy,
+      clearInterval,
+      Promise: GuardedPromise,
+      fetch: (...args: Parameters<typeof fetchWithProxy>) => guardPluginAsync(preludeSourceKey, fetchWithProxy(...args)),
       randomInt: (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min,
       URL,
       URLSearchParams,
