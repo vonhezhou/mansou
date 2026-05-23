@@ -53,6 +53,8 @@ describe("api v1 mock source", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ openapi: "3.1.0" });
     expect(response.json().paths["/api/v1/search/{sourceKey}"].get.operationId).toBe("searchSource");
+    expect(response.json().paths["/api/v1/comics/{sourceKey}/detail"].get.operationId).toBe("getComicDetailsByQuery");
+    expect(response.json().paths["/api/v1/debug/runtime/diagnostics"].get.operationId).toBe("getRuntimeDiagnostics");
     expect(response.json().components.schemas.DownloadTask).toBeTruthy();
   });
 

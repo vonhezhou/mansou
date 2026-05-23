@@ -39,6 +39,9 @@ export const openApiDocument = {
     "/api/v1/sources/installed": {
       get: { operationId: "listInstalledSources", tags: ["sources"], summary: "List installed sources", responses: { "200": response({ type: "array", items: { $ref: "#/components/schemas/SourceSummary" } }) } },
     },
+    "/api/v1/sources/metadata": {
+      get: { operationId: "listSourceMetadata", tags: ["sources"], summary: "List persisted source metadata", responses: { "200": response({ type: "array", items: { $ref: "#/components/schemas/SourceMetadata" } }) } },
+    },
     "/api/v1/sources/install": {
       post: { operationId: "installSource", tags: ["sources"], summary: "Install source", requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { source: { type: "string" } }, required: ["source"] } } } }, responses: { "200": response(json), "400": { $ref: "#/components/responses/Error" } } },
     },
@@ -47,6 +50,9 @@ export const openApiDocument = {
     },
     "/api/v1/sources/{sourceKey}": {
       get: { operationId: "getSource", tags: ["sources"], summary: "Get source", parameters: [stringParam("sourceKey")], responses: { "200": response({ anyOf: [{ $ref: "#/components/schemas/SourceSummary" }, { type: "null" }] }) } },
+    },
+    "/api/v1/sources/{sourceKey}/enabled": {
+      put: { operationId: "setSourceEnabled", tags: ["sources"], parameters: [stringParam("sourceKey")], requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { enabled: { type: "boolean" } }, required: ["enabled"] } } } }, responses: { "200": response({ $ref: "#/components/schemas/SourceMetadata" }), "404": { $ref: "#/components/responses/Error" } } },
     },
     "/api/v1/sources/{sourceKey}/search-options": {
       get: { operationId: "getSourceSearchOptions", tags: ["sources"], parameters: [stringParam("sourceKey")], responses: { "200": response({ type: "array", items: json }) } },
@@ -70,8 +76,14 @@ export const openApiDocument = {
     "/api/v1/comics/{sourceKey}/{comicId}": {
       get: { operationId: "getComicDetails", tags: ["comics"], parameters: [stringParam("sourceKey"), stringParam("comicId")], responses: { "200": response({ $ref: "#/components/schemas/ComicDetails" }) } },
     },
+    "/api/v1/comics/{sourceKey}/detail": {
+      get: { operationId: "getComicDetailsByQuery", tags: ["comics"], parameters: [stringParam("sourceKey"), queryParam("comicId", true)], responses: { "200": response({ $ref: "#/components/schemas/ComicDetails" }) } },
+    },
     "/api/v1/comics/{sourceKey}/{comicId}/episodes/{episodeId}/pages": {
       get: { operationId: "getEpisodePages", tags: ["comics"], parameters: [stringParam("sourceKey"), stringParam("comicId"), stringParam("episodeId")], responses: { "200": response({ $ref: "#/components/schemas/EpisodePages" }) } },
+    },
+    "/api/v1/comics/{sourceKey}/pages": {
+      get: { operationId: "getEpisodePagesByQuery", tags: ["comics"], parameters: [stringParam("sourceKey"), queryParam("comicId", true), queryParam("episodeId", true)], responses: { "200": response({ $ref: "#/components/schemas/EpisodePages" }) } },
     },
     "/api/v1/image": {
       get: { operationId: "getImage", tags: ["images"], parameters: [queryParam("sourceKey", true), queryParam("imageKey", true), queryParam("comicId"), queryParam("episodeId"), { name: "thumbnail", in: "query", schema: { type: "boolean" } }, queryParam("access_token")], responses: { "200": { description: "Image bytes", content: { "image/*": { schema: { type: "string", format: "binary" } }, "application/octet-stream": { schema: { type: "string", format: "binary" } } } } } },
@@ -115,6 +127,9 @@ export const openApiDocument = {
     "/api/v1/debug/runtime/compatibility": {
       get: { operationId: "getRuntimeCompatibility", tags: ["debug"], responses: { "200": response({ type: "object", properties: { items: { type: "array", items: { $ref: "#/components/schemas/RuntimeCompatibilityItem" } } }, required: ["items"] }) } },
     },
+    "/api/v1/debug/runtime/diagnostics": {
+      get: { operationId: "getRuntimeDiagnostics", tags: ["debug"], responses: { "200": response({ $ref: "#/components/schemas/RuntimeDiagnostics" }) } },
+    },
     "/api/v1/debug/{sourceKey}/search": {
       get: { operationId: "debugSearch", tags: ["debug"], parameters: [stringParam("sourceKey"), queryParam("keyword"), queryParam("page")], responses: { "200": response({ $ref: "#/components/schemas/DebugResult" }) } },
     },
@@ -143,6 +158,7 @@ export const openApiDocument = {
       RepositorySource: { type: "object", additionalProperties: true, properties: { key: { type: "string" }, name: { type: "string" }, version: { type: "string" }, url: { type: "string" }, filename: { type: "string" }, fileName: { type: "string" } } },
       SourceRepository: { type: "object", properties: { url: { type: "string" }, sources: { type: "array", items: { $ref: "#/components/schemas/RepositorySource" } } }, required: ["url", "sources"] },
       SourceSummary: { type: "object", properties: { key: { type: "string" }, name: { type: "string" }, version: { type: "string" }, url: { type: "string" }, filePath: { type: "string" }, hasSearch: { type: "boolean" }, hasComic: { type: "boolean" } }, required: ["key", "name"] },
+      SourceMetadata: { type: "object", properties: { key: { type: "string" }, name: { type: "string" }, version: { type: "string" }, enabled: { type: "number" }, script_path: { type: "string" }, script_url: { type: "string" }, hash: { type: "string" }, installed_at: { type: "string" }, updated_at: { type: "string" } }, required: ["key", "name", "enabled"] },
       SourceSettings: { type: "object", properties: { schema: json, values: json }, required: ["schema", "values"] },
       Comic: { type: "object", additionalProperties: true, properties: { sourceKey: { type: "string" }, id: { type: "string" }, title: { type: "string" }, cover: { type: "string" }, subtitle: { type: "string" }, tags: { type: "array", items: { type: "string" } }, description: { type: "string" }, language: { type: "string" }, stars: { type: "number" } }, required: ["id", "title"] },
       SearchResult: { type: "object", properties: { comics: { type: "array", items: { $ref: "#/components/schemas/Comic" } }, maxPage: { type: "number" }, next: { anyOf: [{ type: "string" }, { type: "null" }] } }, required: ["comics"] },
@@ -156,6 +172,8 @@ export const openApiDocument = {
       HistoryItem: { type: "object", properties: { id: { type: "string" }, source_key: { type: "string" }, comic_id: { type: "string" }, episode_id: { type: "string" }, page: { type: "number" }, progress: { type: "number" }, updated_at: { type: "string" } }, required: ["id", "source_key", "comic_id", "page", "progress", "updated_at"] },
       CacheStats: { type: "object", properties: { files: { type: "number" }, bytes: { type: "number" } }, required: ["files", "bytes"] },
       RuntimeCompatibilityItem: { type: "object", properties: { area: { type: "string" }, api: { type: "string" }, status: { type: "string" }, note: { type: "string" } }, required: ["area", "api", "status"] },
+      RuntimeDiagnostic: { type: "object", properties: { time: { type: "string" }, sourceKey: { type: "string" }, operation: { type: "string" }, code: { type: "string" }, message: { type: "string" } }, required: ["time", "operation", "code", "message"] },
+      RuntimeDiagnostics: { type: "object", properties: { loadedSources: { type: "array", items: { $ref: "#/components/schemas/SourceSummary" } }, failedLoads: { type: "array", items: { $ref: "#/components/schemas/RuntimeDiagnostic" } }, recentErrors: { type: "array", items: { $ref: "#/components/schemas/RuntimeDiagnostic" } }, sourceConcurrency: { type: "array", items: { type: "object", properties: { sourceKey: { type: "string" }, active: { type: "number" }, queued: { type: "number" } }, required: ["sourceKey", "active", "queued"] } } }, required: ["loadedSources", "failedLoads", "recentErrors", "sourceConcurrency"] },
       DebugResult: { type: "object", additionalProperties: true, properties: { ok: { type: "boolean" }, name: { type: "string" }, durationMs: { type: "number" }, summary: {}, error: { type: "string" }, hint: { type: "string" }, stack: { type: "array", items: { type: "string" } } }, required: ["ok", "name", "durationMs"] },
     },
   },
