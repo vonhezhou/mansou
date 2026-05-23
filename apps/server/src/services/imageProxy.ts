@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import path from "node:path";
 import { readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { paths } from "../storage/paths.js";
+import { config } from "../config/config.js";
 import { ensureDir } from "../utils/fs.js";
 import { SourceRuntime } from "../runtime/sourceRuntime.js";
 import { fetchWithProxy } from "../utils/fetch.js";
@@ -38,28 +39,35 @@ export class ImageProxyService {
     }
 
     const loadedSource = this.runtime.find(input.sourceKey).instance;
-    let config: Record<string, unknown> = {};
+    let loadingConfig: Record<string, unknown> = {};
     if (input.thumbnail) {
-      config = loadedSource.getThumbnailLoadingConfig?.(input.imageKey) ?? {};
+      loadingConfig = loadedSource.getThumbnailLoadingConfig?.(input.imageKey) ?? {};
     } else {
       const loader = loadedSource.comic?.getImageLoadingConfig ?? loadedSource.getImageLoadingConfig;
-      config = (await loader?.(input.imageKey, input.comicId ?? "", input.episodeId ?? null)) ?? {};
+      loadingConfig = (await loader?.(input.imageKey, input.comicId ?? "", input.episodeId ?? null)) ?? {};
     }
 
-    const requestUrl = String(config.url ?? input.imageKey);
+    const requestUrl = String(loadingConfig.url ?? input.imageKey);
+    const parsedUrl = new URL(requestUrl.startsWith("//") ? `https:${requestUrl}` : requestUrl);
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+      throw new Error(`Unsupported image protocol: ${parsedUrl.protocol}`);
+    }
     const response = await fetchWithProxy(requestUrl.startsWith("//") ? `https:${requestUrl}` : requestUrl, {
-      method: String(config.method ?? "GET"),
-      headers: (config.headers as Record<string, string> | undefined) ?? {
+      method: String(loadingConfig.method ?? "GET"),
+      headers: (loadingConfig.headers as Record<string, string> | undefined) ?? {
         "user-agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
       },
-      body: config.data == null ? undefined : String(config.data),
+      body: loadingConfig.data == null ? undefined : String(loadingConfig.data),
     });
     if (!response.ok) {
       throw new Error(`Failed to load image: ${response.status} ${response.statusText}`);
     }
+    const contentLength = Number(response.headers.get("content-length") ?? 0);
+    if (contentLength > config.maxImageBytes) throw new Error("Image response is too large");
 
     const data = Buffer.from(await response.arrayBuffer());
+    if (data.length > config.maxImageBytes) throw new Error("Image response is too large");
     if (useCache) {
       await ensureDir(path.dirname(cachePath));
       await writeFile(cachePath, data);

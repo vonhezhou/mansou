@@ -39,6 +39,15 @@ export async function buildApp() {
     storage.close();
   });
 
+  app.addHook("onRequest", async (request, reply) => {
+    if (!config.accessToken || request.url === "/health" || request.url === "/api/v1/health" || request.url.startsWith("/assets/") || request.url === "/") return;
+    const header = request.headers.authorization;
+    const token = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : request.headers["x-venera-token"];
+    if (token !== config.accessToken) {
+      reply.code(401).send({ error: { code: "UNAUTHORIZED", message: "Access token required", requestId: request.id } });
+    }
+  });
+
   app.setErrorHandler((error, request, reply) => {
     const statusCode = error instanceof ZodError ? 400 : ((error as { statusCode?: number }).statusCode ?? 500);
     const code = error instanceof ZodError ? "VALIDATION_ERROR" : statusCode === 404 ? "NOT_FOUND" : "INTERNAL_ERROR";
