@@ -29,6 +29,12 @@ describe("api v1 mock source", () => {
     expect(response.json()).toMatchObject({ ok: true, name: "venera_web" });
   });
 
+  it("returns runtime compatibility report", async () => {
+    const response = await app.inject({ method: "GET", url: "/api/v1/debug/runtime/compatibility" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().items).toContainEqual(expect.objectContaining({ area: "Network", api: "fetchBytes" }));
+  });
+
   it("searches, loads details, pages, and image bytes", async () => {
     const search = await app.inject({ method: "GET", url: "/api/v1/search/mock?keyword=test&page=1" });
     expect(search.statusCode).toBe(200);

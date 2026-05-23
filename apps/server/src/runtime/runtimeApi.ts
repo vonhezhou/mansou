@@ -15,6 +15,8 @@ type RequestOptions = {
   bytes?: boolean;
 };
 
+type BytesInput = ArrayBuffer | Uint8Array | number[] | string;
+
 function normalizeHeaders(headers: Headers) {
   const result: Record<string, string> = {};
   headers.forEach((value, key) => {
@@ -36,6 +38,29 @@ function normalizeRequestOptions(options: RequestOptions | Record<string, string
   const knownKeys = new Set(["headers", "method", "body", "data", "query", "timeout", "bytes"]);
   if (Object.keys(options).some((key) => knownKeys.has(key))) return options as RequestOptions;
   return { headers: options as Record<string, string> };
+}
+
+function toBuffer(value: BytesInput) {
+  if (typeof value === "string") return Buffer.from(value);
+  if (value instanceof ArrayBuffer) return Buffer.from(value);
+  return Buffer.from(value);
+}
+
+function normalizeBody(body: unknown) {
+  if (body == null || typeof body === "string") return body;
+  if (body instanceof ArrayBuffer || ArrayBuffer.isView(body) || Array.isArray(body)) return toBuffer(body as BytesInput);
+  return JSON.stringify(body);
+}
+
+function aesAlgorithm(key: BytesInput, mode: "ecb" | "cbc" | "cfb" | "ofb") {
+  const size = toBuffer(key).length * 8;
+  if (![128, 192, 256].includes(size)) throw new Error(`Invalid AES key length: ${size}`);
+  return `aes-${size}-${mode}`;
+}
+
+function decryptAes(mode: "ecb" | "cbc" | "cfb" | "ofb", value: BytesInput, key: BytesInput, iv?: BytesInput) {
+  const decipher = crypto.createDecipheriv(aesAlgorithm(key, mode), toBuffer(key), mode === "ecb" ? null : toBuffer(iv ?? []));
+  return Buffer.concat([decipher.update(toBuffer(value)), decipher.final()]);
 }
 
 export async function createRuntimeApi(sourceKey: string, dataStore: SourceDataStore, cookieStore: SourceCookieStore) {
@@ -62,7 +87,7 @@ export async function createRuntimeApi(sourceKey: string, dataStore: SourceDataS
       const response = await fetchWithProxy(requestUrl, {
         method: options.method ?? (body == null ? "GET" : "POST"),
         headers,
-        body: typeof body === "string" || body == null ? body : JSON.stringify(body),
+        body: normalizeBody(body),
         signal: controller.signal,
         redirect: "follow",
       });
@@ -99,9 +124,21 @@ export async function createRuntimeApi(sourceKey: string, dataStore: SourceDataS
 
   const Network = {
     request,
-    get: (url: string, options?: RequestOptions | Record<string, string>) => request(url, { ...normalizeRequestOptions(options), method: "GET" }),
-    post: (url: string, options?: RequestOptions | Record<string, string>) => request(url, { ...normalizeRequestOptions(options), method: "POST" }),
     fetch: request,
+    fetchBytes: async (method: string, url: string, headers: Record<string, string> = {}, data?: BytesInput) => {
+      const result = await request(url, { method, headers, data, bytes: true });
+      return { ...result, body: Buffer.from(result.bytes), data: Buffer.from(result.bytes) };
+    },
+    sendRequest: (method: string, url: string, headers: Record<string, string> = {}, data?: BytesInput) =>
+      request(url, { method, headers, data }),
+    get: (url: string, options?: RequestOptions | Record<string, string>) => request(url, { ...normalizeRequestOptions(options), method: "GET" }),
+    post: (url: string, options?: RequestOptions | Record<string, string>, data?: BytesInput) =>
+      request(url, { ...normalizeRequestOptions(options), method: "POST", data: data ?? normalizeRequestOptions(options).data }),
+    put: (url: string, options?: RequestOptions | Record<string, string>, data?: BytesInput) =>
+      request(url, { ...normalizeRequestOptions(options), method: "PUT", data: data ?? normalizeRequestOptions(options).data }),
+    delete: (url: string, options?: RequestOptions | Record<string, string>) => request(url, { ...normalizeRequestOptions(options), method: "DELETE" }),
+    patch: (url: string, options?: RequestOptions | Record<string, string>, data?: BytesInput) =>
+      request(url, { ...normalizeRequestOptions(options), method: "PATCH", data: data ?? normalizeRequestOptions(options).data }),
     setCookies: async (url: string, cookies: string[] | Record<string, string>) => {
       if (Array.isArray(cookies)) {
         for (const cookie of cookies) await jar.setCookie(cookie, url);
@@ -187,6 +224,16 @@ export async function createRuntimeApi(sourceKey: string, dataStore: SourceDataS
       return children.toArray().map((node) => new HtmlElement(this.$, this.$(node as never)));
     }
 
+    get nodes() {
+      const node = this.selection.get(0) as { children?: unknown[] } | undefined;
+      return (node?.children ?? []).map((child) => new HtmlNode(this.$, child));
+    }
+
+    get parent(): HtmlElement | null {
+      const parent = (this.selection as unknown as { parent: () => cheerio.Cheerio<unknown> }).parent();
+      return parent.length === 0 ? null : new HtmlElement(this.$, parent);
+    }
+
     get innerHtml() {
       return (this.selection as unknown as { html: () => string | null }).html() ?? "";
     }
@@ -202,6 +249,37 @@ export async function createRuntimeApi(sourceKey: string, dataStore: SourceDataS
     get localName() {
       const node = this.selection.get(0) as { tagName?: string; name?: string } | undefined;
       return node?.tagName ?? node?.name ?? "";
+    }
+
+    get previousSibling(): HtmlElement | null {
+      const sibling = (this.selection as unknown as { prev: () => cheerio.Cheerio<unknown> }).prev();
+      return sibling.length === 0 ? null : new HtmlElement(this.$, sibling);
+    }
+
+    get nextSibling(): HtmlElement | null {
+      const sibling = (this.selection as unknown as { next: () => cheerio.Cheerio<unknown> }).next();
+      return sibling.length === 0 ? null : new HtmlElement(this.$, sibling);
+    }
+  }
+
+  class HtmlNode {
+    constructor(private readonly $: cheerio.CheerioAPI, private readonly node: unknown) {}
+
+    get type() {
+      const node = this.node as { type?: string };
+      if (node.type === "text" || node.type === "comment") return node.type;
+      if (node.type === "tag") return "element";
+      if (node.type === "root") return "document";
+      return node.type ?? "unknown";
+    }
+
+    get text() {
+      const node = this.node as { data?: string };
+      return node.data ?? this.$(this.node as never).text();
+    }
+
+    toElement() {
+      return this.type === "element" ? new HtmlElement(this.$, this.$(this.node as never)) : null;
     }
   }
 
@@ -253,19 +331,21 @@ export async function createRuntimeApi(sourceKey: string, dataStore: SourceDataS
     decodeUtf8: (value: Uint8Array | number[] | string) => Buffer.from(value as string | Uint8Array).toString("utf8"),
     encodeBase64: (value: Uint8Array | number[] | string) => Buffer.from(value as string | Uint8Array).toString("base64"),
     decodeBase64: (value: string) => Buffer.from(value, "base64"),
-    md5: (value: Uint8Array | number[] | string) => crypto.createHash("md5").update(Buffer.from(value as string | Uint8Array)).digest(),
-    sha1: (value: Uint8Array | number[] | string) => crypto.createHash("sha1").update(Buffer.from(value as string | Uint8Array)).digest(),
-    sha256: (value: Uint8Array | number[] | string) => crypto.createHash("sha256").update(Buffer.from(value as string | Uint8Array)).digest(),
-    hmacString: (key: Uint8Array | number[] | string, value: Uint8Array | number[] | string, algorithm = "sha256") =>
-      crypto.createHmac(algorithm, Buffer.from(key as string | Uint8Array)).update(Buffer.from(value as string | Uint8Array)).digest("hex"),
+    md5: (value: BytesInput) => crypto.createHash("md5").update(toBuffer(value)).digest(),
+    sha1: (value: BytesInput) => crypto.createHash("sha1").update(toBuffer(value)).digest(),
+    sha256: (value: BytesInput) => crypto.createHash("sha256").update(toBuffer(value)).digest(),
+    sha512: (value: BytesInput) => crypto.createHash("sha512").update(toBuffer(value)).digest(),
+    hmac: (key: BytesInput, value: BytesInput, algorithm = "sha256") =>
+      crypto.createHmac(algorithm, toBuffer(key)).update(toBuffer(value)).digest(),
+    hmacString: (key: BytesInput, value: BytesInput, algorithm = "sha256") =>
+      crypto.createHmac(algorithm, toBuffer(key)).update(toBuffer(value)).digest("hex"),
     hexEncode: (value: Uint8Array | number[] | string) => Buffer.from(value as string | Uint8Array).toString("hex"),
     hexDecode: (value: string) => Buffer.from(value, "hex"),
-    decryptAesEcb: (value: Uint8Array | number[] | string, key: Uint8Array | number[] | string) => {
-      const keyBuffer = Buffer.from(key as string | Uint8Array);
-      const algorithm = keyBuffer.length === 16 ? "aes-128-ecb" : keyBuffer.length === 24 ? "aes-192-ecb" : "aes-256-ecb";
-      const decipher = crypto.createDecipheriv(algorithm, keyBuffer, null);
-      return Buffer.concat([decipher.update(Buffer.from(value as string | Uint8Array)), decipher.final()]);
-    },
+    decryptAesEcb: (value: BytesInput, key: BytesInput) => decryptAes("ecb", value, key),
+    decryptAesCbc: (value: BytesInput, key: BytesInput, iv: BytesInput) => decryptAes("cbc", value, key, iv),
+    decryptAesCfb: (value: BytesInput, key: BytesInput, iv: BytesInput) => decryptAes("cfb", value, key, iv),
+    decryptAesOfb: (value: BytesInput, key: BytesInput, iv: BytesInput) => decryptAes("ofb", value, key, iv),
+    decryptRsa: (value: BytesInput, key: BytesInput) => crypto.privateDecrypt(toBuffer(key), toBuffer(value)),
   };
 
   return { Network, Html, HtmlDocument, Data, Log, App, Convert, appVersion: config.appVersion };
