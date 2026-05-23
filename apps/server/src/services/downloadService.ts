@@ -3,6 +3,7 @@ import { readdir, rm, stat, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import yazl from "yazl";
+import type { StorageDatabase } from "@venera/storage";
 import { paths } from "../storage/paths.js";
 import { SourceRuntime } from "../runtime/sourceRuntime.js";
 import { ImageProxyService } from "./imageProxy.js";
@@ -47,10 +48,11 @@ export class DownloadService {
   constructor(
     private readonly runtime: SourceRuntime,
     private readonly imageProxy: ImageProxyService,
+    private readonly storage?: StorageDatabase,
   ) {}
 
   async init() {
-    const tasks = await readJson<DownloadTask[]>(paths.downloadTasks, []);
+    const tasks = (this.storage?.listDownloads() as DownloadTask[] | undefined) ?? (await readJson<DownloadTask[]>(paths.downloadTasks, []));
     for (const task of tasks) {
       this.tasks.set(task.id, {
         ...task,
@@ -292,6 +294,10 @@ export class DownloadService {
   }
 
   private async saveTasks() {
+    if (this.storage) {
+      this.storage.saveDownloads(this.all() as unknown as Array<Record<string, unknown>>);
+      return;
+    }
     await writeJson(paths.downloadTasks, this.all());
   }
 

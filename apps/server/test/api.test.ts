@@ -5,13 +5,17 @@ import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 
 let app: FastifyInstance;
+let buildApp: typeof import("../src/app.js").buildApp;
+let initializeApp: typeof import("../src/app.js").initializeApp;
 
 beforeAll(async () => {
   process.env.VENERA_DATA_DIR = await mkdtemp(path.join(os.tmpdir(), "venera-web-test-"));
   const module = await import("../src/app.js");
-  const built = await module.buildApp();
+  buildApp = module.buildApp;
+  initializeApp = module.initializeApp;
+  const built = await buildApp();
   app = built.app;
-  await module.initializeApp(built.context);
+  await initializeApp(built.context);
 });
 
 afterAll(async () => {
@@ -52,5 +56,23 @@ describe("api v1 mock source", () => {
     expect(response.statusCode).toBe(400);
     expect(response.json().error).toMatchObject({ code: "VALIDATION_ERROR" });
     expect(response.json().error.requestId).toBeTruthy();
+  });
+
+  it("persists source settings in sqlite across app restarts", async () => {
+    const update = await app.inject({
+      method: "PUT",
+      url: "/api/v1/sources/mock/settings",
+      payload: { values: { resultCount: 2 } },
+    });
+    expect(update.statusCode).toBe(200);
+
+    await app.close();
+    const built = await buildApp();
+    app = built.app;
+    await initializeApp(built.context);
+
+    const settings = await app.inject({ method: "GET", url: "/api/v1/sources/mock/settings" });
+    expect(settings.statusCode).toBe(200);
+    expect(settings.json().values).toMatchObject({ resultCount: 2 });
   });
 });

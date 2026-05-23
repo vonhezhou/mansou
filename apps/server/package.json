@@ -7,11 +7,13 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
+    "storage": "tsx src/cli/storage.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@venera/contracts": "workspace:*",
+    "@venera/storage": "workspace:*",
     "cheerio": "^1.0.0",
     "fastify": "^5.2.1",
     "tough-cookie": "^5.0.0",

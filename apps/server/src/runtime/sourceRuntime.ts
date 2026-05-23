@@ -8,7 +8,7 @@ import { fetchWithProxy } from "../utils/fetch.js";
 import { SourceCookieStore } from "./cookieStore.js";
 import { config } from "../config/config.js";
 
-const sourceDataStore = new SourceDataStore();
+let sourceDataStore = new SourceDataStore();
 
 class ComicSourceBase {
   static sources: Record<string, VeneraComicSource> = {};
@@ -88,7 +88,9 @@ export class SourceRuntime {
     private readonly repository = new SourceRepositoryService(),
     private readonly dataStore = new SourceDataStore(),
     private readonly cookieStore = new SourceCookieStore(),
-  ) {}
+  ) {
+    sourceDataStore = dataStore;
+  }
 
   async loadInstalled() {
     const scripts = await this.repository.listInstalledScripts();

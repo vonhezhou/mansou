@@ -1,9 +1,13 @@
 import Fastify from "fastify";
+import { createStorage } from "@venera/storage";
 import { ZodError } from "zod";
 import { DownloadService } from "./services/downloadService.js";
 import { ImageProxyService } from "./services/imageProxy.js";
 import { SourceRepositoryService } from "./services/sourceRepository.js";
+import { SourceCookieStore } from "./runtime/cookieStore.js";
+import { SourceDataStore } from "./runtime/dataStore.js";
 import { SourceRuntime } from "./runtime/sourceRuntime.js";
+import { config } from "./config/config.js";
 import { ensureDir } from "./utils/fs.js";
 import { paths } from "./storage/paths.js";
 import { registerComicRoutes } from "./routes/comics.js";
@@ -20,11 +24,18 @@ import type { RouteContext } from "./routes/types.js";
 
 export async function buildApp() {
   const app = Fastify({ logger: true });
+  const storage = createStorage(config.dataDir);
   const repository = new SourceRepositoryService();
-  const runtime = new SourceRuntime(repository);
+  const dataStore = new SourceDataStore(storage);
+  const cookieStore = new SourceCookieStore(storage);
+  const runtime = new SourceRuntime(repository, dataStore, cookieStore);
   const imageProxy = new ImageProxyService(runtime);
-  const downloads = new DownloadService(runtime, imageProxy);
+  const downloads = new DownloadService(runtime, imageProxy, storage);
   const context: RouteContext = { repository, runtime, imageProxy, downloads };
+
+  app.addHook("onClose", async () => {
+    storage.close();
+  });
 
   app.setErrorHandler((error, request, reply) => {
     const statusCode = error instanceof ZodError ? 400 : ((error as { statusCode?: number }).statusCode ?? 500);
