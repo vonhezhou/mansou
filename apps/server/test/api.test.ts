@@ -5,6 +5,7 @@ import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 
 let app: FastifyInstance;
+let context: Awaited<ReturnType<typeof import("../src/app.js").buildApp>>["context"];
 let buildApp: typeof import("../src/app.js").buildApp;
 let initializeApp: typeof import("../src/app.js").initializeApp;
 
@@ -15,7 +16,8 @@ beforeAll(async () => {
   initializeApp = module.initializeApp;
   const built = await buildApp();
   app = built.app;
-  await initializeApp(built.context);
+  context = built.context;
+  await initializeApp(context);
 });
 
 afterAll(async () => {
@@ -94,11 +96,29 @@ describe("api v1 mock source", () => {
     await app.close();
     const built = await buildApp();
     app = built.app;
-    await initializeApp(built.context);
+    context = built.context;
+    await initializeApp(context);
 
     const settings = await app.inject({ method: "GET", url: "/api/v1/sources/mock/settings" });
     expect(settings.statusCode).toBe(200);
     expect(settings.json().values).toMatchObject({ resultCount: 2 });
+  });
+
+  it("stores source metadata and supports enable toggles", async () => {
+    context.storage.upsertSource({ key: "mock", name: "Mock", version: "1.0.0", scriptPath: "mock.js", enabled: true });
+    const metadataBefore = await app.inject({ method: "GET", url: "/api/v1/sources/metadata" });
+    expect(metadataBefore.statusCode).toBe(200);
+    expect(metadataBefore.json()).toContainEqual(expect.objectContaining({ key: "mock", enabled: 1 }));
+
+    const disable = await app.inject({ method: "PUT", url: "/api/v1/sources/mock/enabled", payload: { enabled: false } });
+    expect(disable.statusCode).toBe(200);
+    expect(disable.json()).toMatchObject({ key: "mock", enabled: 0 });
+
+    const sources = await app.inject({ method: "GET", url: "/api/v1/sources" });
+    expect(sources.json().some((source: { key: string }) => source.key === "mock")).toBe(false);
+
+    const enable = await app.inject({ method: "PUT", url: "/api/v1/sources/mock/enabled", payload: { enabled: true } });
+    expect(enable.statusCode).toBe(200);
   });
 
   it("stores reading history and reports cache stats", async () => {

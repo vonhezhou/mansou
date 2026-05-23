@@ -1,6 +1,7 @@
 import path from "node:path";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import crypto from "node:crypto";
 import { config } from "../config/config.js";
 import { paths } from "../storage/paths.js";
 import type { RepositorySource } from "../types/source.js";
@@ -57,7 +58,7 @@ export class SourceRepositoryService {
     const fileName = this.resolveScriptFileName(item);
     const filePath = path.join(paths.scripts, fileName);
     await writeFile(filePath, script, "utf8");
-    return { ...item, scriptUrl, filePath };
+    return { ...item, scriptUrl, filePath, hash: crypto.createHash("sha256").update(script).digest("hex") };
   }
 
   async listInstalledScripts() {

@@ -5,7 +5,7 @@ import { paths } from "../storage/paths.js";
 import { readJson, safeFilename, writeJson } from "../utils/fs.js";
 
 export class SourceDataStore {
-  constructor(private readonly storage?: StorageDatabase) {}
+  constructor(readonly storage?: StorageDatabase) {}
 
   loadSync(sourceKey: string, dataKey: string) {
     if (dataKey === "settings") return this.storage?.getSourceSettings(sourceKey) ?? this.readSourceDataSync(sourceKey)[dataKey];

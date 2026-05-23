@@ -37,6 +37,27 @@ class AppStorage {
     this.db.prepare("delete from plugin_data where source_key = ? and key = ?").run(sourceKey, key);
   }
 
+  listSources() {
+    return this.db.prepare("select * from sources order by name asc").all();
+  }
+
+  getSource(key: string) {
+    return this.db.prepare("select * from sources where key = ?").get(key) ?? null;
+  }
+
+  upsertSource(input: { key: string; name: string; version?: string; scriptPath?: string; scriptUrl?: string; hash?: string; enabled?: boolean }) {
+    const now = new Date().toISOString();
+    this.db
+      .prepare("insert into sources(key, name, version, enabled, script_path, script_url, hash, installed_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?) on conflict(key) do update set name = excluded.name, version = excluded.version, script_path = excluded.script_path, script_url = excluded.script_url, hash = excluded.hash, updated_at = excluded.updated_at")
+      .run(input.key, input.name, input.version ?? null, input.enabled === false ? 0 : 1, input.scriptPath ?? null, input.scriptUrl ?? null, input.hash ?? null, now, now);
+    return this.getSource(input.key);
+  }
+
+  setSourceEnabled(key: string, enabled: boolean) {
+    this.db.prepare("update sources set enabled = ?, updated_at = ? where key = ?").run(enabled ? 1 : 0, new Date().toISOString(), key);
+    return this.getSource(key);
+  }
+
   getSourceSettings(sourceKey: string) {
     const rows = this.db
       .prepare("select key, value_json from source_settings where source_key = ?")
@@ -142,14 +163,17 @@ function migrate(db: Database.Database) {
     );
   `);
   const current = db.prepare("select max(version) as version from schema_migrations").get() as { version: number | null };
-  if ((current.version ?? 0) >= 1) return;
-  db.exec(`
+  const version = current.version ?? 0;
+  if (version < 1) {
+    db.exec(`
     create table if not exists sources (
       key text primary key,
       name text not null,
       version text,
       enabled integer not null default 1,
       script_path text,
+      script_url text,
+      hash text,
       installed_at text,
       updated_at text
     );
@@ -228,4 +252,12 @@ function migrate(db: Database.Database) {
     create index if not exists idx_history_source_comic on history(source_key, comic_id);
     insert into schema_migrations(version, applied_at) values (1, datetime('now'));
   `);
+  }
+  if (version < 2) {
+    const columns = db.prepare("pragma table_info(sources)").all() as Array<{ name: string }>;
+    const names = new Set(columns.map((column) => column.name));
+    if (!names.has("script_url")) db.exec("alter table sources add column script_url text");
+    if (!names.has("hash")) db.exec("alter table sources add column hash text");
+    db.exec("insert into schema_migrations(version, applied_at) values (2, datetime('now'))");
+  }
 }

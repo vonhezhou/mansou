@@ -166,8 +166,12 @@ export class SourceRuntime {
   async loadInstalled() {
     const scripts = await this.repository.listInstalledScripts();
     const loaded: LoadedSource[] = [];
+    this.sources.clear();
     for (const filePath of scripts) {
       try {
+        const key = path.basename(filePath, ".js");
+        const metadata = this.dataStore.storage?.getSource?.(key) as { enabled?: number } | null | undefined;
+        if (metadata?.enabled === 0) continue;
         loaded.push(await this.loadScript(filePath));
       } catch (error) {
         this.recordError({ sourceKey: path.basename(filePath, ".js"), operation: "source.load", error });
@@ -247,6 +251,7 @@ export class SourceRuntime {
   all() {
     return [...this.sources.values()].map(({ instance: _instance, ...source }) => ({
       ...source,
+      enabled: true,
       hasSearch: Boolean(_instance.search?.load || _instance.search?.loadNext),
       hasComic: Boolean(_instance.comic?.loadInfo),
     }));

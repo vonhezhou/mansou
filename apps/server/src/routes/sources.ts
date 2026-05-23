@@ -4,6 +4,7 @@ import type { RouteContext } from "./types.js";
 
 export async function registerSourceRoutes(app: FastifyInstance, context: RouteContext) {
   app.get("/sources/available", async () => context.repository.getAvailableSources());
+  app.get("/sources/metadata", async () => context.storage.listSources());
   app.get("/sources/installed", async () => context.runtime.all());
   app.get("/sources", async () => context.runtime.all());
 
@@ -11,6 +12,15 @@ export async function registerSourceRoutes(app: FastifyInstance, context: RouteC
     const body = z.object({ source: z.string().min(1) }).parse(request.body);
     const installed = await context.repository.installSource(body.source);
     const loaded = await context.runtime.loadScript(installed.filePath);
+    context.storage.upsertSource({
+      key: loaded.key,
+      name: loaded.name,
+      version: loaded.version,
+      scriptPath: installed.filePath,
+      scriptUrl: installed.scriptUrl,
+      hash: installed.hash,
+      enabled: true,
+    });
     return { installed, loaded: { key: loaded.key, name: loaded.name, version: loaded.version } };
   });
 
@@ -19,6 +29,18 @@ export async function registerSourceRoutes(app: FastifyInstance, context: RouteC
   app.get("/sources/:sourceKey", async (request) => {
     const params = z.object({ sourceKey: z.string() }).parse(request.params);
     return context.runtime.all().find((source) => source.key === params.sourceKey) ?? null;
+  });
+
+  app.put("/sources/:sourceKey/enabled", async (request, reply) => {
+    const params = z.object({ sourceKey: z.string() }).parse(request.params);
+    const body = z.object({ enabled: z.boolean() }).parse(request.body);
+    const source = context.storage.setSourceEnabled(params.sourceKey, body.enabled);
+    if (!source) {
+      reply.code(404);
+      return { error: { code: "SOURCE_NOT_FOUND", message: "Source metadata not found", requestId: request.id } };
+    }
+    await context.runtime.loadInstalled();
+    return source;
   });
 
   app.get("/sources/:sourceKey/search-options", async (request) => {
