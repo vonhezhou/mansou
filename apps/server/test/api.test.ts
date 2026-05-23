@@ -35,6 +35,14 @@ describe("api v1 mock source", () => {
     expect(response.json().items).toContainEqual(expect.objectContaining({ area: "Network", api: "fetchBytes" }));
   });
 
+  it("returns a client-generatable OpenAPI document", async () => {
+    const response = await app.inject({ method: "GET", url: "/api/v1/openapi.json" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ openapi: "3.1.0" });
+    expect(response.json().paths["/api/v1/search/{sourceKey}"].get.operationId).toBe("searchSource");
+    expect(response.json().components.schemas.DownloadTask).toBeTruthy();
+  });
+
   it("searches, loads details, pages, and image bytes", async () => {
     const search = await app.inject({ method: "GET", url: "/api/v1/search/mock?keyword=test&page=1" });
     expect(search.statusCode).toBe(200);

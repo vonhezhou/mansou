@@ -49,3 +49,4 @@ pnpm lint
 - `doc/technical_design.md`
 - `doc/execution_plan.md`
 - `doc/deployment.md`
+- `doc/api.md`
