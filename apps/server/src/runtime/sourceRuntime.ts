@@ -138,8 +138,18 @@ function normalizeChapters(chapters: unknown): Record<string, string> | undefine
   return Object.keys(flattened).length > 0 ? flattened : undefined;
 }
 
+class PluginCallTimeoutError extends Error {
+  constructor(sourceKey: string, operation: string, timeoutMs: number) {
+    super(`Plugin call timed out: ${sourceKey}.${operation} after ${timeoutMs}ms`);
+    this.name = "PluginCallTimeoutError";
+  }
+}
+
+type SourceLimiter = { active: number; queue: Array<() => void> };
+
 export class SourceRuntime {
   private readonly sources = new Map<string, LoadedSource>();
+  private readonly sourceLimiters = new Map<string, SourceLimiter>();
 
   constructor(
     private readonly repository = new SourceRepositoryService(),
@@ -262,14 +272,14 @@ export class SourceRuntime {
     const finalOptions = options ?? this.defaultSearchOptions(sourceKey);
     if (search.load) {
       const page = Number(pageOrNext ?? 1);
-      const result = await search.load(keyword, finalOptions, Number.isFinite(page) ? page : 1);
+      const result = await this.runPluginCall(sourceKey, "search.load", () => search.load!(keyword, finalOptions, Number.isFinite(page) ? page : 1));
       return {
         comics: (result.comics ?? []).map((comic) => normalizeComic(comic as unknown as Record<string, unknown>, sourceKey)),
         maxPage: result.maxPage,
       };
     }
     if (search.loadNext) {
-      const result = await search.loadNext(keyword, finalOptions, pageOrNext ?? null);
+      const result = await this.runPluginCall(sourceKey, "search.loadNext", () => search.loadNext!(keyword, finalOptions, pageOrNext ?? null));
       return {
         comics: (result.comics ?? []).map((comic) => normalizeComic(comic as unknown as Record<string, unknown>, sourceKey)),
         next: result.next ?? null,
@@ -296,7 +306,7 @@ export class SourceRuntime {
   async comicDetails(sourceKey: string, comicId: string): Promise<ComicDetails> {
     const source = this.find(sourceKey).instance;
     if (!source.comic?.loadInfo) throw new Error(`Source does not support comic details: ${sourceKey}`);
-    const raw = await source.comic.loadInfo(comicId);
+    const raw = await this.runPluginCall(sourceKey, "comic.loadInfo", () => source.comic!.loadInfo!(comicId));
     const normalized = normalizeValue(raw) as ComicDetails;
     return { ...normalized, chapters: normalizeChapters(normalized.chapters), sourceKey, comicId };
   }
@@ -309,7 +319,7 @@ export class SourceRuntime {
       if (images.length > 0) return { images };
     }
     try {
-      const result = await source.comic.loadEp(comicId, episodeId === "_default" ? null : episodeId);
+      const result = await this.runPluginCall(sourceKey, "comic.loadEp", () => source.comic!.loadEp!(comicId, episodeId === "_default" ? null : episodeId));
       return { images: result.images ?? [] };
     } catch (error) {
       if (sourceKey === "baozi" && episodeId != null && episodeId !== "_default") {
@@ -359,6 +369,53 @@ export class SourceRuntime {
     this.find(sourceKey);
     this.dataStore.deleteSync(sourceKey, "settings");
     return this.sourceSettings(sourceKey);
+  }
+
+  private async runPluginCall<T>(sourceKey: string, operation: string, task: () => Promise<T> | T): Promise<T> {
+    await this.acquireSourceSlot(sourceKey);
+    try {
+      return await withTimeout(Promise.resolve().then(task), config.pluginCallTimeoutMs, sourceKey, operation);
+    } finally {
+      this.releaseSourceSlot(sourceKey);
+    }
+  }
+
+  private acquireSourceSlot(sourceKey: string) {
+    const limiter = this.sourceLimiters.get(sourceKey) ?? { active: 0, queue: [] };
+    this.sourceLimiters.set(sourceKey, limiter);
+    const limit = Math.max(1, config.pluginSourceConcurrency);
+    if (limiter.active < limit) {
+      limiter.active += 1;
+      return Promise.resolve();
+    }
+    return new Promise<void>((resolve) => {
+      limiter.queue.push(() => {
+        limiter.active += 1;
+        resolve();
+      });
+    });
+  }
+
+  private releaseSourceSlot(sourceKey: string) {
+    const limiter = this.sourceLimiters.get(sourceKey);
+    if (!limiter) return;
+    limiter.active = Math.max(0, limiter.active - 1);
+    const next = limiter.queue.shift();
+    if (next) next();
+  }
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, sourceKey: string, operation: string) {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new PluginCallTimeoutError(sourceKey, operation, timeoutMs)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 
