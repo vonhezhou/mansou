@@ -30,11 +30,11 @@ function imageUrl(sourceKey, imageKey, comicId = "", episodeId = "", thumbnail =
   if (comicId) params.set("comicId", comicId);
   if (episodeId) params.set("episodeId", episodeId);
   if (thumbnail) params.set("thumbnail", "true");
-  return `/api/image?${params}`;
+  return `/api/v1/image?${params}`;
 }
 
 async function loadSources() {
-  state.sources = await api("/api/sources");
+  state.sources = await api("/api/v1/sources");
   const select = $("#source");
   select.innerHTML = state.sources
     .filter((source) => source.hasSearch)
@@ -63,7 +63,7 @@ async function search(event) {
   const keyword = $("#keyword").value.trim();
   if (!sourceKey || !keyword) return;
   $("#results").innerHTML = "加载中...";
-  const result = await api(`/api/search/${sourceKey}?keyword=${encodeURIComponent(keyword)}&page=1`);
+  const result = await api(`/api/v1/search/${sourceKey}?keyword=${encodeURIComponent(keyword)}&page=1`);
   $("#results").innerHTML = result.comics
     .map(
       (comic) => `
@@ -80,7 +80,7 @@ async function search(event) {
 }
 
 async function openDetail(sourceKey, comicId) {
-  const detail = await api(`/api/comics/${sourceKey}/${encodeURIComponent(comicId)}`);
+  const detail = await api(`/api/v1/comics/${sourceKey}/${encodeURIComponent(comicId)}`);
   state.currentDetail = { ...detail, sourceKey, comicId };
   const chapters = detail.chapters || { _default: "默认章节" };
   $("#detail").innerHTML = `
@@ -102,14 +102,14 @@ async function openDetail(sourceKey, comicId) {
 }
 
 async function createDownload(body) {
-  const task = await postJson("/api/downloads", body);
+  const task = await postJson("/api/v1/downloads", body);
   alert(`已创建下载任务: ${task.id}`);
   await loadDownloads();
 }
 
 async function openReader(episodeId) {
   const { sourceKey, comicId } = state.currentDetail;
-  const pages = await api(`/api/comics/${sourceKey}/${encodeURIComponent(comicId)}/episodes/${encodeURIComponent(episodeId)}/pages`);
+  const pages = await api(`/api/v1/comics/${sourceKey}/${encodeURIComponent(comicId)}/episodes/${encodeURIComponent(episodeId)}/pages`);
   $("#reader").innerHTML = pages.images
     .map((imageKey) => `<img src="${imageUrl(sourceKey, imageKey, comicId, episodeId)}" loading="lazy" />`)
     .join("");
@@ -117,7 +117,7 @@ async function openReader(episodeId) {
 }
 
 async function loadDownloads() {
-  const tasks = await api("/api/downloads");
+  const tasks = await api("/api/v1/downloads");
   $("#downloads").innerHTML = tasks
     .slice()
     .reverse()
@@ -180,14 +180,14 @@ $("#downloads").addEventListener("click", async (event) => {
   if (!button) return;
   const id = button.dataset.taskId;
   const action = button.dataset.taskAction;
-  if (action === "cancel") await postJson(`/api/downloads/${id}/cancel`);
-  if (action === "rerun") await postJson(`/api/downloads/${id}/rerun`);
+  if (action === "cancel") await postJson(`/api/v1/downloads/${id}/cancel`);
+  if (action === "rerun") await postJson(`/api/v1/downloads/${id}/rerun`);
   if (action === "cbz") {
-    const result = await postJson(`/api/downloads/${id}/cbz`);
+    const result = await postJson(`/api/v1/downloads/${id}/cbz`);
     alert(`CBZ: ${result.path}`);
   }
-  if (action === "delete") await fetch(`/api/downloads/${id}`, { method: "DELETE" });
-  if (action === "delete-files") await fetch(`/api/downloads/${id}?files=true`, { method: "DELETE" });
+  if (action === "delete") await fetch(`/api/v1/downloads/${id}`, { method: "DELETE" });
+  if (action === "delete-files") await fetch(`/api/v1/downloads/${id}?files=true`, { method: "DELETE" });
   await loadDownloads();
 });
 $("#back-to-search").addEventListener("click", () => show("search"));

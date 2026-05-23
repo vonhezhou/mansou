@@ -1,0 +1,11 @@
+import type { DownloadService } from "../services/downloadService.js";
+import type { ImageProxyService } from "../services/imageProxy.js";
+import type { SourceRepositoryService } from "../services/sourceRepository.js";
+import type { SourceRuntime } from "../runtime/sourceRuntime.js";
+
+export type RouteContext = {
+  repository: SourceRepositoryService;
+  runtime: SourceRuntime;
+  imageProxy: ImageProxyService;
+  downloads: DownloadService;
+};
