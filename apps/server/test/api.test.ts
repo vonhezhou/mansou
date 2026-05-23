@@ -35,6 +35,17 @@ describe("api v1 mock source", () => {
     expect(response.json().items).toContainEqual(expect.objectContaining({ area: "Network", api: "fetchBytes" }));
   });
 
+  it("returns runtime diagnostics and classified plugin errors", async () => {
+    const missing = await app.inject({ method: "GET", url: "/api/v1/search/missing?keyword=test" });
+    expect(missing.statusCode).toBe(500);
+    expect(missing.json().error.code).toBe("SOURCE_NOT_LOADED");
+
+    const diagnostics = await app.inject({ method: "GET", url: "/api/v1/debug/runtime/diagnostics" });
+    expect(diagnostics.statusCode).toBe(200);
+    expect(diagnostics.json().loadedSources).toEqual(expect.any(Array));
+    expect(diagnostics.json().sourceConcurrency).toEqual(expect.any(Array));
+  });
+
   it("returns a client-generatable OpenAPI document", async () => {
     const response = await app.inject({ method: "GET", url: "/api/v1/openapi.json" });
     expect(response.statusCode).toBe(200);

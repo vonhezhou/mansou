@@ -6,6 +6,8 @@ import type { RouteContext } from "./types.js";
 export async function registerDebugRoutes(app: FastifyInstance, context: RouteContext) {
   app.get("/debug/runtime/compatibility", async () => ({ items: runtimeCompatibility }));
 
+  app.get("/debug/runtime/diagnostics", async () => context.runtime.diagnostics());
+
   app.get("/debug/:sourceKey/search", async (request) => {
     const params = z.object({ sourceKey: z.string() }).parse(request.params);
     const query = z.object({ keyword: z.string().default("test"), page: z.string().optional() }).parse(request.query);

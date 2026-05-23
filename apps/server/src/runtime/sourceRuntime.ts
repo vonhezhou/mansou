@@ -7,6 +7,7 @@ import { createRuntimeApi } from "./runtimeApi.js";
 import { fetchWithProxy } from "../utils/fetch.js";
 import { SourceCookieStore } from "./cookieStore.js";
 import { config } from "../config/config.js";
+import { classifyPluginError, PluginRuntimeError } from "./errors.js";
 
 let sourceDataStore = new SourceDataStore();
 
@@ -146,10 +147,13 @@ class PluginCallTimeoutError extends Error {
 }
 
 type SourceLimiter = { active: number; queue: Array<() => void> };
+type RuntimeDiagnostic = { time: string; sourceKey?: string; operation: string; code: string; message: string };
 
 export class SourceRuntime {
   private readonly sources = new Map<string, LoadedSource>();
   private readonly sourceLimiters = new Map<string, SourceLimiter>();
+  private readonly recentErrors: RuntimeDiagnostic[] = [];
+  private readonly failedLoads: RuntimeDiagnostic[] = [];
 
   constructor(
     private readonly repository = new SourceRepositoryService(),
@@ -166,6 +170,7 @@ export class SourceRuntime {
       try {
         loaded.push(await this.loadScript(filePath));
       } catch (error) {
+        this.recordError({ sourceKey: path.basename(filePath, ".js"), operation: "source.load", error });
         console.error(`Failed to load source ${filePath}:`, error);
       }
     }
@@ -249,8 +254,21 @@ export class SourceRuntime {
 
   find(sourceKey: string) {
     const source = this.sources.get(sourceKey);
-    if (!source) throw new Error(`Source not loaded: ${sourceKey}`);
+    if (!source) throw new PluginRuntimeError("SOURCE_NOT_LOADED", `Source not loaded: ${sourceKey}`, sourceKey);
     return source;
+  }
+
+  diagnostics() {
+    return {
+      loadedSources: this.all(),
+      failedLoads: this.failedLoads,
+      recentErrors: this.recentErrors,
+      sourceConcurrency: [...this.sourceLimiters.entries()].map(([sourceKey, limiter]) => ({
+        sourceKey,
+        active: limiter.active,
+        queued: limiter.queue.length,
+      })),
+    };
   }
 
   searchOptions(sourceKey: string) {
@@ -375,9 +393,26 @@ export class SourceRuntime {
     await this.acquireSourceSlot(sourceKey);
     try {
       return await withTimeout(Promise.resolve().then(task), config.pluginCallTimeoutMs, sourceKey, operation);
+    } catch (error) {
+      this.recordError({ sourceKey, operation, error });
+      throw classifyPluginError(error, sourceKey, operation);
     } finally {
       this.releaseSourceSlot(sourceKey);
     }
+  }
+
+  private recordError(input: { sourceKey?: string; operation: string; error: unknown }) {
+    const error = classifyPluginError(input.error, input.sourceKey, input.operation);
+    const diagnostic = {
+      time: new Date().toISOString(),
+      sourceKey: input.sourceKey,
+      operation: input.operation,
+      code: error.code,
+      message: error.message,
+    };
+    this.recentErrors.unshift(diagnostic);
+    if (this.recentErrors.length > 100) this.recentErrors.length = 100;
+    if (input.operation === "source.load") this.failedLoads.unshift(diagnostic);
   }
 
   private acquireSourceSlot(sourceKey: string) {

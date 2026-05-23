@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import { createStorage } from "@venera/storage";
 import { ZodError } from "zod";
+import { PluginRuntimeError } from "./runtime/errors.js";
 import { DownloadService } from "./services/downloadService.js";
 import { ImageProxyService } from "./services/imageProxy.js";
 import { SourceRepositoryService } from "./services/sourceRepository.js";
@@ -51,7 +52,7 @@ export async function buildApp() {
 
   app.setErrorHandler((error, request, reply) => {
     const statusCode = error instanceof ZodError ? 400 : ((error as { statusCode?: number }).statusCode ?? 500);
-    const code = error instanceof ZodError ? "VALIDATION_ERROR" : statusCode === 404 ? "NOT_FOUND" : "INTERNAL_ERROR";
+    const code = error instanceof ZodError ? "VALIDATION_ERROR" : error instanceof PluginRuntimeError ? error.code : statusCode === 404 ? "NOT_FOUND" : "INTERNAL_ERROR";
     request.log.error({ error }, "request failed");
     reply.status(statusCode).send({
       error: {
