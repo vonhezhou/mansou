@@ -81,4 +81,18 @@ describe("api v1 mock source", () => {
     expect(settings.statusCode).toBe(200);
     expect(settings.json().values).toMatchObject({ resultCount: 2 });
   });
+
+  it("stores reading history and reports cache stats", async () => {
+    const history = await app.inject({
+      method: "PUT",
+      url: "/api/v1/library/history/mock/mock-comic-1",
+      payload: { episodeId: "chapter-1", page: 2, progress: 0.4 },
+    });
+    expect(history.statusCode).toBe(200);
+    expect(history.json()).toMatchObject({ source_key: "mock", comic_id: "mock-comic-1", episode_id: "chapter-1", page: 2 });
+
+    const cache = await app.inject({ method: "GET", url: "/api/v1/settings/cache" });
+    expect(cache.statusCode).toBe(200);
+    expect(cache.json()).toMatchObject({ files: expect.any(Number), bytes: expect.any(Number) });
+  });
 });

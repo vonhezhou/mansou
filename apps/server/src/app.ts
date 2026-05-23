@@ -15,11 +15,13 @@ import { registerDebugRoutes } from "./routes/debug.js";
 import { registerDownloadRoutes } from "./routes/downloads.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerImageRoutes } from "./routes/images.js";
+import { registerLibraryRoutes } from "./routes/library.js";
 import { registerOpenApiRoutes } from "./routes/openapi.js";
 import { registerSearchRoutes } from "./routes/search.js";
 import { registerSourceRepositoryRoutes } from "./routes/sourceRepository.js";
 import { registerSourceRoutes } from "./routes/sources.js";
 import { registerStaticRoutes } from "./routes/static.js";
+import { registerSettingRoutes } from "./routes/settings.js";
 import type { RouteContext } from "./routes/types.js";
 
 export async function buildApp() {
@@ -31,7 +33,7 @@ export async function buildApp() {
   const runtime = new SourceRuntime(repository, dataStore, cookieStore);
   const imageProxy = new ImageProxyService(runtime);
   const downloads = new DownloadService(runtime, imageProxy, storage);
-  const context: RouteContext = { repository, runtime, imageProxy, downloads };
+  const context: RouteContext = { repository, runtime, imageProxy, downloads, storage };
 
   app.addHook("onClose", async () => {
     storage.close();
@@ -70,6 +72,8 @@ export async function buildApp() {
     await registerComicRoutes(api, context);
     await registerImageRoutes(api, context);
     await registerDownloadRoutes(api, context);
+    await registerLibraryRoutes(api, context);
+    await registerSettingRoutes(api, context);
     await registerDebugRoutes(api, context);
     await registerOpenApiRoutes(api);
   }, { prefix: "/api/v1" });

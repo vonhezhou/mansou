@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import path from "node:path";
-import { readFile, writeFile } from "node:fs/promises";
+import { readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { paths } from "../storage/paths.js";
 import { ensureDir } from "../utils/fs.js";
 import { SourceRuntime } from "../runtime/sourceRuntime.js";
@@ -71,6 +71,19 @@ export class ImageProxyService {
     };
   }
 
+  async cacheStats() {
+    const files = await listFiles(paths.imageCache);
+    let bytes = 0;
+    for (const file of files) bytes += (await stat(file)).size;
+    return { files: files.length, bytes };
+  }
+
+  async clearCache() {
+    await rm(paths.imageCache, { recursive: true, force: true });
+    await ensureDir(paths.imageCache);
+    return this.cacheStats();
+  }
+
   private cachePath(input: ImageProxyInput) {
     const hash = crypto.createHash("sha256").update(JSON.stringify(input)).digest("hex");
     return path.join(paths.imageCache, `${hash}.bin`);
@@ -82,6 +95,21 @@ export class ImageProxyService {
     if (data[0] === 0x47 && data[1] === 0x49 && data[2] === 0x46) return "image/gif";
     if (data[0] === 0x52 && data[1] === 0x49 && data[2] === 0x46 && data[3] === 0x46) return "image/webp";
     return "application/octet-stream";
+  }
+}
+
+async function listFiles(dir: string): Promise<string[]> {
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
+    const nested = await Promise.all(
+      entries.map((entry) => {
+        const fullPath = path.join(dir, entry.name);
+        return entry.isDirectory() ? listFiles(fullPath) : [fullPath];
+      }),
+    );
+    return nested.flat();
+  } catch {
+    return [];
   }
 }
 

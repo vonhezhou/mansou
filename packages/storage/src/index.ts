@@ -96,6 +96,23 @@ class AppStorage {
     });
     tx();
   }
+
+  listHistory() {
+    return this.db.prepare("select * from history order by updated_at desc limit 100").all();
+  }
+
+  getHistory(sourceKey: string, comicId: string) {
+    return this.db.prepare("select * from history where source_key = ? and comic_id = ?").get(sourceKey, comicId) ?? null;
+  }
+
+  saveHistory(input: { sourceKey: string; comicId: string; title?: string; cover?: string; episodeId?: string; page?: number; progress?: number }) {
+    const id = `${input.sourceKey}:${input.comicId}`;
+    const now = new Date().toISOString();
+    this.db
+      .prepare("insert into history(id, source_key, comic_id, episode_id, page, progress, updated_at) values (?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set episode_id = excluded.episode_id, page = excluded.page, progress = excluded.progress, updated_at = excluded.updated_at")
+      .run(id, input.sourceKey, input.comicId, input.episodeId ?? null, input.page ?? 0, input.progress ?? 0, now);
+    return this.getHistory(input.sourceKey, input.comicId);
+  }
 }
 
 function migrate(db: Database.Database) {

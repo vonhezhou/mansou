@@ -7,6 +7,7 @@ type Source = { key: string; name: string; version?: string; hasSearch?: boolean
 type SearchResult = { comics: Comic[]; maxPage?: number; next?: string | null };
 type Details = Comic & { comicId?: string; chapters?: Record<string, string>; thumbnails?: string[] };
 type DownloadTask = { id: string; title?: string; sourceKey: string; comicId: string; status: string; phase: string; total: number; completed: number; error?: string };
+type CacheStats = { files: number; bytes: number };
 
 const apiBase = "/api/v1";
 
@@ -37,13 +38,15 @@ function App() {
   const [episodeId, setEpisodeId] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [downloads, setDownloads] = useState<DownloadTask[]>([]);
+  const [cache, setCache] = useState<CacheStats | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void refresh();
-    const timer = window.setInterval(() => void loadDownloads(), 2500);
-    return () => window.clearInterval(timer);
+    const events = new EventSource(`${apiBase}/downloads/events`);
+    events.addEventListener("downloads", (event) => setDownloads(JSON.parse((event as MessageEvent).data)));
+    return () => events.close();
   }, []);
 
   async function run(task: () => Promise<void>) {
@@ -64,6 +67,7 @@ function App() {
       setSources(loaded);
       if (loaded[0] && !loaded.some((source) => source.key === sourceKey)) setSourceKey(loaded[0].key);
       await loadDownloads();
+      setCache(await api<CacheStats>("/settings/cache"));
     });
   }
 
@@ -94,6 +98,10 @@ function App() {
       const data = await api<{ images: string[] }>(`/comics/${sourceKey}/${encodeURIComponent(details.comicId ?? details.id)}/episodes/${encodeURIComponent(nextEpisodeId)}/pages`);
       setEpisodeId(nextEpisodeId);
       setImages(data.images ?? []);
+      await api(`/library/history/${sourceKey}/${encodeURIComponent(details.comicId ?? details.id)}`, {
+        method: "PUT",
+        body: JSON.stringify({ episodeId: nextEpisodeId, page: 0, progress: 0 }),
+      });
     });
   }
 
@@ -110,6 +118,10 @@ function App() {
 
   async function loadDownloads() {
     setDownloads(await api<DownloadTask[]>("/downloads"));
+  }
+
+  async function clearCache() {
+    await run(async () => setCache(await api<CacheStats>("/settings/cache/images", { method: "DELETE" })));
   }
 
   return (
@@ -157,6 +169,7 @@ function App() {
 
       <section className="panel downloads">
         <h2>下载任务</h2>
+        {cache && <p className="muted">图片缓存：{cache.files} 个文件，{(cache.bytes / 1024 / 1024).toFixed(2)} MB <button onClick={() => void clearCache()}>清理缓存</button></p>}
         {downloads.map((task) => <article key={task.id}><strong>{task.title ?? task.comicId}</strong><span>{task.status} / {task.phase}</span><progress value={task.completed} max={Math.max(task.total, 1)} />{task.error && <small>{task.error}</small>}</article>)}
       </section>
     </main>
