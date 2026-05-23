@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Venera Web</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Venera Web</h1>
+        <p>Comic source runtime PoC</p>
+      </div>
+      <nav>
+        <button data-view="search">搜索</button>
+        <button data-view="downloads">下载</button>
+        <button data-view="sources">源</button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="search-view" class="view active">
+        <form id="search-form" class="toolbar">
+          <input id="keyword" placeholder="关键词" value="test" />
+          <select id="source"></select>
+          <button type="submit">搜索</button>
+        </form>
+        <div id="results" class="grid"></div>
+      </section>
+
+      <section id="detail-view" class="view">
+        <button id="back-to-search">返回搜索</button>
+        <article id="detail"></article>
+      </section>
+
+      <section id="reader-view" class="view">
+        <button id="back-to-detail">返回详情</button>
+        <div id="reader"></div>
+      </section>
+
+      <section id="downloads-view" class="view">
+        <div class="toolbar">
+          <button id="refresh-downloads">刷新下载任务</button>
+          <label><input id="auto-refresh-downloads" type="checkbox" checked /> 自动刷新</label>
+        </div>
+        <div id="downloads"></div>
+      </section>
+
+      <section id="sources-view" class="view">
+        <div class="toolbar">
+          <button id="refresh-sources">刷新源列表</button>
+        </div>
+        <div id="sources"></div>
+      </section>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
