@@ -95,4 +95,25 @@ describe("api v1 mock source", () => {
     expect(cache.statusCode).toBe(200);
     expect(cache.json()).toMatchObject({ files: expect.any(Number), bytes: expect.any(Number) });
   });
+
+  it("persists per-image download items", async () => {
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/v1/downloads",
+      payload: { sourceKey: "mock", comicId: "mock-comic-resume", episodeId: "chapter-1" },
+    });
+    expect(created.statusCode).toBe(200);
+    const taskId = created.json().id as string;
+
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const task = await app.inject({ method: "GET", url: `/api/v1/downloads/${taskId}` });
+      if (task.json().status === "completed") break;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    const items = await app.inject({ method: "GET", url: `/api/v1/downloads/${taskId}/items` });
+    expect(items.statusCode).toBe(200);
+    expect(items.json()).toHaveLength(5);
+    expect(items.json()[0]).toMatchObject({ task_id: taskId, status: "completed" });
+  });
 });

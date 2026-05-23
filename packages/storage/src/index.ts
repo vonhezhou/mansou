@@ -104,8 +104,16 @@ class AppStorage {
       .run(id, input.taskId, input.imageKey, input.filePath ?? null, input.status, input.retryCount ?? 0, input.error ?? null, new Date().toISOString());
   }
 
+  getDownloadItem(taskId: string, imageKey: string) {
+    return this.db.prepare("select * from download_items where task_id = ? and image_key = ?").get(taskId, imageKey) ?? null;
+  }
+
   listDownloadItems(taskId: string) {
     return this.db.prepare("select * from download_items where task_id = ? order by id asc").all(taskId);
+  }
+
+  deleteDownloadItems(taskId: string) {
+    this.db.prepare("delete from download_items where task_id = ?").run(taskId);
   }
 
   listHistory() {

@@ -1,5 +1,5 @@
 import path from "node:path";
-import { readdir, rm, stat, writeFile } from "node:fs/promises";
+import { access, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import yazl from "yazl";
@@ -54,18 +54,17 @@ export class DownloadService {
   async init() {
     const tasks = (this.storage?.listDownloads() as DownloadTask[] | undefined) ?? (await readJson<DownloadTask[]>(paths.downloadTasks, []));
     for (const task of tasks) {
+      const shouldResume = task.status === "running" || task.status === "queued";
       this.tasks.set(task.id, {
         ...task,
-        status: task.status === "running" || task.status === "queued" ? "failed" : task.status,
-        phase: task.status === "running" || task.status === "queued" ? "failed" : (task.phase ?? task.status),
+        status: shouldResume ? "queued" : task.status,
+        phase: shouldResume ? "queued" : (task.phase ?? task.status),
         logs: task.logs ?? [],
-        error:
-          task.status === "running" || task.status === "queued"
-            ? "Interrupted by server restart"
-            : task.error,
+        error: shouldResume ? undefined : task.error,
       });
     }
     await this.saveTasks();
+    this.processQueue();
   }
 
   create(input: { sourceKey: string; comicId: string; episodeId?: string; all?: boolean }) {
@@ -130,6 +129,7 @@ export class DownloadService {
     if (!task) return null;
     this.cancel(id);
     this.tasks.delete(id);
+    this.storage?.deleteDownloadItems(id);
     this.cancelledTasks.delete(id);
     this.activeTasks.delete(id);
     await this.saveTasks();
@@ -193,7 +193,7 @@ export class DownloadService {
       }
       const total = chapterPages.reduce((sum, item) => sum + item.pages.images.length, 0);
       this.throwIfCancelled(task);
-      this.update(task, { title, episodeId: task.all ? "__all__" : episodeIds[0], total, outputDir });
+      this.update(task, { title, episodeId: task.all ? "__all__" : episodeIds[0], total, completed: 0, outputDir });
 
       for (const item of chapterPages) {
         const chapterTitle = chapters?.[item.episodeId] ?? item.episodeId;
@@ -254,6 +254,12 @@ export class DownloadService {
         if (index >= images.length) return;
         this.throwIfCancelled(task);
         const imageKey = images[index];
+        const completedFile = await this.completedFilePath(task.id, imageKey);
+        if (completedFile) {
+          this.storage?.saveDownloadItem({ taskId: task.id, imageKey, filePath: completedFile, status: "completed" });
+          this.update(task, { completed: task.completed + 1 });
+          continue;
+        }
         this.update(task, { current: imageKey });
         const filePath = await this.downloadImageWithRetry(task, imageKey, episodeId, outputDir, index);
         this.storage?.saveDownloadItem({ taskId: task.id, imageKey, filePath, status: "completed" });
@@ -293,6 +299,17 @@ export class DownloadService {
       }
     }
     throw lastError;
+  }
+
+  private async completedFilePath(taskId: string, imageKey: string) {
+    const item = this.storage?.getDownloadItem(taskId, imageKey) as { status?: string; file_path?: string } | null | undefined;
+    if (item?.status !== "completed" || !item.file_path) return null;
+    try {
+      await access(item.file_path);
+      return item.file_path;
+    } catch {
+      return null;
+    }
   }
 
   private async saveTasks() {
