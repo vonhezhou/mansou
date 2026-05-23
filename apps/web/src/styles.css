@@ -6,10 +6,11 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; }
-button, input, select { font: inherit; }
+button, input, select, textarea { font: inherit; }
 button { border: 0; border-radius: 999px; padding: 0.75rem 1rem; background: #8b5cf6; color: white; cursor: pointer; }
 button:disabled { cursor: wait; opacity: 0.65; }
-input, select { width: 100%; border: 1px solid #334155; border-radius: 14px; padding: 0.75rem; color: #e5ecff; background: #101a33; }
+input, select, textarea { width: 100%; border: 1px solid #334155; border-radius: 14px; padding: 0.75rem; color: #e5ecff; background: #101a33; }
+textarea { min-height: 120px; resize: vertical; }
 
 .shell { width: min(1440px, 100%); margin: 0 auto; padding: 24px; }
 .hero { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: end; padding: 32px; border-radius: 32px; background: radial-gradient(circle at top left, #7c3aed 0, transparent 34%), linear-gradient(135deg, #172554, #020617); box-shadow: 0 24px 80px #020617; }
@@ -25,6 +26,8 @@ input, select { width: 100%; border: 1px solid #334155; border-radius: 14px; pad
 .comic-card span, .muted { color: #94a3b8; }
 .details h3 { font-size: 1.7rem; margin-bottom: 0.25rem; }
 .chips, .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.tool-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 12px; align-items: end; }
+.settings-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 0.6fr) auto; gap: 12px; align-items: end; margin-top: 14px; }
 .chips button { background: #1e293b; }
 .chips button.active { background: #0ea5e9; }
 .reader { display: grid; gap: 16px; justify-items: center; }
@@ -37,6 +40,7 @@ input, select { width: 100%; border: 1px solid #334155; border-radius: 14px; pad
 @media (max-width: 820px) {
   .shell { padding: 12px; }
   .hero, .controls, .grid { grid-template-columns: 1fr; }
+  .tool-row, .settings-grid { grid-template-columns: 1fr; }
   .hero { padding: 24px; border-radius: 24px; }
   .panel { border-radius: 22px; }
   .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }

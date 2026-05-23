@@ -4,10 +4,12 @@ import type { Comic } from "@venera/contracts";
 import "./styles.css";
 
 type Source = { key: string; name: string; version?: string; hasSearch?: boolean; hasComic?: boolean };
+type RepositorySource = { key?: string; name: string; version?: string; description?: string; fileName?: string; filename?: string };
 type SearchResult = { comics: Comic[]; maxPage?: number; next?: string | null };
 type Details = Comic & { comicId?: string; chapters?: Record<string, string>; thumbnails?: string[] };
-type DownloadTask = { id: string; title?: string; sourceKey: string; comicId: string; status: string; phase: string; total: number; completed: number; error?: string };
+type DownloadTask = { id: string; title?: string; sourceKey: string; comicId: string; status: string; phase: string; total: number; completed: number; error?: string; logs?: Array<{ time: string; phase: string; message: string }> };
 type CacheStats = { files: number; bytes: number };
+type SettingsResponse = { schema: Record<string, { default?: unknown }>; values: Record<string, unknown> };
 
 const apiBase = "/api/v1";
 
@@ -42,9 +44,19 @@ function imageUrl(sourceKey: string, imageKey: string, comicId?: string, episode
   return withAccessToken(`${apiBase}/image?${params}`);
 }
 
+function comicDetailPath(sourceKey: string, comicId: string) {
+  return `/comics/${sourceKey}/detail?comicId=${encodeURIComponent(comicId)}`;
+}
+
+function episodePagesPath(sourceKey: string, comicId: string, episodeId: string) {
+  return `/comics/${sourceKey}/pages?comicId=${encodeURIComponent(comicId)}&episodeId=${encodeURIComponent(episodeId)}`;
+}
+
 function App() {
   const [sources, setSources] = useState<Source[]>([]);
+  const [availableSources, setAvailableSources] = useState<RepositorySource[]>([]);
   const [sourceKey, setSourceKey] = useState("mock");
+  const [installSource, setInstallSource] = useState("");
   const [keyword, setKeyword] = useState("test");
   const [results, setResults] = useState<Comic[]>([]);
   const [details, setDetails] = useState<Details | null>(null);
@@ -52,6 +64,10 @@ function App() {
   const [images, setImages] = useState<string[]>([]);
   const [downloads, setDownloads] = useState<DownloadTask[]>([]);
   const [cache, setCache] = useState<CacheStats | null>(null);
+  const [sourceSettings, setSourceSettings] = useState<SettingsResponse | null>(null);
+  const [settingsJson, setSettingsJson] = useState("{}");
+  const [cookieUrl, setCookieUrl] = useState("");
+  const [cookieText, setCookieText] = useState("");
   const [accessToken, setAccessToken] = useState(getAccessToken());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +94,9 @@ function App() {
   async function refresh() {
     await run(async () => {
       const loaded = await api<Source[]>("/sources");
+      const repository = await api<{ sources: RepositorySource[] }>("/source-repository");
       setSources(loaded);
+      setAvailableSources(repository.sources ?? []);
       if (loaded[0] && !loaded.some((source) => source.key === sourceKey)) setSourceKey(loaded[0].key);
       await loadDownloads();
       setCache(await api<CacheStats>("/settings/cache"));
@@ -98,7 +116,7 @@ function App() {
 
   async function openComic(comic: Comic) {
     await run(async () => {
-      const data = await api<Details>(`/comics/${sourceKey}/${encodeURIComponent(comic.id)}`);
+      const data = await api<Details>(comicDetailPath(sourceKey, comic.id));
       const firstEpisode = Object.keys(data.chapters ?? {})[0] ?? "_default";
       setDetails(data);
       setEpisodeId(firstEpisode);
@@ -106,10 +124,48 @@ function App() {
     });
   }
 
+  async function loadSourceSettings(nextSourceKey = sourceKey) {
+    await run(async () => {
+      const data = await api<SettingsResponse>(`/sources/${nextSourceKey}/settings`);
+      setSourceSettings(data);
+      setSettingsJson(JSON.stringify(data.values ?? {}, null, 2));
+    });
+  }
+
+  async function saveSourceSettings() {
+    await run(async () => {
+      await api(`/sources/${sourceKey}/settings`, { method: "PUT", body: JSON.stringify({ values: JSON.parse(settingsJson) }) });
+      await loadSourceSettings(sourceKey);
+    });
+  }
+
+  async function importCookies() {
+    await run(async () => {
+      const cookies = cookieText.split("\n").map((line) => line.trim()).filter(Boolean);
+      await api(`/sources/${sourceKey}/cookies`, { method: "PUT", body: JSON.stringify({ url: cookieUrl, cookies }) });
+      setCookieText("");
+    });
+  }
+
+  async function installSelectedSource() {
+    if (!installSource) return;
+    await run(async () => {
+      await api("/sources/install", { method: "POST", body: JSON.stringify({ source: installSource }) });
+      await refresh();
+    });
+  }
+
+  async function refreshRepository() {
+    await run(async () => {
+      const data = await api<{ sources: RepositorySource[] }>("/source-repository/refresh", { method: "POST" });
+      setAvailableSources(data.sources ?? []);
+    });
+  }
+
   async function readEpisode(nextEpisodeId = episodeId) {
     if (!details || !nextEpisodeId) return;
     await run(async () => {
-      const data = await api<{ images: string[] }>(`/comics/${sourceKey}/${encodeURIComponent(details.comicId ?? details.id)}/episodes/${encodeURIComponent(nextEpisodeId)}/pages`);
+      const data = await api<{ images: string[] }>(episodePagesPath(sourceKey, details.comicId ?? details.id, nextEpisodeId));
       setEpisodeId(nextEpisodeId);
       setImages(data.images ?? []);
       await api(`/library/history/${sourceKey}/${encodeURIComponent(details.comicId ?? details.id)}`, {
@@ -138,6 +194,20 @@ function App() {
     await run(async () => setCache(await api<CacheStats>("/settings/cache/images", { method: "DELETE" })));
   }
 
+  async function downloadAction(task: DownloadTask, action: "cancel" | "rerun" | "cbz" | "delete" | "delete-files") {
+    await run(async () => {
+      if (action === "cancel") await api(`/downloads/${task.id}/cancel`, { method: "POST" });
+      if (action === "rerun") await api(`/downloads/${task.id}/rerun`, { method: "POST" });
+      if (action === "cbz") {
+        const result = await api<{ path: string }>(`/downloads/${task.id}/cbz`, { method: "POST" });
+        window.alert(`CBZ: ${result.path}`);
+      }
+      if (action === "delete") await api(`/downloads/${task.id}`, { method: "DELETE" });
+      if (action === "delete-files") await api(`/downloads/${task.id}?files=true`, { method: "DELETE" });
+      await loadDownloads();
+    });
+  }
+
   function saveAccessToken(value: string) {
     setAccessToken(value);
     if (value) window.localStorage.setItem("venera_access_token", value);
@@ -162,6 +232,18 @@ function App() {
         <label>关键词<input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="输入关键词" /></label>
         <label>访问 Token<input value={accessToken} onChange={(event) => saveAccessToken(event.target.value)} placeholder="可选" type="password" /></label>
         <button onClick={() => void search()} disabled={busy || !sourceKey}>搜索</button>
+      </section>
+
+      <section className="panel source-tools">
+        <h2>源管理</h2>
+        <div className="tool-row">
+          <label>可安装源<select value={installSource} onChange={(event) => setInstallSource(event.target.value)}><option value="">选择源</option>{availableSources.map((source) => <option key={source.key ?? source.fileName ?? source.name} value={source.key ?? source.fileName ?? source.name}>{source.name} ({source.key ?? source.fileName ?? source.filename})</option>)}</select></label>
+          <button onClick={() => void installSelectedSource()} disabled={busy || !installSource}>安装/更新</button>
+          <button onClick={() => void refreshRepository()} disabled={busy}>刷新仓库</button>
+          <button onClick={() => void loadSourceSettings()} disabled={busy || !sourceKey}>加载设置</button>
+        </div>
+        {sourceSettings && <div className="settings-grid"><label>源设置 JSON<textarea value={settingsJson} onChange={(event) => setSettingsJson(event.target.value)} /></label><div><p className="muted">配置项：{Object.keys(sourceSettings.schema ?? {}).join(", ") || "无"}</p><button onClick={() => void saveSourceSettings()} disabled={busy}>保存设置</button></div></div>}
+        <div className="settings-grid"><label>Cookie URL<input value={cookieUrl} onChange={(event) => setCookieUrl(event.target.value)} placeholder="https://example.com" /></label><label>Cookie 每行一条<textarea value={cookieText} onChange={(event) => setCookieText(event.target.value)} placeholder="name=value; Domain=..." /></label><button onClick={() => void importCookies()} disabled={busy || !cookieUrl || !cookieText}>导入 Cookie</button></div>
       </section>
 
       <section className="grid">
@@ -191,7 +273,7 @@ function App() {
       <section className="panel downloads">
         <h2>下载任务</h2>
         {cache && <p className="muted">图片缓存：{cache.files} 个文件，{(cache.bytes / 1024 / 1024).toFixed(2)} MB <button onClick={() => void clearCache()}>清理缓存</button></p>}
-        {downloads.map((task) => <article key={task.id}><strong>{task.title ?? task.comicId}</strong><span>{task.status} / {task.phase}</span><progress value={task.completed} max={Math.max(task.total, 1)} />{task.error && <small>{task.error}</small>}</article>)}
+        {downloads.map((task) => <article key={task.id}><strong>{task.title ?? task.comicId}</strong><span>{task.status} / {task.phase}</span><progress value={task.completed} max={Math.max(task.total, 1)} />{task.error && <small>{task.error}</small>}<div className="actions"><button onClick={() => void downloadAction(task, "cancel")}>取消</button><button onClick={() => void downloadAction(task, "rerun")}>重跑</button><button onClick={() => void downloadAction(task, "cbz")}>导出 CBZ</button><button onClick={() => void downloadAction(task, "delete")}>删除</button><button onClick={() => void downloadAction(task, "delete-files")}>删除+文件</button></div>{task.logs?.length ? <small className="muted">{task.logs.at(-1)?.message}</small> : null}</article>)}
       </section>
     </main>
   );

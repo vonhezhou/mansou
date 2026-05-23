@@ -43,7 +43,7 @@ export class ImageProxyService {
     if (input.thumbnail) {
       loadingConfig = loadedSource.getThumbnailLoadingConfig?.(input.imageKey) ?? {};
     } else {
-      const loader = loadedSource.comic?.getImageLoadingConfig ?? loadedSource.getImageLoadingConfig;
+      const loader = loadedSource.comic?.getImageLoadingConfig ?? loadedSource.comic?.onImageLoad ?? loadedSource.getImageLoadingConfig;
       loadingConfig = (await loader?.(input.imageKey, input.comicId ?? "", input.episodeId ?? null)) ?? {};
     }
 

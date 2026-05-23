@@ -37,7 +37,7 @@ export type ComicDetails = {
   subTitle?: string;
   description?: string;
   tags?: Record<string, string[]>;
-  chapters?: Record<string, string> | Record<string, Record<string, string>>;
+  chapters?: Record<string, string>;
   thumbnails?: string[];
   recommend?: Comic[];
   uploader?: string;
@@ -75,6 +75,7 @@ export type VeneraComicSource = {
     loadInfo?: (id: string) => Promise<Record<string, unknown>> | Record<string, unknown>;
     loadEp?: (id: string, ep?: string | null) => Promise<{ images: string[] }> | { images: string[] };
     getImageLoadingConfig?: (imageKey: string, comicId: string, epId: string | null) => Promise<Record<string, unknown>> | Record<string, unknown>;
+    onImageLoad?: (imageKey: string, comicId: string, epId: string | null) => Promise<Record<string, unknown>> | Record<string, unknown>;
   };
   getImageLoadingConfig?: (imageKey: string, comicId: string, epId: string | null) => Promise<Record<string, unknown>> | Record<string, unknown>;
   getThumbnailLoadingConfig?: (imageKey: string) => Record<string, unknown>;

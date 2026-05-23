@@ -81,6 +81,21 @@ function normalizeValue(value: unknown): unknown {
   return value;
 }
 
+function normalizeChapters(chapters: unknown): Record<string, string> | undefined {
+  if (!chapters || typeof chapters !== "object" || Array.isArray(chapters)) return undefined;
+  const flattened: Record<string, string> = {};
+  for (const [key, value] of Object.entries(chapters as Record<string, unknown>)) {
+    if (typeof value === "string") {
+      flattened[key] = value;
+    } else if (value && typeof value === "object" && !Array.isArray(value)) {
+      for (const [episodeId, title] of Object.entries(value as Record<string, unknown>)) {
+        if (typeof title === "string") flattened[episodeId] = title;
+      }
+    }
+  }
+  return Object.keys(flattened).length > 0 ? flattened : undefined;
+}
+
 export class SourceRuntime {
   private readonly sources = new Map<string, LoadedSource>();
 
@@ -236,7 +251,8 @@ export class SourceRuntime {
     const source = this.find(sourceKey).instance;
     if (!source.comic?.loadInfo) throw new Error(`Source does not support comic details: ${sourceKey}`);
     const raw = await source.comic.loadInfo(comicId);
-    return { ...(normalizeValue(raw) as ComicDetails), sourceKey, comicId };
+    const normalized = normalizeValue(raw) as ComicDetails;
+    return { ...normalized, chapters: normalizeChapters(normalized.chapters), sourceKey, comicId };
   }
 
   async comicPages(sourceKey: string, comicId: string, episodeId?: string | null) {
