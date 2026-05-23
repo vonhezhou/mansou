@@ -42,7 +42,8 @@ export async function buildApp() {
   app.addHook("onRequest", async (request, reply) => {
     if (!config.accessToken || request.url === "/health" || request.url === "/api/v1/health" || request.url.startsWith("/assets/") || request.url === "/") return;
     const header = request.headers.authorization;
-    const token = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : request.headers["x-venera-token"];
+    const queryToken = (request.query as { access_token?: string } | undefined)?.access_token;
+    const token = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : request.headers["x-venera-token"] ?? queryToken;
     if (token !== config.accessToken) {
       reply.code(401).send({ error: { code: "UNAUTHORIZED", message: "Access token required", requestId: request.id } });
     }

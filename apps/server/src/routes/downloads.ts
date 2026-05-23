@@ -32,6 +32,15 @@ export async function registerDownloadRoutes(app: FastifyInstance, context: Rout
     return task;
   });
 
+  app.get("/downloads/:taskId/items", async (request, reply) => {
+    const params = z.object({ taskId: z.string() }).parse(request.params);
+    if (!context.downloads.find(params.taskId)) {
+      reply.code(404);
+      return { error: { code: "DOWNLOAD_NOT_FOUND", message: "Download task not found", requestId: request.id } };
+    }
+    return context.storage.listDownloadItems(params.taskId);
+  });
+
   app.post("/downloads/:taskId/rerun", async (request, reply) => {
     const params = z.object({ taskId: z.string() }).parse(request.params);
     const task = context.downloads.rerun(params.taskId);

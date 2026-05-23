@@ -255,7 +255,8 @@ export class DownloadService {
         this.throwIfCancelled(task);
         const imageKey = images[index];
         this.update(task, { current: imageKey });
-        await this.downloadImageWithRetry(task, imageKey, episodeId, outputDir, index);
+        const filePath = await this.downloadImageWithRetry(task, imageKey, episodeId, outputDir, index);
+        this.storage?.saveDownloadItem({ taskId: task.id, imageKey, filePath, status: "completed" });
         this.throwIfCancelled(task);
         this.update(task, { completed: task.completed + 1 });
       }
@@ -282,9 +283,10 @@ export class DownloadService {
         const ext = extensionFromContentType(image.contentType, imageKey);
         const file = path.join(outputDir, `${String(index + 1).padStart(4, "0")}${ext}`);
         await writeFile(file, image.data);
-        return;
+        return file;
       } catch (error) {
         lastError = error;
+        this.storage?.saveDownloadItem({ taskId: task.id, imageKey, status: "failed", retryCount: attempt, error: error instanceof Error ? error.message : String(error) });
         if (attempt < Math.max(1, config.downloadRetries)) {
           await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
         }

@@ -17,7 +17,7 @@ input, select { width: 100%; border: 1px solid #334155; border-radius: 14px; pad
 .hero p { max-width: 720px; color: #cbd5e1; }
 .eyebrow { margin: 0 0 12px; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.2em; }
 .panel { margin-top: 20px; padding: 20px; border: 1px solid #1f2a44; border-radius: 28px; background: rgba(15, 23, 42, 0.82); backdrop-filter: blur(18px); }
-.controls { display: grid; grid-template-columns: 220px 1fr auto; gap: 16px; align-items: end; }
+.controls { display: grid; grid-template-columns: 220px 1fr 220px auto; gap: 16px; align-items: end; }
 .grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
 .comic-card { display: grid; gap: 10px; text-align: left; border-radius: 22px; background: #111c34; color: #e5ecff; }

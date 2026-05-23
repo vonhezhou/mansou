@@ -97,6 +97,17 @@ class AppStorage {
     tx();
   }
 
+  saveDownloadItem(input: { taskId: string; imageKey: string; filePath?: string; status: string; retryCount?: number; error?: string }) {
+    const id = `${input.taskId}:${input.imageKey}`;
+    this.db
+      .prepare("insert into download_items(id, task_id, image_key, file_path, status, retry_count, error, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set file_path = excluded.file_path, status = excluded.status, retry_count = excluded.retry_count, error = excluded.error, updated_at = excluded.updated_at")
+      .run(id, input.taskId, input.imageKey, input.filePath ?? null, input.status, input.retryCount ?? 0, input.error ?? null, new Date().toISOString());
+  }
+
+  listDownloadItems(taskId: string) {
+    return this.db.prepare("select * from download_items where task_id = ? order by id asc").all(taskId);
+  }
+
   listHistory() {
     return this.db.prepare("select * from history order by updated_at desc limit 100").all();
   }

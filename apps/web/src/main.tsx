@@ -11,9 +11,22 @@ type CacheStats = { files: number; bytes: number };
 
 const apiBase = "/api/v1";
 
+function getAccessToken() {
+  return window.localStorage.getItem("venera_access_token") ?? "";
+}
+
+function withAccessToken(url: string) {
+  const token = getAccessToken();
+  if (!token) return url;
+  const next = new URL(url, window.location.origin);
+  next.searchParams.set("access_token", token);
+  return `${next.pathname}${next.search}`;
+}
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getAccessToken();
   const response = await fetch(`${apiBase}${path}`, {
-    headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
+    headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}), ...(init?.headers ?? {}) },
     ...init,
   });
   const contentType = response.headers.get("content-type") ?? "";
@@ -26,7 +39,7 @@ function imageUrl(sourceKey: string, imageKey: string, comicId?: string, episode
   const params = new URLSearchParams({ sourceKey, imageKey, thumbnail: String(thumbnail) });
   if (comicId) params.set("comicId", comicId);
   if (episodeId) params.set("episodeId", episodeId);
-  return `${apiBase}/image?${params}`;
+  return withAccessToken(`${apiBase}/image?${params}`);
 }
 
 function App() {
@@ -39,15 +52,16 @@ function App() {
   const [images, setImages] = useState<string[]>([]);
   const [downloads, setDownloads] = useState<DownloadTask[]>([]);
   const [cache, setCache] = useState<CacheStats | null>(null);
+  const [accessToken, setAccessToken] = useState(getAccessToken());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void refresh();
-    const events = new EventSource(`${apiBase}/downloads/events`);
+    const events = new EventSource(withAccessToken(`${apiBase}/downloads/events`));
     events.addEventListener("downloads", (event) => setDownloads(JSON.parse((event as MessageEvent).data)));
     return () => events.close();
-  }, []);
+  }, [accessToken]);
 
   async function run(task: () => Promise<void>) {
     setBusy(true);
@@ -124,6 +138,12 @@ function App() {
     await run(async () => setCache(await api<CacheStats>("/settings/cache/images", { method: "DELETE" })));
   }
 
+  function saveAccessToken(value: string) {
+    setAccessToken(value);
+    if (value) window.localStorage.setItem("venera_access_token", value);
+    else window.localStorage.removeItem("venera_access_token");
+  }
+
   return (
     <main className="shell">
       <header className="hero">
@@ -140,6 +160,7 @@ function App() {
       <section className="panel controls">
         <label>源<select value={sourceKey} onChange={(event) => setSourceKey(event.target.value)}>{sources.map((source) => <option key={source.key} value={source.key}>{source.name} ({source.key})</option>)}</select></label>
         <label>关键词<input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="输入关键词" /></label>
+        <label>访问 Token<input value={accessToken} onChange={(event) => saveAccessToken(event.target.value)} placeholder="可选" type="password" /></label>
         <button onClick={() => void search()} disabled={busy || !sourceKey}>搜索</button>
       </section>
 
