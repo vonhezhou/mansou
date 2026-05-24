@@ -156,5 +156,13 @@ describe("api v1 mock source", () => {
     expect(items.statusCode).toBe(200);
     expect(items.json()).toHaveLength(5);
     expect(items.json()[0]).toMatchObject({ task_id: taskId, status: "completed" });
+
+    const retry = await app.inject({
+      method: "POST",
+      url: `/api/v1/downloads/${taskId}/items/retry`,
+      payload: { imageKey: items.json()[0].image_key },
+    });
+    expect(retry.statusCode).toBe(200);
+    expect(retry.json().item).toMatchObject({ task_id: taskId, status: "completed" });
   });
 });

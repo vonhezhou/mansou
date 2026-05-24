@@ -145,6 +145,40 @@ export class DownloadService {
     return task;
   }
 
+  async retryImage(id: string, imageKey: string) {
+    const task = this.tasks.get(id);
+    if (!task) return null;
+    const completedFile = await this.completedFilePath(task.id, imageKey);
+    if (completedFile) {
+      this.storage?.saveDownloadItem({ taskId: task.id, imageKey, filePath: completedFile, status: "completed" });
+      return { task, item: this.storage?.getDownloadItem(task.id, imageKey) ?? { task_id: task.id, image_key: imageKey, file_path: completedFile, status: "completed" } };
+    }
+
+    const details = await this.runtime.comicDetails(task.sourceKey, task.comicId);
+    const title = details.title || task.comicId;
+    const chapters = details.chapters as Record<string, string> | undefined;
+    const episodeIds = task.all || task.episodeId === "__all__"
+      ? Object.keys(chapters ?? { _default: "默认章节" })
+      : [task.episodeId === "_default" ? Object.keys(chapters ?? {})[0] ?? "_default" : task.episodeId];
+    const comicDir = path.join(paths.downloads, safeFilename(task.sourceKey), safeFilename(`${title}_${task.comicId}`));
+    const baseOutputDir = task.all || task.episodeId === "__all__" ? comicDir : path.join(comicDir, safeFilename(chapters?.[episodeIds[0]] ?? episodeIds[0]));
+
+    for (const episodeId of episodeIds) {
+      const pages = await this.runtime.comicPages(task.sourceKey, task.comicId, episodeId);
+      const index = pages.images.indexOf(imageKey);
+      if (index < 0) continue;
+      const chapterDir = task.all || task.episodeId === "__all__" ? path.join(comicDir, safeFilename(chapters?.[episodeId] ?? episodeId)) : baseOutputDir;
+      await ensureDir(chapterDir);
+      this.addLog(task, "downloading_images", `Retrying image ${imageKey}`);
+      const filePath = await this.downloadImageWithRetry(task, imageKey, episodeId, chapterDir, index);
+      this.storage?.saveDownloadItem({ taskId: task.id, imageKey, filePath, status: "completed" });
+      if (task.completed < task.total) this.update(task, { completed: task.completed + 1 });
+      return { task, item: this.storage?.getDownloadItem(task.id, imageKey) ?? { task_id: task.id, image_key: imageKey, file_path: filePath, status: "completed" } };
+    }
+
+    throw new Error(`Image not found in task episodes: ${imageKey}`);
+  }
+
   private processQueue() {
     const limit = Math.max(1, config.downloadTaskConcurrency);
     while (this.activeTasks.size < limit) {

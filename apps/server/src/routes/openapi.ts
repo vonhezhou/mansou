@@ -102,6 +102,9 @@ export const openApiDocument = {
     "/api/v1/downloads/{taskId}/items": {
       get: { operationId: "listDownloadItems", tags: ["downloads"], parameters: [stringParam("taskId")], responses: { "200": response({ type: "array", items: { $ref: "#/components/schemas/DownloadItem" } }), "404": { $ref: "#/components/responses/Error" } } },
     },
+    "/api/v1/downloads/{taskId}/items/retry": {
+      post: { operationId: "retryDownloadImage", tags: ["downloads"], parameters: [stringParam("taskId")], requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { imageKey: { type: "string" } }, required: ["imageKey"] } } } }, responses: { "200": response({ type: "object", properties: { task: { $ref: "#/components/schemas/DownloadTask" }, item: { $ref: "#/components/schemas/DownloadItem" } }, required: ["task", "item"] }), "404": { $ref: "#/components/responses/Error" } } },
+    },
     "/api/v1/downloads/{taskId}/cancel": {
       post: { operationId: "cancelDownload", tags: ["downloads"], parameters: [stringParam("taskId")], responses: { "200": response({ $ref: "#/components/schemas/DownloadTask" }), "404": { $ref: "#/components/responses/Error" } } },
     },
