@@ -87,7 +87,7 @@ export class DownloadService {
       updatedAt: now,
     };
     this.tasks.set(task.id, task);
-    void this.saveTasks();
+    this.saveTask(task);
     this.processQueue();
     return task;
   }
@@ -133,9 +133,10 @@ export class DownloadService {
     this.cancel(id);
     this.tasks.delete(id);
     this.storage?.deleteDownloadItems(id);
+    this.storage?.deleteDownload(id);
     this.cancelledTasks.delete(id);
     this.activeTasks.delete(id);
-    await this.saveTasks();
+    if (!this.storage) await this.saveTasks();
     if (deleteFiles && task.outputDir) {
       await rm(task.outputDir, { recursive: true, force: true });
       await rm(`${task.outputDir}.cbz`, { force: true });
@@ -239,12 +240,20 @@ export class DownloadService {
 
   private update(task: DownloadTask, patch: Partial<DownloadTask>) {
     Object.assign(task, patch, { updatedAt: new Date().toISOString() });
-    void this.saveTasks();
+    this.saveTask(task);
   }
 
   private addLog(task: DownloadTask, phase: DownloadPhase, message: string) {
     task.logs.push({ time: new Date().toISOString(), phase, message });
     if (task.logs.length > 100) task.logs.splice(0, task.logs.length - 100);
+    this.saveTask(task);
+  }
+
+  private saveTask(task: DownloadTask) {
+    if (this.storage) {
+      this.storage.saveDownload(task as unknown as Record<string, unknown>);
+      return;
+    }
     void this.saveTasks();
   }
 

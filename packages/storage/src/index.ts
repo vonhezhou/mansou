@@ -95,6 +95,25 @@ class AppStorage {
     return rows.map((row) => JSON.parse(row.task_json));
   }
 
+  saveDownload(task: Record<string, unknown>) {
+    this.db
+      .prepare("insert into downloads(id, source_key, comic_id, episode_id, status, task_json, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set source_key = excluded.source_key, comic_id = excluded.comic_id, episode_id = excluded.episode_id, status = excluded.status, task_json = excluded.task_json, updated_at = excluded.updated_at")
+      .run(
+        String(task.id),
+        String(task.sourceKey),
+        String(task.comicId),
+        String(task.episodeId ?? ""),
+        String(task.status),
+        JSON.stringify(task),
+        String(task.createdAt),
+        String(task.updatedAt),
+      );
+  }
+
+  deleteDownload(id: string) {
+    this.db.prepare("delete from downloads where id = ?").run(id);
+  }
+
   saveDownloads(tasks: Array<Record<string, unknown>>) {
     const insert = this.db.prepare("insert into downloads(id, source_key, comic_id, episode_id, status, task_json, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set source_key = excluded.source_key, comic_id = excluded.comic_id, episode_id = excluded.episode_id, status = excluded.status, task_json = excluded.task_json, updated_at = excluded.updated_at");
     const tx = this.db.transaction(() => {
