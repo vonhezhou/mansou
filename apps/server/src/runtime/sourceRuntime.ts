@@ -8,6 +8,7 @@ import { fetchWithProxy } from "../utils/fetch.js";
 import { SourceCookieStore } from "./cookieStore.js";
 import { config } from "../config/config.js";
 import { classifyPluginError, PluginRuntimeError } from "./errors.js";
+import { WorkerSourceRuntimeAdapter } from "./workerSourceRuntime.js";
 
 let sourceDataStore = new SourceDataStore();
 
@@ -151,6 +152,7 @@ type RuntimeDiagnostic = { time: string; sourceKey?: string; operation: string; 
 
 export class SourceRuntime {
   private readonly sources = new Map<string, LoadedSource>();
+  private readonly workerSources = new Map<string, WorkerSourceRuntimeAdapter>();
   private readonly sourceLimiters = new Map<string, SourceLimiter>();
   private readonly recentErrors: RuntimeDiagnostic[] = [];
   private readonly failedLoads: RuntimeDiagnostic[] = [];
@@ -182,6 +184,12 @@ export class SourceRuntime {
   }
 
   async loadScript(filePath: string) {
+    if (config.pluginIsolation === "worker") {
+      const adapter = await WorkerSourceRuntimeAdapter.load(filePath);
+      this.workerSources.set(adapter.source.key, adapter);
+      this.sources.set(adapter.source.key, adapter.source);
+      return adapter.source;
+    }
     const script = await this.repository.readScript(filePath);
     const className = findClassName(script);
     const preludeSourceKey = path.basename(filePath, ".js");
@@ -252,8 +260,8 @@ export class SourceRuntime {
     return [...this.sources.values()].map(({ instance: _instance, ...source }) => ({
       ...source,
       enabled: true,
-      hasSearch: Boolean(_instance.search?.load || _instance.search?.loadNext),
-      hasComic: Boolean(_instance.comic?.loadInfo),
+      hasSearch: this.workerSources.has(source.key) || Boolean(_instance.search?.load || _instance.search?.loadNext),
+      hasComic: this.workerSources.has(source.key) || Boolean(_instance.comic?.loadInfo),
     }));
   }
 
@@ -265,6 +273,7 @@ export class SourceRuntime {
 
   diagnostics() {
     return {
+      isolation: config.pluginIsolation,
       loadedSources: this.all(),
       failedLoads: this.failedLoads,
       recentErrors: this.recentErrors,
@@ -290,6 +299,8 @@ export class SourceRuntime {
 
   async search(sourceKey: string, keyword: string, pageOrNext?: string, options?: string[]) {
     const source = this.find(sourceKey).instance;
+    const worker = this.workerSources.get(sourceKey);
+    if (worker) return worker.search(keyword, pageOrNext, options);
     const search = source.search;
     if (!search) throw new Error(`Source does not support search: ${sourceKey}`);
     const finalOptions = options ?? this.defaultSearchOptions(sourceKey);
@@ -328,6 +339,8 @@ export class SourceRuntime {
 
   async comicDetails(sourceKey: string, comicId: string): Promise<ComicDetails> {
     const source = this.find(sourceKey).instance;
+    const worker = this.workerSources.get(sourceKey);
+    if (worker) return worker.comicDetails(comicId);
     if (!source.comic?.loadInfo) throw new Error(`Source does not support comic details: ${sourceKey}`);
     const raw = await this.runPluginCall(sourceKey, "comic.loadInfo", () => source.comic!.loadInfo!(comicId));
     const normalized = normalizeValue(raw) as ComicDetails;
@@ -336,6 +349,8 @@ export class SourceRuntime {
 
   async comicPages(sourceKey: string, comicId: string, episodeId?: string | null) {
     const source = this.find(sourceKey).instance;
+    const worker = this.workerSources.get(sourceKey);
+    if (worker) return worker.comicPages(comicId, episodeId);
     if (!source.comic?.loadEp) throw new Error(`Source does not support comic pages: ${sourceKey}`);
     if (sourceKey === "baozi" && episodeId != null && episodeId !== "_default") {
       const images = await loadBaoziPages(comicId, episodeId);
