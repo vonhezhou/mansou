@@ -67,6 +67,7 @@ export class DownloadService {
       });
     }
     await this.saveTasks();
+    this.reloadTasksFromStorage();
     this.processQueue();
   }
 
@@ -88,6 +89,7 @@ export class DownloadService {
     };
     this.tasks.set(task.id, task);
     this.saveTask(task);
+    this.reloadTasksFromStorage();
     this.processQueue();
     return task;
   }
@@ -112,6 +114,7 @@ export class DownloadService {
     this.cancelledTasks.add(id);
     this.update(task, { status: "cancelled", phase: "cancelled", error: "Cancelled by user", current: undefined });
     this.addLog(task, "cancelled", "Task cancelled by user");
+    this.reloadTasksFromStorage();
     this.processQueue();
     return task;
   }
@@ -137,6 +140,7 @@ export class DownloadService {
     this.cancelledTasks.delete(id);
     this.activeTasks.delete(id);
     if (!this.storage) await this.saveTasks();
+    this.reloadTasksFromStorage();
     if (deleteFiles && task.outputDir) {
       await rm(task.outputDir, { recursive: true, force: true });
       await rm(`${task.outputDir}.cbz`, { force: true });
@@ -193,10 +197,12 @@ export class DownloadService {
   }
 
   all() {
+    this.reloadTasksFromStorage();
     return [...this.tasks.values()];
   }
 
   find(id: string) {
+    this.reloadTasksFromStorage();
     return this.tasks.get(id) ?? null;
   }
 
@@ -261,6 +267,7 @@ export class DownloadService {
         this.update(task, { status: "cancelled", phase: "cancelled", error: "Cancelled by user", current: undefined });
         this.addLog(task, "cancelled", "Task cancelled by user");
         this.cancelledTasks.delete(task.id);
+        this.reloadTasksFromStorage();
         return;
       }
       this.update(task, {
@@ -269,6 +276,8 @@ export class DownloadService {
         error: error instanceof Error ? error.message : String(error),
       });
       this.addLog(task, "failed", error instanceof Error ? error.message : String(error));
+    } finally {
+      this.reloadTasksFromStorage();
     }
   }
 
@@ -289,6 +298,13 @@ export class DownloadService {
       return;
     }
     void this.saveTasks();
+  }
+
+  private reloadTasksFromStorage() {
+    if (!this.storage) return;
+    const tasks = this.storage.listDownloads() as DownloadTask[];
+    this.tasks.clear();
+    for (const task of tasks) this.tasks.set(task.id, task);
   }
 
   private async downloadImages(task: DownloadTask, images: string[], episodeId: string, outputDir: string) {
