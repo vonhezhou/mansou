@@ -362,7 +362,7 @@ export class SourceRuntime {
     return this.cookieStore.list(sourceKey);
   }
 
-  importCookies(sourceKey: string, url: string, cookies: Array<string | Record<string, unknown>>) {
+  importCookies(sourceKey: string, url: string, cookies: Array<string | Record<string, unknown>> | string) {
     this.find(sourceKey);
     return this.cookieStore.import(sourceKey, url, cookies);
   }

@@ -123,6 +123,16 @@ describe("api v1 mock source", () => {
     expect(enable.statusCode).toBe(200);
   });
 
+  it("imports cookies from browser cookie header text", async () => {
+    const imported = await app.inject({
+      method: "PUT",
+      url: "/api/v1/sources/mock/cookies",
+      payload: { url: "https://example.test/", text: "Cookie: a=1; b=two" },
+    });
+    expect(imported.statusCode).toBe(200);
+    expect(imported.json()).toEqual(expect.arrayContaining([expect.objectContaining({ key: "a", value: "1" }), expect.objectContaining({ key: "b", value: "two" })]));
+  });
+
   it("stores reading history and reports cache stats", async () => {
     const history = await app.inject({
       method: "PUT",

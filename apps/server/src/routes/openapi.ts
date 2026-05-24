@@ -64,7 +64,7 @@ export const openApiDocument = {
     },
     "/api/v1/sources/{sourceKey}/cookies": {
       get: { operationId: "listSourceCookies", tags: ["sources"], parameters: [stringParam("sourceKey")], responses: { "200": response({ type: "array", items: json }) } },
-      put: { operationId: "importSourceCookies", tags: ["sources"], parameters: [stringParam("sourceKey")], requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { url: { type: "string", format: "uri" }, cookies: { type: "array", items: { anyOf: [{ type: "string" }, json] } } }, required: ["url", "cookies"] } } } }, responses: { "200": response({ type: "array", items: json }) } },
+      put: { operationId: "importSourceCookies", tags: ["sources"], parameters: [stringParam("sourceKey")], requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { url: { type: "string", format: "uri" }, cookies: { type: "array", items: { anyOf: [{ type: "string" }, json] } }, text: { type: "string" } }, required: ["url"] } } } }, responses: { "200": response({ type: "array", items: json }) } },
       delete: { operationId: "clearSourceCookies", tags: ["sources"], parameters: [stringParam("sourceKey")], responses: { "200": response({ $ref: "#/components/schemas/Ok" }) } },
     },
     "/api/v1/search": {

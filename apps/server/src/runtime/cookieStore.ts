@@ -34,9 +34,9 @@ export class SourceCookieStore {
     return serialized?.cookies ?? [];
   }
 
-  async import(sourceKey: string, url: string, cookies: Array<string | Record<string, unknown>>) {
+  async import(sourceKey: string, url: string, cookies: Array<string | Record<string, unknown>> | string) {
     const jar = await this.getJar(sourceKey);
-    for (const item of cookies) {
+    for (const item of normalizeCookieInput(cookies)) {
       if (typeof item === "string") {
         await jar.setCookie(item, url);
       } else {
@@ -62,4 +62,49 @@ export class SourceCookieStore {
   private filePath(sourceKey: string) {
     return path.join(paths.cookies, `${safeFilename(sourceKey)}.json`);
   }
+}
+
+function normalizeCookieInput(cookies: Array<string | Record<string, unknown>> | string): Array<string | Record<string, unknown>> {
+  if (Array.isArray(cookies)) return flattenCookieItems(cookies);
+  const trimmed = cookies.trim();
+  if (!trimmed) return [];
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (Array.isArray(parsed)) return flattenCookieItems(parsed as Array<string | Record<string, unknown>>);
+  } catch {
+    // Plain cookie text.
+  }
+  return parseCookieText(trimmed);
+}
+
+function flattenCookieItems(cookies: Array<string | Record<string, unknown>>) {
+  const result: Array<string | Record<string, unknown>> = [];
+  for (const cookie of cookies) {
+    if (typeof cookie === "string") result.push(...parseCookieText(cookie));
+    else result.push(cookie);
+  }
+  return result;
+}
+
+function parseCookieText(text: string) {
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (lines.length === 1 && /^cookie:/i.test(lines[0])) return splitCookieHeader(lines[0].replace(/^cookie:\s*/i, ""));
+  if (lines.length === 1 && lines[0].includes(";") && !/expires=/i.test(lines[0])) return splitCookieHeader(lines[0]);
+  return lines.flatMap((line) => {
+    if (line.startsWith("#")) return [];
+    const netscape = parseNetscapeCookie(line);
+    if (netscape) return [netscape];
+    return [line.replace(/^set-cookie:\s*/i, "")];
+  });
+}
+
+function splitCookieHeader(value: string) {
+  return value.split(";").map((part) => part.trim()).filter(Boolean).filter((part) => part.includes("="));
+}
+
+function parseNetscapeCookie(line: string) {
+  const parts = line.split("\t");
+  if (parts.length < 7) return null;
+  const [domain, , pathValue, secure, expires, key, value] = parts;
+  return `${key}=${value}; Domain=${domain.replace(/^#HttpOnly_/, "")}; Path=${pathValue}; Expires=${new Date(Number(expires) * 1000).toUTCString()}${secure.toUpperCase() === "TRUE" ? "; Secure" : ""}`;
 }
