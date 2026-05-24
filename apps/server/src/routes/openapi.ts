@@ -127,6 +127,9 @@ export const openApiDocument = {
     "/api/v1/settings/cache/images": {
       delete: { operationId: "clearImageCache", tags: ["settings"], responses: { "200": response({ $ref: "#/components/schemas/CacheStats" }) } },
     },
+    "/api/v1/settings/cache/images/prune": {
+      post: { operationId: "pruneImageCache", tags: ["settings"], responses: { "200": response({ $ref: "#/components/schemas/CacheStats" }) } },
+    },
     "/api/v1/debug/runtime/compatibility": {
       get: { operationId: "getRuntimeCompatibility", tags: ["debug"], responses: { "200": response({ type: "object", properties: { items: { type: "array", items: { $ref: "#/components/schemas/RuntimeCompatibilityItem" } } }, required: ["items"] }) } },
     },

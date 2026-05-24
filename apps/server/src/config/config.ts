@@ -22,6 +22,7 @@ export const config = {
   downloadRetries: Number(process.env.VENERA_DOWNLOAD_RETRIES ?? 3),
   accessToken: process.env.VENERA_ACCESS_TOKEN ?? "",
   maxImageBytes: Number(process.env.VENERA_MAX_IMAGE_BYTES ?? 20 * 1024 * 1024),
+  imageCacheMaxBytes: Number(process.env.VENERA_IMAGE_CACHE_MAX_BYTES ?? 1024 * 1024 * 1024),
   proxy:
     process.env.VENERA_PROXY ??
     process.env.HTTPS_PROXY ??

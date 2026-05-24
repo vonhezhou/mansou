@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import path from "node:path";
-import { readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { readdir, readFile, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { paths } from "../storage/paths.js";
 import { config } from "../config/config.js";
 import { ensureDir } from "../utils/fs.js";
@@ -32,6 +32,8 @@ export class ImageProxyService {
     if (useCache) {
       try {
         const data = await readFile(cachePath);
+        const now = new Date();
+        await utimes(cachePath, now, now).catch(() => undefined);
         return { data, contentType: this.detectContentType(data), cached: true };
       } catch {
         // cache miss
@@ -71,6 +73,7 @@ export class ImageProxyService {
     if (useCache) {
       await ensureDir(path.dirname(cachePath));
       await writeFile(cachePath, data);
+      await this.enforceCacheLimit();
     }
     return {
       data,
@@ -84,6 +87,25 @@ export class ImageProxyService {
     let bytes = 0;
     for (const file of files) bytes += (await stat(file)).size;
     return { files: files.length, bytes };
+  }
+
+  async enforceCacheLimit() {
+    const maxBytes = config.imageCacheMaxBytes;
+    if (maxBytes <= 0) return this.cacheStats();
+    const files = await listFiles(paths.imageCache);
+    const entries = await Promise.all(
+      files.map(async (file) => {
+        const info = await stat(file);
+        return { file, size: info.size, atimeMs: info.atimeMs };
+      }),
+    );
+    let total = entries.reduce((sum, entry) => sum + entry.size, 0);
+    for (const entry of entries.sort((a, b) => a.atimeMs - b.atimeMs)) {
+      if (total <= maxBytes) break;
+      await rm(entry.file, { force: true });
+      total -= entry.size;
+    }
+    return this.cacheStats();
   }
 
   async clearCache() {

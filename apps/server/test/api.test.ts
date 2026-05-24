@@ -135,6 +135,10 @@ describe("api v1 mock source", () => {
     const cache = await app.inject({ method: "GET", url: "/api/v1/settings/cache" });
     expect(cache.statusCode).toBe(200);
     expect(cache.json()).toMatchObject({ files: expect.any(Number), bytes: expect.any(Number) });
+
+    const prune = await app.inject({ method: "POST", url: "/api/v1/settings/cache/images/prune" });
+    expect(prune.statusCode).toBe(200);
+    expect(prune.json()).toMatchObject({ files: expect.any(Number), bytes: expect.any(Number) });
   });
 
   it("persists per-image download items", async () => {
