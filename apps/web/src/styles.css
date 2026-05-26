@@ -26,12 +26,18 @@ textarea { min-height: 120px; resize: vertical; }
 .tabs { position: sticky; top: 0; z-index: 2; display: flex; gap: 10px; margin-top: 18px; padding: 10px; border: 1px solid #1f2a44; border-radius: 999px; background: rgba(2, 6, 23, 0.82); backdrop-filter: blur(18px); }
 .tabs button { flex: 1; background: transparent; color: #cbd5e1; }
 .tabs button.active { background: #2563eb; color: white; }
-.controls { display: grid; grid-template-columns: 220px 1fr auto; gap: 16px; align-items: end; }
+.controls { display: grid; grid-template-columns: 180px 220px 1fr auto; gap: 16px; align-items: end; }
 .grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
 .comic-card { display: grid; gap: 10px; text-align: left; border-radius: 22px; background: #111c34; color: #e5ecff; }
 .comic-card img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 16px; background: #020617; }
 .comic-card span, .muted { color: #94a3b8; }
+.card-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.card-actions button { padding: 0.6rem 0.7rem; }
+.aggregate-results { display: grid; gap: 18px; }
+.aggregate-source { display: grid; gap: 12px; padding-top: 12px; border-top: 1px solid #22304d; }
+.aggregate-source header { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; }
+.aggregate-source h3 { margin: 0; color: #bfdbfe; }
 .details h3 { font-size: 1.7rem; margin-bottom: 0.25rem; }
 .detail-cover { width: min(220px, 100%); aspect-ratio: 3 / 4; object-fit: cover; border-radius: 18px; background: #020617; }
 .chips, .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }

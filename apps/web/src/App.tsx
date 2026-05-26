@@ -3,7 +3,7 @@ import type { Comic } from "@venera/contracts";
 import { downloadsEventUrl, veneraApi } from "./api/venera.js";
 import { getAccessToken, saveAccessTokenValue } from "./api/client.js";
 import { getHistoryComicId, getHistoryEpisodeId, getHistorySourceKey } from "./lib/history.js";
-import type { CacheStats, Details, DownloadItem, DownloadTask, Health, HistoryItem, RepositorySource, SettingsResponse, Source, SourceMetadata } from "./types.js";
+import type { AggregatedSearchItem, CacheStats, Details, DownloadItem, DownloadTask, Health, HistoryItem, RepositorySource, SettingsResponse, Source, SourceMetadata } from "./types.js";
 import { DownloadsView } from "./views/DownloadsView.js";
 import { HistoryView } from "./views/HistoryView.js";
 import { SearchView } from "./views/SearchView.js";
@@ -29,7 +29,9 @@ export function App() {
   const [sourceKey, setSourceKey] = useState("mock");
   const [installSource, setInstallSource] = useState("");
   const [keyword, setKeyword] = useState("test");
+  const [searchMode, setSearchMode] = useState<"single" | "aggregate">("single");
   const [results, setResults] = useState<Comic[]>([]);
+  const [aggregatedResults, setAggregatedResults] = useState<AggregatedSearchItem[]>([]);
   const [searchPage, setSearchPage] = useState(1);
   const [searchNext, setSearchNext] = useState<string | null>(null);
   const [searchMaxPage, setSearchMaxPage] = useState<number | undefined>();
@@ -108,6 +110,7 @@ export function App() {
       const data = await veneraApi.search(sourceKey, keyword, { page: 1 });
       startTransition(() => {
         setResults(data.comics ?? []);
+        setAggregatedResults([]);
         setSearchPage(1);
         setSearchNext(data.next ?? null);
         setSearchMaxPage(data.maxPage);
@@ -116,6 +119,27 @@ export function App() {
         setImages([]);
       });
     });
+  }
+
+  async function aggregatedSearch() {
+    await run(async () => {
+      const data = await veneraApi.aggregatedSearch(keyword);
+      startTransition(() => {
+        setAggregatedResults(data);
+        setResults([]);
+        setSearchPage(1);
+        setSearchNext(null);
+        setSearchMaxPage(undefined);
+        setHasSearched(true);
+        setDetails(null);
+        setImages([]);
+      });
+    });
+  }
+
+  async function submitSearch() {
+    if (searchMode === "aggregate") await aggregatedSearch();
+    else await search();
   }
 
   async function loadMoreResults() {
@@ -131,10 +155,11 @@ export function App() {
     });
   }
 
-  async function openComic(comic: Comic) {
+  async function openComic(comic: Comic, nextSourceKey = sourceKey) {
     await run(async () => {
-      const data = await veneraApi.comicDetails(sourceKey, comic.id);
+      const data = await veneraApi.comicDetails(nextSourceKey, comic.id);
       const firstEpisode = Object.keys(data.chapters ?? {})[0] ?? "_default";
+      setSourceKey(nextSourceKey);
       setDetails(data);
       setEpisodeId(firstEpisode);
       setImages([]);
@@ -247,6 +272,14 @@ export function App() {
     });
   }
 
+  async function downloadComic(comic: Comic, nextSourceKey = sourceKey) {
+    await run(async () => {
+      await veneraApi.createDownload({ sourceKey: nextSourceKey, comicId: comic.id, all: true });
+      setActiveTab("downloads");
+      await loadDownloads();
+    });
+  }
+
   async function loadDownloads() {
     setDownloads(await veneraApi.listDownloads());
   }
@@ -324,7 +357,7 @@ export function App() {
         {tabs.map((tab) => <button className={tab.key === activeTab ? "active" : ""} key={tab.key} onClick={() => setActiveTab(tab.key)}>{tab.label}</button>)}
       </nav>
 
-      {activeTab === "search" && <SearchView busy={busy} sourceKey={sourceKey} sources={sources} keyword={keyword} results={results} details={details} episodeId={episodeId} images={images} hasSearched={hasSearched} searchPage={searchPage} searchMaxPage={searchMaxPage} canLoadMore={canLoadMore} onSourceChange={setSourceKey} onKeywordChange={setKeyword} onSearch={() => void search()} onLoadMore={() => void loadMoreResults()} onOpenComic={(comic) => void openComic(comic)} onReadEpisode={(id) => void readEpisode(id)} onCreateDownload={(all) => void createDownload(all)} />}
+      {activeTab === "search" && <SearchView busy={busy} sourceKey={sourceKey} sources={sources} keyword={keyword} searchMode={searchMode} results={results} aggregatedResults={aggregatedResults} details={details} episodeId={episodeId} images={images} hasSearched={hasSearched} searchPage={searchPage} searchMaxPage={searchMaxPage} canLoadMore={canLoadMore} onSourceChange={setSourceKey} onKeywordChange={setKeyword} onSearchModeChange={setSearchMode} onSearch={() => void submitSearch()} onLoadMore={() => void loadMoreResults()} onOpenComic={(comic, nextSourceKey) => void openComic(comic, nextSourceKey)} onDownloadComic={(comic, nextSourceKey) => void downloadComic(comic, nextSourceKey)} onReadEpisode={(id) => void readEpisode(id)} onCreateDownload={(all) => void createDownload(all)} />}
 
       {activeTab === "sources" && <SourcesView busy={busy} sourceKey={sourceKey} installSource={installSource} availableSources={availableSources} sourceMetadata={sourceMetadata} sourceSettings={sourceSettings} settingsJson={settingsJson} cookieUrl={cookieUrl} cookieText={cookieText} onInstallSourceChange={setInstallSource} onSettingsJsonChange={setSettingsJson} onCookieUrlChange={setCookieUrl} onCookieTextChange={setCookieText} onInstallSelectedSource={() => void installSelectedSource()} onRefreshRepository={() => void refreshRepository()} onReloadSources={() => void reloadSources()} onLoadSourceSettings={() => void loadSourceSettings()} onSetSourceEnabled={(source, enabled) => void setSourceEnabled(source, enabled)} onSaveSourceSettings={() => void saveSourceSettings()} onResetSourceSettings={() => void resetSourceSettings()} onImportCookies={() => void importCookies()} onClearCookies={() => void clearCookies()} />}
 

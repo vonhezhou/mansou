@@ -1,5 +1,5 @@
 import { api, apiBase, withAccessToken } from "./client.js";
-import type { CacheStats, Details, DownloadItem, DownloadTask, Health, HistoryItem, RepositorySource, SearchResult, SettingsResponse, Source, SourceMetadata } from "../types.js";
+import type { AggregatedSearchItem, CacheStats, Details, DownloadItem, DownloadTask, Health, HistoryItem, RepositorySource, SearchResult, SettingsResponse, Source, SourceMetadata } from "../types.js";
 
 function comicDetailPath(sourceKey: string, comicId: string) {
   return `/comics/${encodeURIComponent(sourceKey)}/${encodeURIComponent(comicId)}`;
@@ -39,6 +39,11 @@ export const veneraApi = {
     if (cursor?.next) params.set("next", cursor.next);
     else params.set("page", String(cursor?.page ?? 1));
     return api<SearchResult>(`/search/${encodeURIComponent(sourceKey)}?${params}`);
+  },
+  aggregatedSearch: (keyword: string, sources?: string[]) => {
+    const params = new URLSearchParams({ keyword });
+    if (sources?.length) params.set("sources", sources.join(","));
+    return api<AggregatedSearchItem[]>(`/search?${params}`);
   },
   comicDetails: (sourceKey: string, comicId: string) => api<Details>(comicDetailPath(sourceKey, comicId)),
   episodePages: (sourceKey: string, comicId: string, episodeId: string) => api<{ images: string[] }>(episodePagesPath(sourceKey, comicId, episodeId)),
