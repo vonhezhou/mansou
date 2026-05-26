@@ -34,6 +34,7 @@ export function App() {
   const [images, setImages] = useState<string[]>([]);
   const [downloads, setDownloads] = useState<DownloadTask[]>([]);
   const [downloadItems, setDownloadItems] = useState<Record<string, DownloadItem[]>>({});
+  const [failedItemsOnly, setFailedItemsOnly] = useState(false);
   const [cache, setCache] = useState<CacheStats | null>(null);
   const [sourceMetadata, setSourceMetadata] = useState<SourceMetadata[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -249,8 +250,14 @@ export function App() {
         const result = await veneraApi.exportDownloadCbz(task.id);
         window.alert(`CBZ: ${result.path}`);
       }
-      if (action === "delete") await veneraApi.deleteDownload(task.id);
-      if (action === "delete-files") await veneraApi.deleteDownload(task.id, true);
+      if (action === "delete") {
+        if (!window.confirm(`删除下载任务「${task.title ?? task.comicId}」？`)) return;
+        await veneraApi.deleteDownload(task.id);
+      }
+      if (action === "delete-files") {
+        if (!window.confirm(`删除下载任务「${task.title ?? task.comicId}」及已下载文件？`)) return;
+        await veneraApi.deleteDownload(task.id, true);
+      }
       await loadDownloads();
     });
   }
@@ -261,6 +268,12 @@ export function App() {
   }
 
   const canLoadMore = Boolean(searchNext) || (searchMaxPage !== undefined && searchPage < searchMaxPage);
+  const groupedDownloads = [
+    { key: "active", title: "进行中", tasks: downloads.filter((task) => ["queued", "running"].includes(task.status)) },
+    { key: "failed", title: "失败", tasks: downloads.filter((task) => task.status === "failed" || Boolean(task.error)) },
+    { key: "done", title: "完成", tasks: downloads.filter((task) => task.status === "done" || task.status === "completed") },
+    { key: "other", title: "其他", tasks: downloads.filter((task) => !["queued", "running", "failed", "done", "completed"].includes(task.status) && !task.error) },
+  ].filter((group) => group.tasks.length > 0);
 
   return (
     <main className="shell">
@@ -340,8 +353,14 @@ export function App() {
 
       {activeTab === "downloads" && <section className="panel downloads">
         <h2>下载任务</h2>
+        {downloads.length === 0 && <p className="muted">暂无下载任务。</p>}
         {cache && <p className="muted">图片缓存：{cache.files} 个文件，{(cache.bytes / 1024 / 1024).toFixed(2)} MB <button onClick={() => void pruneCache()}>按限制裁剪</button> <button onClick={() => void clearCache()}>清理缓存</button></p>}
-        {downloads.map((task) => <article key={task.id}><strong>{task.title ?? task.comicId}</strong><span>{task.status} / {task.phase}</span><progress value={task.completed} max={Math.max(task.total, 1)} />{task.error && <small>{task.error}</small>}<div className="actions"><button onClick={() => void loadDownloadItems(task)}>明细</button><button onClick={() => void downloadAction(task, "cancel")}>取消</button><button onClick={() => void downloadAction(task, "rerun")}>重跑</button><button onClick={() => void downloadAction(task, "cbz")}>导出 CBZ</button><button onClick={() => void downloadAction(task, "delete")}>删除</button><button onClick={() => void downloadAction(task, "delete-files")}>删除+文件</button></div>{task.logs?.length ? <small className="muted">{task.logs.at(-1)?.message}</small> : null}{downloadItems[task.id]?.length ? <div className="download-items">{downloadItems[task.id].map((item) => { const imageKey = item.imageKey ?? item.image_key ?? ""; return <div key={imageKey}><span>{imageKey}</span><span>{item.status}{item.error ? ` / ${item.error}` : ""}</span><button onClick={() => void retryDownloadItem(task, item)} disabled={busy}>重试</button></div>; })}</div> : null}</article>)}
+        <label className="inline-toggle"><input checked={failedItemsOnly} onChange={(event) => setFailedItemsOnly(event.target.checked)} type="checkbox" /> 下载明细只看失败项</label>
+        {groupedDownloads.map((group) => <div className="download-group" key={group.key}><h3>{group.title}</h3>{group.tasks.map((task) => {
+          const progress = task.total > 0 ? Math.round((task.completed / task.total) * 100) : 0;
+          const items = failedItemsOnly ? downloadItems[task.id]?.filter((item) => item.status === "failed" || Boolean(item.error)) : downloadItems[task.id];
+          return <article key={task.id}><strong>{task.title ?? task.comicId}</strong><span>{task.status} / {task.phase} / {progress}%</span><progress value={task.completed} max={Math.max(task.total, 1)} />{task.error && <small>{task.error}</small>}<div className="actions"><button onClick={() => void loadDownloadItems(task)}>明细</button><button onClick={() => void downloadAction(task, "cancel")}>取消</button><button onClick={() => void downloadAction(task, "rerun")}>重跑</button><button onClick={() => void downloadAction(task, "cbz")}>导出 CBZ</button><button onClick={() => void downloadAction(task, "delete")}>删除</button><button onClick={() => void downloadAction(task, "delete-files")}>删除+文件</button></div>{task.logs?.length ? <small className="muted">{task.logs.at(-1)?.message}</small> : null}{items?.length ? <div className="download-items">{items.map((item) => { const imageKey = item.imageKey ?? item.image_key ?? ""; return <div key={imageKey}><span>{imageKey}</span><span>{item.status}{item.error ? ` / ${item.error}` : ""}</span><button onClick={() => void retryDownloadItem(task, item)} disabled={busy}>重试</button></div>; })}</div> : null}</article>;
+        })}</div>)}
       </section>}
     </main>
   );
