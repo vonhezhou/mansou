@@ -30,6 +30,12 @@ textarea { min-height: 120px; resize: vertical; }
 .settings-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 0.6fr) auto; gap: 12px; align-items: end; margin-top: 14px; }
 .chips button { background: #1e293b; }
 .chips button.active { background: #0ea5e9; }
+.source-list, .history, .download-items { display: grid; gap: 10px; }
+.source-list article, .history article, .download-items div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px; border: 1px solid #22304d; border-radius: 18px; background: #0b1328; }
+.source-list article div { display: grid; gap: 4px; }
+.download-items { grid-column: 1 / -1; margin-top: 8px; }
+.download-items div { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+.download-items span { overflow-wrap: anywhere; }
 .reader { display: grid; gap: 16px; justify-items: center; }
 .reader img { width: min(900px, 100%); border-radius: 18px; background: #020617; box-shadow: 0 12px 40px #020617; }
 .downloads article { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; padding: 14px 0; border-top: 1px solid #22304d; }
@@ -41,6 +47,7 @@ textarea { min-height: 120px; resize: vertical; }
   .shell { padding: 12px; }
   .hero, .controls, .grid { grid-template-columns: 1fr; }
   .tool-row, .settings-grid { grid-template-columns: 1fr; }
+  .source-list article, .history article, .download-items div { grid-template-columns: 1fr; }
   .hero { padding: 24px; border-radius: 24px; }
   .panel { border-radius: 22px; }
   .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }

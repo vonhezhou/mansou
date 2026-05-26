@@ -8,8 +8,11 @@ type RepositorySource = { key?: string; name: string; version?: string; descript
 type SearchResult = { comics: Comic[]; maxPage?: number; next?: string | null };
 type Details = Comic & { comicId?: string; chapters?: Record<string, string>; thumbnails?: string[] };
 type DownloadTask = { id: string; title?: string; sourceKey: string; comicId: string; status: string; phase: string; total: number; completed: number; error?: string; logs?: Array<{ time: string; phase: string; message: string }> };
+type DownloadItem = { image_key?: string; imageKey?: string; status: string; file_path?: string; retry_count?: number; error?: string; error_code?: string };
 type CacheStats = { files: number; bytes: number };
 type SettingsResponse = { schema: Record<string, { default?: unknown }>; values: Record<string, unknown> };
+type SourceMetadata = { key: string; name: string; version?: string; enabled: number | boolean; script_url?: string; updated_at?: string };
+type HistoryItem = { source_key?: string; sourceKey?: string; comic_id?: string; comicId?: string; episode_id?: string; episodeId?: string; page?: number; progress?: number; updated_at?: string };
 
 const apiBase = "/api/v1";
 
@@ -45,11 +48,11 @@ function imageUrl(sourceKey: string, imageKey: string, comicId?: string, episode
 }
 
 function comicDetailPath(sourceKey: string, comicId: string) {
-  return `/comics/${sourceKey}/detail?comicId=${encodeURIComponent(comicId)}`;
+  return `/comics/${encodeURIComponent(sourceKey)}/${encodeURIComponent(comicId)}`;
 }
 
 function episodePagesPath(sourceKey: string, comicId: string, episodeId: string) {
-  return `/comics/${sourceKey}/pages?comicId=${encodeURIComponent(comicId)}&episodeId=${encodeURIComponent(episodeId)}`;
+  return `/comics/${encodeURIComponent(sourceKey)}/${encodeURIComponent(comicId)}/episodes/${encodeURIComponent(episodeId)}/pages`;
 }
 
 function App() {
@@ -63,7 +66,10 @@ function App() {
   const [episodeId, setEpisodeId] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [downloads, setDownloads] = useState<DownloadTask[]>([]);
+  const [downloadItems, setDownloadItems] = useState<Record<string, DownloadItem[]>>({});
   const [cache, setCache] = useState<CacheStats | null>(null);
+  const [sourceMetadata, setSourceMetadata] = useState<SourceMetadata[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [sourceSettings, setSourceSettings] = useState<SettingsResponse | null>(null);
   const [settingsJson, setSettingsJson] = useState("{}");
   const [cookieUrl, setCookieUrl] = useState("");
@@ -93,13 +99,16 @@ function App() {
 
   async function refresh() {
     await run(async () => {
-      const loaded = await api<Source[]>("/sources");
-      const repository = await api<{ sources: RepositorySource[] }>("/source-repository");
+      const loaded = await api<Source[]>("/sources/installed");
+      const metadata = await api<SourceMetadata[]>("/sources/metadata");
+      const repository = await api<RepositorySource[]>("/sources/available");
       setSources(loaded);
-      setAvailableSources(repository.sources ?? []);
+      setSourceMetadata(metadata);
+      setAvailableSources(repository);
       if (loaded[0] && !loaded.some((source) => source.key === sourceKey)) setSourceKey(loaded[0].key);
       await loadDownloads();
       setCache(await api<CacheStats>("/settings/cache"));
+      setHistory(await api<HistoryItem[]>("/library/history"));
     });
   }
 
@@ -162,6 +171,20 @@ function App() {
     });
   }
 
+  async function reloadSources() {
+    await run(async () => {
+      await api("/sources/reload", { method: "POST" });
+      await refresh();
+    });
+  }
+
+  async function setSourceEnabled(metadata: SourceMetadata, enabled: boolean) {
+    await run(async () => {
+      await api(`/sources/${encodeURIComponent(metadata.key)}/enabled`, { method: "PUT", body: JSON.stringify({ enabled }) });
+      await refresh();
+    });
+  }
+
   async function readEpisode(nextEpisodeId = episodeId) {
     if (!details || !nextEpisodeId) return;
     await run(async () => {
@@ -172,6 +195,7 @@ function App() {
         method: "PUT",
         body: JSON.stringify({ episodeId: nextEpisodeId, page: 0, progress: 0 }),
       });
+      setHistory(await api<HistoryItem[]>("/library/history"));
     });
   }
 
@@ -192,6 +216,27 @@ function App() {
 
   async function clearCache() {
     await run(async () => setCache(await api<CacheStats>("/settings/cache/images", { method: "DELETE" })));
+  }
+
+  async function pruneCache() {
+    await run(async () => setCache(await api<CacheStats>("/settings/cache/images/prune", { method: "POST" })));
+  }
+
+  async function loadDownloadItems(task: DownloadTask) {
+    await run(async () => {
+      const items = await api<DownloadItem[]>(`/downloads/${encodeURIComponent(task.id)}/items`);
+      setDownloadItems((current) => ({ ...current, [task.id]: items }));
+    });
+  }
+
+  async function retryDownloadItem(task: DownloadTask, item: DownloadItem) {
+    const imageKey = item.imageKey ?? item.image_key;
+    if (!imageKey) return;
+    await run(async () => {
+      await api(`/downloads/${encodeURIComponent(task.id)}/items/retry`, { method: "POST", body: JSON.stringify({ imageKey }) });
+      await loadDownloadItems(task);
+      await loadDownloads();
+    });
   }
 
   async function downloadAction(task: DownloadTask, action: "cancel" | "rerun" | "cbz" | "delete" | "delete-files") {
@@ -240,10 +285,17 @@ function App() {
           <label>可安装源<select value={installSource} onChange={(event) => setInstallSource(event.target.value)}><option value="">选择源</option>{availableSources.map((source) => <option key={source.key ?? source.fileName ?? source.name} value={source.key ?? source.fileName ?? source.name}>{source.name} ({source.key ?? source.fileName ?? source.filename})</option>)}</select></label>
           <button onClick={() => void installSelectedSource()} disabled={busy || !installSource}>安装/更新</button>
           <button onClick={() => void refreshRepository()} disabled={busy}>刷新仓库</button>
+          <button onClick={() => void reloadSources()} disabled={busy}>重载已安装源</button>
           <button onClick={() => void loadSourceSettings()} disabled={busy || !sourceKey}>加载设置</button>
         </div>
+        {sourceMetadata.length > 0 && <div className="source-list">{sourceMetadata.map((source) => <article key={source.key}><div><strong>{source.name}</strong><span className="muted">{source.key}{source.version ? ` / ${source.version}` : ""}</span></div><button onClick={() => void setSourceEnabled(source, !(source.enabled === true || source.enabled === 1))} disabled={busy}>{source.enabled === true || source.enabled === 1 ? "禁用" : "启用"}</button></article>)}</div>}
         {sourceSettings && <div className="settings-grid"><label>源设置 JSON<textarea value={settingsJson} onChange={(event) => setSettingsJson(event.target.value)} /></label><div><p className="muted">配置项：{Object.keys(sourceSettings.schema ?? {}).join(", ") || "无"}</p><button onClick={() => void saveSourceSettings()} disabled={busy}>保存设置</button></div></div>}
         <div className="settings-grid"><label>Cookie URL<input value={cookieUrl} onChange={(event) => setCookieUrl(event.target.value)} placeholder="https://example.com" /></label><label>Cookie 每行一条<textarea value={cookieText} onChange={(event) => setCookieText(event.target.value)} placeholder="name=value; Domain=..." /></label><button onClick={() => void importCookies()} disabled={busy || !cookieUrl || !cookieText}>导入 Cookie</button></div>
+      </section>
+
+      <section className="panel history">
+        <h2>阅读历史</h2>
+        {history.length === 0 ? <p className="muted">暂无历史记录。</p> : history.map((item) => <article key={`${item.sourceKey ?? item.source_key}:${item.comicId ?? item.comic_id}`}><strong>{item.comicId ?? item.comic_id}</strong><span className="muted">{item.sourceKey ?? item.source_key} / {item.episodeId ?? item.episode_id ?? "未记录章节"} / 第 {(item.page ?? 0) + 1} 页</span></article>)}
       </section>
 
       <section className="grid">
@@ -272,8 +324,8 @@ function App() {
 
       <section className="panel downloads">
         <h2>下载任务</h2>
-        {cache && <p className="muted">图片缓存：{cache.files} 个文件，{(cache.bytes / 1024 / 1024).toFixed(2)} MB <button onClick={() => void clearCache()}>清理缓存</button></p>}
-        {downloads.map((task) => <article key={task.id}><strong>{task.title ?? task.comicId}</strong><span>{task.status} / {task.phase}</span><progress value={task.completed} max={Math.max(task.total, 1)} />{task.error && <small>{task.error}</small>}<div className="actions"><button onClick={() => void downloadAction(task, "cancel")}>取消</button><button onClick={() => void downloadAction(task, "rerun")}>重跑</button><button onClick={() => void downloadAction(task, "cbz")}>导出 CBZ</button><button onClick={() => void downloadAction(task, "delete")}>删除</button><button onClick={() => void downloadAction(task, "delete-files")}>删除+文件</button></div>{task.logs?.length ? <small className="muted">{task.logs.at(-1)?.message}</small> : null}</article>)}
+        {cache && <p className="muted">图片缓存：{cache.files} 个文件，{(cache.bytes / 1024 / 1024).toFixed(2)} MB <button onClick={() => void pruneCache()}>按限制裁剪</button> <button onClick={() => void clearCache()}>清理缓存</button></p>}
+        {downloads.map((task) => <article key={task.id}><strong>{task.title ?? task.comicId}</strong><span>{task.status} / {task.phase}</span><progress value={task.completed} max={Math.max(task.total, 1)} />{task.error && <small>{task.error}</small>}<div className="actions"><button onClick={() => void loadDownloadItems(task)}>明细</button><button onClick={() => void downloadAction(task, "cancel")}>取消</button><button onClick={() => void downloadAction(task, "rerun")}>重跑</button><button onClick={() => void downloadAction(task, "cbz")}>导出 CBZ</button><button onClick={() => void downloadAction(task, "delete")}>删除</button><button onClick={() => void downloadAction(task, "delete-files")}>删除+文件</button></div>{task.logs?.length ? <small className="muted">{task.logs.at(-1)?.message}</small> : null}{downloadItems[task.id]?.length ? <div className="download-items">{downloadItems[task.id].map((item) => <div key={item.imageKey ?? item.image_key}><span>{item.imageKey ?? item.image_key}</span><span>{item.status}{item.error ? ` / ${item.error}` : ""}</span><button onClick={() => void retryDownloadItem(task, item)} disabled={busy}>重试</button></div>)}</div> : null}</article>)}
       </section>
     </main>
   );

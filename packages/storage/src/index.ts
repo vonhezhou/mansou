@@ -137,11 +137,11 @@ class AppStorage {
     tx();
   }
 
-  saveDownloadItem(input: { taskId: string; imageKey: string; filePath?: string; status: string; retryCount?: number; error?: string }) {
+  saveDownloadItem(input: { taskId: string; imageKey: string; filePath?: string; status: string; retryCount?: number; error?: string; errorCode?: string }) {
     const id = `${input.taskId}:${input.imageKey}`;
     this.db
-      .prepare("insert into download_items(id, task_id, image_key, file_path, status, retry_count, error, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set file_path = excluded.file_path, status = excluded.status, retry_count = excluded.retry_count, error = excluded.error, updated_at = excluded.updated_at")
-      .run(id, input.taskId, input.imageKey, input.filePath ?? null, input.status, input.retryCount ?? 0, input.error ?? null, new Date().toISOString());
+      .prepare("insert into download_items(id, task_id, image_key, file_path, status, retry_count, error, error_code, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set file_path = excluded.file_path, status = excluded.status, retry_count = excluded.retry_count, error = excluded.error, error_code = excluded.error_code, updated_at = excluded.updated_at")
+      .run(id, input.taskId, input.imageKey, input.filePath ?? null, input.status, input.retryCount ?? 0, input.error ?? null, input.errorCode ?? null, new Date().toISOString());
   }
 
   getDownloadItem(taskId: string, imageKey: string) {
@@ -252,6 +252,7 @@ function migrate(db: Database.Database) {
       status text not null,
       retry_count integer not null default 0,
       error text,
+      error_code text,
       updated_at text not null
     );
     create table if not exists cache_entries (
@@ -278,5 +279,11 @@ function migrate(db: Database.Database) {
     if (!names.has("script_url")) db.exec("alter table sources add column script_url text");
     if (!names.has("hash")) db.exec("alter table sources add column hash text");
     db.exec("insert into schema_migrations(version, applied_at) values (2, datetime('now'))");
+  }
+  if (version < 3) {
+    const columns = db.prepare("pragma table_info(download_items)").all() as Array<{ name: string }>;
+    const names = new Set(columns.map((column) => column.name));
+    if (!names.has("error_code")) db.exec("alter table download_items add column error_code text");
+    db.exec("insert into schema_migrations(version, applied_at) values (3, datetime('now'))");
   }
 }
