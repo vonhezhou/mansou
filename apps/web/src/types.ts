@@ -10,3 +10,4 @@ export type CacheStats = { files: number; bytes: number };
 export type SettingsResponse = { schema: Record<string, { default?: unknown }>; values: Record<string, unknown> };
 export type SourceMetadata = { key: string; name: string; version?: string; enabled: number | boolean; script_url?: string; updated_at?: string };
 export type HistoryItem = { source_key?: string; sourceKey?: string; comic_id?: string; comicId?: string; episode_id?: string; episodeId?: string; page?: number; progress?: number; updated_at?: string };
+export type Health = { ok: boolean; name: string; dataDir?: string; proxy?: string | null; noProxy?: string[] };

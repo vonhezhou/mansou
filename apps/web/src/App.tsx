@@ -2,7 +2,7 @@ import { useEffect, useState, startTransition } from "react";
 import type { Comic } from "@venera/contracts";
 import { downloadsEventUrl, imageUrl, veneraApi } from "./api/venera.js";
 import { getAccessToken, saveAccessTokenValue } from "./api/client.js";
-import type { CacheStats, Details, DownloadItem, DownloadTask, HistoryItem, RepositorySource, SettingsResponse, Source, SourceMetadata } from "./types.js";
+import type { CacheStats, Details, DownloadItem, DownloadTask, Health, HistoryItem, RepositorySource, SettingsResponse, Source, SourceMetadata } from "./types.js";
 
 const tabs = [
   { key: "search", label: "搜索" },
@@ -44,6 +44,7 @@ export function App() {
   const [cookieText, setCookieText] = useState("");
   const [accessToken, setAccessToken] = useState(getAccessToken());
   const [activeTab, setActiveTab] = useState<TabKey>(readInitialTab);
+  const [health, setHealth] = useState<Health | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,6 +54,10 @@ export function App() {
     events.addEventListener("downloads", (event) => setDownloads(JSON.parse((event as MessageEvent).data)));
     return () => events.close();
   }, [accessToken]);
+
+  useEffect(() => {
+    void checkHealth();
+  }, []);
 
   useEffect(() => {
     window.location.hash = activeTab;
@@ -67,6 +72,14 @@ export function App() {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function checkHealth() {
+    try {
+      setHealth(await veneraApi.health());
+    } catch {
+      setHealth(null);
     }
   }
 
@@ -301,8 +314,9 @@ export function App() {
           <p>搜索、阅读、下载和源管理已接入 `/api/v1`，正在从 PoC 控制台推进为正式前端。</p>
         </div>
         <div className="hero-actions">
+          <span className={health?.ok ? "health online" : "health offline"}>{health?.ok ? "服务在线" : "服务未连接"}</span>
           <label>访问 Token<input value={accessToken} onChange={(event) => saveAccessToken(event.target.value)} placeholder="可选" type="password" /></label>
-          <button onClick={() => void refresh()} disabled={busy}>刷新</button>
+          <button onClick={() => { void checkHealth(); void refresh(); }} disabled={busy}>刷新</button>
         </div>
       </header>
 

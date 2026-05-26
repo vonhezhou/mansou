@@ -1,5 +1,5 @@
 import { api, apiBase, withAccessToken } from "./client.js";
-import type { CacheStats, Details, DownloadItem, DownloadTask, HistoryItem, RepositorySource, SearchResult, SettingsResponse, Source, SourceMetadata } from "../types.js";
+import type { CacheStats, Details, DownloadItem, DownloadTask, Health, HistoryItem, RepositorySource, SearchResult, SettingsResponse, Source, SourceMetadata } from "../types.js";
 
 function comicDetailPath(sourceKey: string, comicId: string) {
   return `/comics/${encodeURIComponent(sourceKey)}/${encodeURIComponent(comicId)}`;
@@ -21,6 +21,7 @@ export function downloadsEventUrl() {
 }
 
 export const veneraApi = {
+  health: () => api<Health>("/health"),
   listInstalledSources: () => api<Source[]>("/sources/installed"),
   listSourceMetadata: () => api<SourceMetadata[]>("/sources/metadata"),
   listAvailableSources: () => api<RepositorySource[]>("/sources/available"),
