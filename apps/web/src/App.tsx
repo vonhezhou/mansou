@@ -1,8 +1,13 @@
 import { useEffect, useState, startTransition } from "react";
 import type { Comic } from "@venera/contracts";
-import { downloadsEventUrl, imageUrl, veneraApi } from "./api/venera.js";
+import { downloadsEventUrl, veneraApi } from "./api/venera.js";
 import { getAccessToken, saveAccessTokenValue } from "./api/client.js";
+import { getHistoryComicId, getHistoryEpisodeId, getHistorySourceKey } from "./lib/history.js";
 import type { CacheStats, Details, DownloadItem, DownloadTask, Health, HistoryItem, RepositorySource, SettingsResponse, Source, SourceMetadata } from "./types.js";
+import { DownloadsView } from "./views/DownloadsView.js";
+import { HistoryView } from "./views/HistoryView.js";
+import { SearchView } from "./views/SearchView.js";
+import { SourcesView } from "./views/SourcesView.js";
 
 const tabs = [
   { key: "search", label: "搜索" },
@@ -217,9 +222,9 @@ export function App() {
   }
 
   async function openHistoryItem(item: HistoryItem) {
-    const nextSourceKey = item.sourceKey ?? item.source_key;
-    const comicId = item.comicId ?? item.comic_id;
-    const nextEpisodeId = item.episodeId ?? item.episode_id;
+    const nextSourceKey = getHistorySourceKey(item);
+    const comicId = getHistoryComicId(item);
+    const nextEpisodeId = getHistoryEpisodeId(item);
     if (!nextSourceKey || !comicId) return;
     await run(async () => {
       const data = await veneraApi.comicDetails(nextSourceKey, comicId);
@@ -297,13 +302,6 @@ export function App() {
   }
 
   const canLoadMore = Boolean(searchNext) || (searchMaxPage !== undefined && searchPage < searchMaxPage);
-  const groupedDownloads = [
-    { key: "active", title: "进行中", tasks: downloads.filter((task) => ["queued", "running"].includes(task.status)) },
-    { key: "failed", title: "失败", tasks: downloads.filter((task) => task.status === "failed" || Boolean(task.error)) },
-    { key: "done", title: "完成", tasks: downloads.filter((task) => task.status === "done" || task.status === "completed") },
-    { key: "other", title: "其他", tasks: downloads.filter((task) => !["queued", "running", "failed", "done", "completed"].includes(task.status) && !task.error) },
-  ].filter((group) => group.tasks.length > 0);
-  const enabledSources = sourceMetadata.filter((source) => source.enabled === true || source.enabled === 1).length;
 
   return (
     <main className="shell">
@@ -326,74 +324,13 @@ export function App() {
         {tabs.map((tab) => <button className={tab.key === activeTab ? "active" : ""} key={tab.key} onClick={() => setActiveTab(tab.key)}>{tab.label}</button>)}
       </nav>
 
-      {activeTab === "search" && <>
-        <section className="panel controls">
-          <label>源<select value={sourceKey} onChange={(event) => setSourceKey(event.target.value)}>{sources.map((source) => <option key={source.key} value={source.key}>{source.name} ({source.key})</option>)}</select></label>
-          <label>关键词<input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="输入关键词" /></label>
-          <button onClick={() => void search()} disabled={busy || !sourceKey}>搜索</button>
-        </section>
+      {activeTab === "search" && <SearchView busy={busy} sourceKey={sourceKey} sources={sources} keyword={keyword} results={results} details={details} episodeId={episodeId} images={images} hasSearched={hasSearched} searchPage={searchPage} searchMaxPage={searchMaxPage} canLoadMore={canLoadMore} onSourceChange={setSourceKey} onKeywordChange={setKeyword} onSearch={() => void search()} onLoadMore={() => void loadMoreResults()} onOpenComic={(comic) => void openComic(comic)} onReadEpisode={(id) => void readEpisode(id)} onCreateDownload={(all) => void createDownload(all)} />}
 
-        <section className="grid">
-          <div className="panel">
-            <h2>搜索结果</h2>
-            {!hasSearched && <p className="muted">输入关键词后开始搜索。</p>}
-            {hasSearched && results.length === 0 && <p className="muted">没有找到结果，可以更换关键词或源。</p>}
-            <div className="cards">
-              {results.map((comic) => <button className="comic-card" key={comic.id} onClick={() => void openComic(comic)}><img src={imageUrl(sourceKey, comic.cover ?? "mock://cover/0", comic.id, undefined, true)} alt="" /><strong>{comic.title}</strong><span>{comic.description}</span></button>)}
-            </div>
-            {results.length > 0 && <div className="load-more"><span className="muted">已加载 {results.length} 项{searchMaxPage ? ` / 第 ${searchPage} 页，共 ${searchMaxPage} 页` : ""}</span><button onClick={() => void loadMoreResults()} disabled={busy || !canLoadMore}>{canLoadMore ? "加载更多" : "没有更多"}</button></div>}
-          </div>
+      {activeTab === "sources" && <SourcesView busy={busy} sourceKey={sourceKey} installSource={installSource} availableSources={availableSources} sourceMetadata={sourceMetadata} sourceSettings={sourceSettings} settingsJson={settingsJson} cookieUrl={cookieUrl} cookieText={cookieText} onInstallSourceChange={setInstallSource} onSettingsJsonChange={setSettingsJson} onCookieUrlChange={setCookieUrl} onCookieTextChange={setCookieText} onInstallSelectedSource={() => void installSelectedSource()} onRefreshRepository={() => void refreshRepository()} onReloadSources={() => void reloadSources()} onLoadSourceSettings={() => void loadSourceSettings()} onSetSourceEnabled={(source, enabled) => void setSourceEnabled(source, enabled)} onSaveSourceSettings={() => void saveSourceSettings()} onResetSourceSettings={() => void resetSourceSettings()} onImportCookies={() => void importCookies()} onClearCookies={() => void clearCookies()} />}
 
-          <aside className="panel details">
-            <h2>详情</h2>
-            {details ? <>
-              {details.cover && <img className="detail-cover" src={imageUrl(sourceKey, details.cover, details.comicId ?? details.id, undefined, true)} alt="" />}
-              <h3>{details.title}</h3>
-              <p>{details.description}</p>
-              <p className="muted">漫画 ID：{details.comicId ?? details.id}</p>
-              <div className="chips">{Object.entries(details.chapters ?? {}).map(([id, title]) => <button className={id === episodeId ? "active" : ""} key={id} onClick={() => void readEpisode(id)}>{title}</button>)}</div>
-              <div className="actions"><button onClick={() => void readEpisode()}>开始阅读</button><button onClick={() => void createDownload(false)}>下载章节</button><button onClick={() => void createDownload(true)}>下载全本</button></div>
-            </> : <p className="muted">选择一本漫画查看章节。</p>}
-          </aside>
-        </section>
+      {activeTab === "history" && <HistoryView history={history} onOpenHistoryItem={(item) => void openHistoryItem(item)} />}
 
-        <section className="panel reader">
-          <h2>阅读器</h2>
-          {images.length === 0 ? <p className="muted">打开章节后显示图片，移动端为单列长条模式。</p> : images.map((image, index) => <img id={`page-${index + 1}`} key={`${image}-${index}`} src={imageUrl(sourceKey, image, details?.comicId ?? details?.id, episodeId ?? undefined)} alt={`page ${index + 1}`} loading={index < 2 ? "eager" : "lazy"} />)}
-        </section>
-      </>}
-
-      {activeTab === "sources" && <section className="panel source-tools">
-        <h2>源管理</h2>
-        <p className="muted">已安装 {sourceMetadata.length} 个源，启用 {enabledSources} 个。</p>
-        <div className="tool-row">
-          <label>可安装源<select value={installSource} onChange={(event) => setInstallSource(event.target.value)}><option value="">选择源</option>{availableSources.map((source) => <option key={source.key ?? source.fileName ?? source.name} value={source.key ?? source.fileName ?? source.name}>{source.name} ({source.key ?? source.fileName ?? source.filename})</option>)}</select></label>
-          <button onClick={() => void installSelectedSource()} disabled={busy || !installSource}>安装/更新</button>
-          <button onClick={() => void refreshRepository()} disabled={busy}>刷新仓库</button>
-          <button onClick={() => void reloadSources()} disabled={busy}>重载已安装源</button>
-          <button onClick={() => void loadSourceSettings()} disabled={busy || !sourceKey}>加载设置</button>
-        </div>
-        {sourceMetadata.length > 0 && <div className="source-list">{sourceMetadata.map((source) => <article key={source.key}><div><strong>{source.name}</strong><span className="muted">{source.key}{source.version ? ` / ${source.version}` : ""}</span></div><button onClick={() => void setSourceEnabled(source, !(source.enabled === true || source.enabled === 1))} disabled={busy}>{source.enabled === true || source.enabled === 1 ? "禁用" : "启用"}</button></article>)}</div>}
-        {sourceSettings && <div className="settings-grid"><label>源设置 JSON<textarea value={settingsJson} onChange={(event) => setSettingsJson(event.target.value)} /></label><div><p className="muted">配置项：{Object.keys(sourceSettings.schema ?? {}).join(", ") || "无"}</p><div className="actions"><button onClick={() => void saveSourceSettings()} disabled={busy}>保存设置</button><button onClick={() => void resetSourceSettings()} disabled={busy}>恢复默认</button></div></div></div>}
-        <div className="settings-grid"><label>Cookie URL<input value={cookieUrl} onChange={(event) => setCookieUrl(event.target.value)} placeholder="https://example.com" /></label><label>Cookie 每行一条<textarea value={cookieText} onChange={(event) => setCookieText(event.target.value)} placeholder="name=value; Domain=..." /></label><div className="actions"><button onClick={() => void importCookies()} disabled={busy || !cookieUrl || !cookieText}>导入 Cookie</button><button onClick={() => void clearCookies()} disabled={busy || !sourceKey}>清空 Cookie</button></div></div>
-      </section>}
-
-      {activeTab === "history" && <section className="panel history">
-        <h2>阅读历史</h2>
-        {history.length === 0 ? <p className="muted">暂无历史记录。</p> : history.map((item) => <button className="history-item" key={`${item.sourceKey ?? item.source_key}:${item.comicId ?? item.comic_id}`} onClick={() => void openHistoryItem(item)}><strong>{item.comicId ?? item.comic_id}</strong><span className="muted">{item.sourceKey ?? item.source_key} / {item.episodeId ?? item.episode_id ?? "未记录章节"} / 第 {(item.page ?? 0) + 1} 页</span></button>)}
-      </section>}
-
-      {activeTab === "downloads" && <section className="panel downloads">
-        <h2>下载任务</h2>
-        {downloads.length === 0 && <p className="muted">暂无下载任务。</p>}
-        {cache && <p className="muted">图片缓存：{cache.files} 个文件，{(cache.bytes / 1024 / 1024).toFixed(2)} MB <button onClick={() => void pruneCache()}>按限制裁剪</button> <button onClick={() => void clearCache()}>清理缓存</button></p>}
-        <label className="inline-toggle"><input checked={failedItemsOnly} onChange={(event) => setFailedItemsOnly(event.target.checked)} type="checkbox" /> 下载明细只看失败项</label>
-        {groupedDownloads.map((group) => <div className="download-group" key={group.key}><h3>{group.title}</h3>{group.tasks.map((task) => {
-          const progress = task.total > 0 ? Math.round((task.completed / task.total) * 100) : 0;
-          const items = failedItemsOnly ? downloadItems[task.id]?.filter((item) => item.status === "failed" || Boolean(item.error)) : downloadItems[task.id];
-          return <article key={task.id}><strong>{task.title ?? task.comicId}</strong><span>{task.status} / {task.phase} / {progress}%</span><progress value={task.completed} max={Math.max(task.total, 1)} />{task.error && <small>{task.error}</small>}<div className="actions"><button onClick={() => void loadDownloadItems(task)}>明细</button><button onClick={() => void downloadAction(task, "cancel")}>取消</button><button onClick={() => void downloadAction(task, "rerun")}>重跑</button><button onClick={() => void downloadAction(task, "cbz")}>导出 CBZ</button><button onClick={() => void downloadAction(task, "delete")}>删除</button><button onClick={() => void downloadAction(task, "delete-files")}>删除+文件</button></div>{task.logs?.length ? <small className="muted">{task.logs.at(-1)?.message}</small> : null}{items?.length ? <div className="download-items">{items.map((item) => { const imageKey = item.imageKey ?? item.image_key ?? ""; return <div key={imageKey}><span>{imageKey}</span><span>{item.status}{item.error ? ` / ${item.error}` : ""}</span><button onClick={() => void retryDownloadItem(task, item)} disabled={busy}>重试</button></div>; })}</div> : null}</article>;
-        })}</div>)}
-      </section>}
+      {activeTab === "downloads" && <DownloadsView busy={busy} cache={cache} downloads={downloads} downloadItems={downloadItems} failedItemsOnly={failedItemsOnly} onFailedItemsOnlyChange={setFailedItemsOnly} onPruneCache={() => void pruneCache()} onClearCache={() => void clearCache()} onLoadDownloadItems={(task) => void loadDownloadItems(task)} onDownloadAction={(task, action) => void downloadAction(task, action)} onRetryDownloadItem={(task, item) => void retryDownloadItem(task, item)} />}
     </main>
   );
 }
