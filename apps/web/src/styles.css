@@ -29,7 +29,9 @@ textarea { min-height: 120px; resize: vertical; }
 .comic-card img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 16px; background: #020617; }
 .comic-card span, .muted { color: #94a3b8; }
 .details h3 { font-size: 1.7rem; margin-bottom: 0.25rem; }
+.detail-cover { width: min(220px, 100%); aspect-ratio: 3 / 4; object-fit: cover; border-radius: 18px; background: #020617; }
 .chips, .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.load-more { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-top: 18px; }
 .tool-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 12px; align-items: end; }
 .settings-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 0.6fr) auto; gap: 12px; align-items: end; margin-top: 14px; }
 .chips button { background: #1e293b; }
@@ -53,6 +55,7 @@ textarea { min-height: 120px; resize: vertical; }
   .tabs { border-radius: 24px; overflow-x: auto; }
   .tabs button { min-width: 92px; }
   .tool-row, .settings-grid { grid-template-columns: 1fr; }
+  .load-more { align-items: stretch; flex-direction: column; }
   .source-list article, .history article, .download-items div { grid-template-columns: 1fr; }
   .hero { padding: 24px; border-radius: 24px; }
   .panel { border-radius: 22px; }

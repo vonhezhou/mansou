@@ -31,7 +31,12 @@ export const veneraApi = {
   getSourceSettings: (sourceKey: string) => api<SettingsResponse>(`/sources/${encodeURIComponent(sourceKey)}/settings`),
   updateSourceSettings: (sourceKey: string, values: Record<string, unknown>) => api(`/sources/${encodeURIComponent(sourceKey)}/settings`, { method: "PUT", body: JSON.stringify({ values }) }),
   importCookies: (sourceKey: string, url: string, cookies: string[]) => api(`/sources/${encodeURIComponent(sourceKey)}/cookies`, { method: "PUT", body: JSON.stringify({ url, cookies }) }),
-  search: (sourceKey: string, keyword: string) => api<SearchResult>(`/search/${encodeURIComponent(sourceKey)}?keyword=${encodeURIComponent(keyword)}&page=1`),
+  search: (sourceKey: string, keyword: string, cursor?: { page?: number; next?: string | null }) => {
+    const params = new URLSearchParams({ keyword });
+    if (cursor?.next) params.set("next", cursor.next);
+    else params.set("page", String(cursor?.page ?? 1));
+    return api<SearchResult>(`/search/${encodeURIComponent(sourceKey)}?${params}`);
+  },
   comicDetails: (sourceKey: string, comicId: string) => api<Details>(comicDetailPath(sourceKey, comicId)),
   episodePages: (sourceKey: string, comicId: string, episodeId: string) => api<{ images: string[] }>(episodePagesPath(sourceKey, comicId, episodeId)),
   listHistory: () => api<HistoryItem[]>("/library/history"),

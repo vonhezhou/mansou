@@ -25,6 +25,10 @@ export function App() {
   const [installSource, setInstallSource] = useState("");
   const [keyword, setKeyword] = useState("test");
   const [results, setResults] = useState<Comic[]>([]);
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchNext, setSearchNext] = useState<string | null>(null);
+  const [searchMaxPage, setSearchMaxPage] = useState<number | undefined>();
+  const [hasSearched, setHasSearched] = useState(false);
   const [details, setDetails] = useState<Details | null>(null);
   const [episodeId, setEpisodeId] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>([]);
@@ -82,11 +86,28 @@ export function App() {
 
   async function search() {
     await run(async () => {
-      const data = await veneraApi.search(sourceKey, keyword);
+      const data = await veneraApi.search(sourceKey, keyword, { page: 1 });
       startTransition(() => {
         setResults(data.comics ?? []);
+        setSearchPage(1);
+        setSearchNext(data.next ?? null);
+        setSearchMaxPage(data.maxPage);
+        setHasSearched(true);
         setDetails(null);
         setImages([]);
+      });
+    });
+  }
+
+  async function loadMoreResults() {
+    await run(async () => {
+      const nextPage = searchPage + 1;
+      const data = await veneraApi.search(sourceKey, keyword, searchNext ? { next: searchNext } : { page: nextPage });
+      startTransition(() => {
+        setResults((current) => [...current, ...(data.comics ?? [])]);
+        setSearchPage(nextPage);
+        setSearchNext(data.next ?? null);
+        setSearchMaxPage(data.maxPage);
       });
     });
   }
@@ -220,6 +241,8 @@ export function App() {
     saveAccessTokenValue(value);
   }
 
+  const canLoadMore = Boolean(searchNext) || (searchMaxPage !== undefined && searchPage < searchMaxPage);
+
   return (
     <main className="shell">
       <header className="hero">
@@ -250,16 +273,21 @@ export function App() {
         <section className="grid">
           <div className="panel">
             <h2>搜索结果</h2>
+            {!hasSearched && <p className="muted">输入关键词后开始搜索。</p>}
+            {hasSearched && results.length === 0 && <p className="muted">没有找到结果，可以更换关键词或源。</p>}
             <div className="cards">
               {results.map((comic) => <button className="comic-card" key={comic.id} onClick={() => void openComic(comic)}><img src={imageUrl(sourceKey, comic.cover ?? "mock://cover/0", comic.id, undefined, true)} alt="" /><strong>{comic.title}</strong><span>{comic.description}</span></button>)}
             </div>
+            {results.length > 0 && <div className="load-more"><span className="muted">已加载 {results.length} 项{searchMaxPage ? ` / 第 ${searchPage} 页，共 ${searchMaxPage} 页` : ""}</span><button onClick={() => void loadMoreResults()} disabled={busy || !canLoadMore}>{canLoadMore ? "加载更多" : "没有更多"}</button></div>}
           </div>
 
           <aside className="panel details">
             <h2>详情</h2>
             {details ? <>
+              {details.cover && <img className="detail-cover" src={imageUrl(sourceKey, details.cover, details.comicId ?? details.id, undefined, true)} alt="" />}
               <h3>{details.title}</h3>
               <p>{details.description}</p>
+              <p className="muted">漫画 ID：{details.comicId ?? details.id}</p>
               <div className="chips">{Object.entries(details.chapters ?? {}).map(([id, title]) => <button className={id === episodeId ? "active" : ""} key={id} onClick={() => void readEpisode(id)}>{title}</button>)}</div>
               <div className="actions"><button onClick={() => void readEpisode()}>开始阅读</button><button onClick={() => void createDownload(false)}>下载章节</button><button onClick={() => void createDownload(true)}>下载全本</button></div>
             </> : <p className="muted">选择一本漫画查看章节。</p>}
