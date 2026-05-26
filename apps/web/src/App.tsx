@@ -4,6 +4,20 @@ import { downloadsEventUrl, imageUrl, veneraApi } from "./api/venera.js";
 import { getAccessToken, saveAccessTokenValue } from "./api/client.js";
 import type { CacheStats, Details, DownloadItem, DownloadTask, HistoryItem, RepositorySource, SettingsResponse, Source, SourceMetadata } from "./types.js";
 
+const tabs = [
+  { key: "search", label: "搜索" },
+  { key: "history", label: "历史" },
+  { key: "downloads", label: "下载" },
+  { key: "sources", label: "源管理" },
+] as const;
+
+type TabKey = typeof tabs[number]["key"];
+
+function readInitialTab(): TabKey {
+  const hash = window.location.hash.slice(1);
+  return tabs.some((tab) => tab.key === hash) ? hash as TabKey : "search";
+}
+
 export function App() {
   const [sources, setSources] = useState<Source[]>([]);
   const [availableSources, setAvailableSources] = useState<RepositorySource[]>([]);
@@ -24,6 +38,7 @@ export function App() {
   const [cookieUrl, setCookieUrl] = useState("");
   const [cookieText, setCookieText] = useState("");
   const [accessToken, setAccessToken] = useState(getAccessToken());
+  const [activeTab, setActiveTab] = useState<TabKey>(readInitialTab);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +48,10 @@ export function App() {
     events.addEventListener("downloads", (event) => setDownloads(JSON.parse((event as MessageEvent).data)));
     return () => events.close();
   }, [accessToken]);
+
+  useEffect(() => {
+    window.location.hash = activeTab;
+  }, [activeTab]);
 
   async function run(task: () => Promise<void>) {
     setBusy(true);
@@ -207,21 +226,53 @@ export function App() {
         <div>
           <p className="eyebrow">Venera Web</p>
           <h1>插件漫画源的 Web 阅读台</h1>
-          <p>搜索、详情、阅读和下载主流程已接入 `/api/v1`，当前优先保留 PoC 能力并提供正式前端骨架。</p>
+          <p>搜索、阅读、下载和源管理已接入 `/api/v1`，正在从 PoC 控制台推进为正式前端。</p>
         </div>
-        <button onClick={() => void refresh()} disabled={busy}>刷新源</button>
+        <div className="hero-actions">
+          <label>访问 Token<input value={accessToken} onChange={(event) => saveAccessToken(event.target.value)} placeholder="可选" type="password" /></label>
+          <button onClick={() => void refresh()} disabled={busy}>刷新</button>
+        </div>
       </header>
 
       {error && <section className="alert">{error}</section>}
 
-      <section className="panel controls">
-        <label>源<select value={sourceKey} onChange={(event) => setSourceKey(event.target.value)}>{sources.map((source) => <option key={source.key} value={source.key}>{source.name} ({source.key})</option>)}</select></label>
-        <label>关键词<input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="输入关键词" /></label>
-        <label>访问 Token<input value={accessToken} onChange={(event) => saveAccessToken(event.target.value)} placeholder="可选" type="password" /></label>
-        <button onClick={() => void search()} disabled={busy || !sourceKey}>搜索</button>
-      </section>
+      <nav className="tabs" aria-label="主要功能">
+        {tabs.map((tab) => <button className={tab.key === activeTab ? "active" : ""} key={tab.key} onClick={() => setActiveTab(tab.key)}>{tab.label}</button>)}
+      </nav>
 
-      <section className="panel source-tools">
+      {activeTab === "search" && <>
+        <section className="panel controls">
+          <label>源<select value={sourceKey} onChange={(event) => setSourceKey(event.target.value)}>{sources.map((source) => <option key={source.key} value={source.key}>{source.name} ({source.key})</option>)}</select></label>
+          <label>关键词<input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="输入关键词" /></label>
+          <button onClick={() => void search()} disabled={busy || !sourceKey}>搜索</button>
+        </section>
+
+        <section className="grid">
+          <div className="panel">
+            <h2>搜索结果</h2>
+            <div className="cards">
+              {results.map((comic) => <button className="comic-card" key={comic.id} onClick={() => void openComic(comic)}><img src={imageUrl(sourceKey, comic.cover ?? "mock://cover/0", comic.id, undefined, true)} alt="" /><strong>{comic.title}</strong><span>{comic.description}</span></button>)}
+            </div>
+          </div>
+
+          <aside className="panel details">
+            <h2>详情</h2>
+            {details ? <>
+              <h3>{details.title}</h3>
+              <p>{details.description}</p>
+              <div className="chips">{Object.entries(details.chapters ?? {}).map(([id, title]) => <button className={id === episodeId ? "active" : ""} key={id} onClick={() => void readEpisode(id)}>{title}</button>)}</div>
+              <div className="actions"><button onClick={() => void readEpisode()}>开始阅读</button><button onClick={() => void createDownload(false)}>下载章节</button><button onClick={() => void createDownload(true)}>下载全本</button></div>
+            </> : <p className="muted">选择一本漫画查看章节。</p>}
+          </aside>
+        </section>
+
+        <section className="panel reader">
+          <h2>阅读器</h2>
+          {images.length === 0 ? <p className="muted">打开章节后显示图片，移动端为单列长条模式。</p> : images.map((image, index) => <img key={`${image}-${index}`} src={imageUrl(sourceKey, image, details?.comicId ?? details?.id, episodeId ?? undefined)} alt={`page ${index + 1}`} loading={index < 2 ? "eager" : "lazy"} />)}
+        </section>
+      </>}
+
+      {activeTab === "sources" && <section className="panel source-tools">
         <h2>源管理</h2>
         <div className="tool-row">
           <label>可安装源<select value={installSource} onChange={(event) => setInstallSource(event.target.value)}><option value="">选择源</option>{availableSources.map((source) => <option key={source.key ?? source.fileName ?? source.name} value={source.key ?? source.fileName ?? source.name}>{source.name} ({source.key ?? source.fileName ?? source.filename})</option>)}</select></label>
@@ -233,42 +284,18 @@ export function App() {
         {sourceMetadata.length > 0 && <div className="source-list">{sourceMetadata.map((source) => <article key={source.key}><div><strong>{source.name}</strong><span className="muted">{source.key}{source.version ? ` / ${source.version}` : ""}</span></div><button onClick={() => void setSourceEnabled(source, !(source.enabled === true || source.enabled === 1))} disabled={busy}>{source.enabled === true || source.enabled === 1 ? "禁用" : "启用"}</button></article>)}</div>}
         {sourceSettings && <div className="settings-grid"><label>源设置 JSON<textarea value={settingsJson} onChange={(event) => setSettingsJson(event.target.value)} /></label><div><p className="muted">配置项：{Object.keys(sourceSettings.schema ?? {}).join(", ") || "无"}</p><button onClick={() => void saveSourceSettings()} disabled={busy}>保存设置</button></div></div>}
         <div className="settings-grid"><label>Cookie URL<input value={cookieUrl} onChange={(event) => setCookieUrl(event.target.value)} placeholder="https://example.com" /></label><label>Cookie 每行一条<textarea value={cookieText} onChange={(event) => setCookieText(event.target.value)} placeholder="name=value; Domain=..." /></label><button onClick={() => void importCookies()} disabled={busy || !cookieUrl || !cookieText}>导入 Cookie</button></div>
-      </section>
+      </section>}
 
-      <section className="panel history">
+      {activeTab === "history" && <section className="panel history">
         <h2>阅读历史</h2>
         {history.length === 0 ? <p className="muted">暂无历史记录。</p> : history.map((item) => <article key={`${item.sourceKey ?? item.source_key}:${item.comicId ?? item.comic_id}`}><strong>{item.comicId ?? item.comic_id}</strong><span className="muted">{item.sourceKey ?? item.source_key} / {item.episodeId ?? item.episode_id ?? "未记录章节"} / 第 {(item.page ?? 0) + 1} 页</span></article>)}
-      </section>
+      </section>}
 
-      <section className="grid">
-        <div className="panel">
-          <h2>搜索结果</h2>
-          <div className="cards">
-            {results.map((comic) => <button className="comic-card" key={comic.id} onClick={() => void openComic(comic)}><img src={imageUrl(sourceKey, comic.cover ?? "mock://cover/0", comic.id, undefined, true)} alt="" /><strong>{comic.title}</strong><span>{comic.description}</span></button>)}
-          </div>
-        </div>
-
-        <aside className="panel details">
-          <h2>详情</h2>
-          {details ? <>
-            <h3>{details.title}</h3>
-            <p>{details.description}</p>
-            <div className="chips">{Object.entries(details.chapters ?? {}).map(([id, title]) => <button className={id === episodeId ? "active" : ""} key={id} onClick={() => void readEpisode(id)}>{title}</button>)}</div>
-            <div className="actions"><button onClick={() => void readEpisode()}>开始阅读</button><button onClick={() => void createDownload(false)}>下载章节</button><button onClick={() => void createDownload(true)}>下载全本</button></div>
-          </> : <p className="muted">选择一本漫画查看章节。</p>}
-        </aside>
-      </section>
-
-      <section className="panel reader">
-        <h2>阅读器</h2>
-        {images.length === 0 ? <p className="muted">打开章节后显示图片，移动端为单列长条模式。</p> : images.map((image, index) => <img key={`${image}-${index}`} src={imageUrl(sourceKey, image, details?.comicId ?? details?.id, episodeId ?? undefined)} alt={`page ${index + 1}`} loading={index < 2 ? "eager" : "lazy"} />)}
-      </section>
-
-      <section className="panel downloads">
+      {activeTab === "downloads" && <section className="panel downloads">
         <h2>下载任务</h2>
         {cache && <p className="muted">图片缓存：{cache.files} 个文件，{(cache.bytes / 1024 / 1024).toFixed(2)} MB <button onClick={() => void pruneCache()}>按限制裁剪</button> <button onClick={() => void clearCache()}>清理缓存</button></p>}
         {downloads.map((task) => <article key={task.id}><strong>{task.title ?? task.comicId}</strong><span>{task.status} / {task.phase}</span><progress value={task.completed} max={Math.max(task.total, 1)} />{task.error && <small>{task.error}</small>}<div className="actions"><button onClick={() => void loadDownloadItems(task)}>明细</button><button onClick={() => void downloadAction(task, "cancel")}>取消</button><button onClick={() => void downloadAction(task, "rerun")}>重跑</button><button onClick={() => void downloadAction(task, "cbz")}>导出 CBZ</button><button onClick={() => void downloadAction(task, "delete")}>删除</button><button onClick={() => void downloadAction(task, "delete-files")}>删除+文件</button></div>{task.logs?.length ? <small className="muted">{task.logs.at(-1)?.message}</small> : null}{downloadItems[task.id]?.length ? <div className="download-items">{downloadItems[task.id].map((item) => { const imageKey = item.imageKey ?? item.image_key ?? ""; return <div key={imageKey}><span>{imageKey}</span><span>{item.status}{item.error ? ` / ${item.error}` : ""}</span><button onClick={() => void retryDownloadItem(task, item)} disabled={busy}>重试</button></div>; })}</div> : null}</article>)}
-      </section>
+      </section>}
     </main>
   );
 }

@@ -16,9 +16,13 @@ textarea { min-height: 120px; resize: vertical; }
 .hero { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: end; padding: 32px; border-radius: 32px; background: radial-gradient(circle at top left, #7c3aed 0, transparent 34%), linear-gradient(135deg, #172554, #020617); box-shadow: 0 24px 80px #020617; }
 .hero h1 { margin: 0; font-size: clamp(2rem, 7vw, 5.5rem); line-height: 0.9; letter-spacing: -0.07em; }
 .hero p { max-width: 720px; color: #cbd5e1; }
+.hero-actions { display: grid; grid-template-columns: minmax(180px, 260px) auto; gap: 12px; align-items: end; }
 .eyebrow { margin: 0 0 12px; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.2em; }
 .panel { margin-top: 20px; padding: 20px; border: 1px solid #1f2a44; border-radius: 28px; background: rgba(15, 23, 42, 0.82); backdrop-filter: blur(18px); }
-.controls { display: grid; grid-template-columns: 220px 1fr 220px auto; gap: 16px; align-items: end; }
+.tabs { position: sticky; top: 0; z-index: 2; display: flex; gap: 10px; margin-top: 18px; padding: 10px; border: 1px solid #1f2a44; border-radius: 999px; background: rgba(2, 6, 23, 0.82); backdrop-filter: blur(18px); }
+.tabs button { flex: 1; background: transparent; color: #cbd5e1; }
+.tabs button.active { background: #2563eb; color: white; }
+.controls { display: grid; grid-template-columns: 220px 1fr auto; gap: 16px; align-items: end; }
 .grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
 .comic-card { display: grid; gap: 10px; text-align: left; border-radius: 22px; background: #111c34; color: #e5ecff; }
@@ -45,7 +49,9 @@ textarea { min-height: 120px; resize: vertical; }
 
 @media (max-width: 820px) {
   .shell { padding: 12px; }
-  .hero, .controls, .grid { grid-template-columns: 1fr; }
+  .hero, .hero-actions, .controls, .grid { grid-template-columns: 1fr; }
+  .tabs { border-radius: 24px; overflow-x: auto; }
+  .tabs button { min-width: 92px; }
   .tool-row, .settings-grid { grid-template-columns: 1fr; }
   .source-list article, .history article, .download-items div { grid-template-columns: 1fr; }
   .hero { padding: 24px; border-radius: 24px; }
