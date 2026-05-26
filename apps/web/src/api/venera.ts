@@ -30,7 +30,9 @@ export const veneraApi = {
   setSourceEnabled: (sourceKey: string, enabled: boolean) => api(`/sources/${encodeURIComponent(sourceKey)}/enabled`, { method: "PUT", body: JSON.stringify({ enabled }) }),
   getSourceSettings: (sourceKey: string) => api<SettingsResponse>(`/sources/${encodeURIComponent(sourceKey)}/settings`),
   updateSourceSettings: (sourceKey: string, values: Record<string, unknown>) => api(`/sources/${encodeURIComponent(sourceKey)}/settings`, { method: "PUT", body: JSON.stringify({ values }) }),
+  clearSourceSettings: (sourceKey: string) => api<SettingsResponse>(`/sources/${encodeURIComponent(sourceKey)}/settings`, { method: "DELETE" }),
   importCookies: (sourceKey: string, url: string, cookies: string[]) => api(`/sources/${encodeURIComponent(sourceKey)}/cookies`, { method: "PUT", body: JSON.stringify({ url, cookies }) }),
+  clearCookies: (sourceKey: string) => api(`/sources/${encodeURIComponent(sourceKey)}/cookies`, { method: "DELETE" }),
   search: (sourceKey: string, keyword: string, cursor?: { page?: number; next?: string | null }) => {
     const params = new URLSearchParams({ keyword });
     if (cursor?.next) params.set("next", cursor.next);

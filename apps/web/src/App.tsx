@@ -138,10 +138,26 @@ export function App() {
     });
   }
 
+  async function resetSourceSettings() {
+    await run(async () => {
+      const data = await veneraApi.clearSourceSettings(sourceKey);
+      setSourceSettings(data);
+      setSettingsJson(JSON.stringify(data.values ?? {}, null, 2));
+    });
+  }
+
   async function importCookies() {
     await run(async () => {
       const cookies = cookieText.split("\n").map((line) => line.trim()).filter(Boolean);
       await veneraApi.importCookies(sourceKey, cookieUrl, cookies);
+      setCookieText("");
+    });
+  }
+
+  async function clearCookies() {
+    if (!window.confirm(`清空源「${sourceKey}」的 Cookie？`)) return;
+    await run(async () => {
+      await veneraApi.clearCookies(sourceKey);
       setCookieText("");
     });
   }
@@ -274,6 +290,7 @@ export function App() {
     { key: "done", title: "完成", tasks: downloads.filter((task) => task.status === "done" || task.status === "completed") },
     { key: "other", title: "其他", tasks: downloads.filter((task) => !["queued", "running", "failed", "done", "completed"].includes(task.status) && !task.error) },
   ].filter((group) => group.tasks.length > 0);
+  const enabledSources = sourceMetadata.filter((source) => source.enabled === true || source.enabled === 1).length;
 
   return (
     <main className="shell">
@@ -334,6 +351,7 @@ export function App() {
 
       {activeTab === "sources" && <section className="panel source-tools">
         <h2>源管理</h2>
+        <p className="muted">已安装 {sourceMetadata.length} 个源，启用 {enabledSources} 个。</p>
         <div className="tool-row">
           <label>可安装源<select value={installSource} onChange={(event) => setInstallSource(event.target.value)}><option value="">选择源</option>{availableSources.map((source) => <option key={source.key ?? source.fileName ?? source.name} value={source.key ?? source.fileName ?? source.name}>{source.name} ({source.key ?? source.fileName ?? source.filename})</option>)}</select></label>
           <button onClick={() => void installSelectedSource()} disabled={busy || !installSource}>安装/更新</button>
@@ -342,8 +360,8 @@ export function App() {
           <button onClick={() => void loadSourceSettings()} disabled={busy || !sourceKey}>加载设置</button>
         </div>
         {sourceMetadata.length > 0 && <div className="source-list">{sourceMetadata.map((source) => <article key={source.key}><div><strong>{source.name}</strong><span className="muted">{source.key}{source.version ? ` / ${source.version}` : ""}</span></div><button onClick={() => void setSourceEnabled(source, !(source.enabled === true || source.enabled === 1))} disabled={busy}>{source.enabled === true || source.enabled === 1 ? "禁用" : "启用"}</button></article>)}</div>}
-        {sourceSettings && <div className="settings-grid"><label>源设置 JSON<textarea value={settingsJson} onChange={(event) => setSettingsJson(event.target.value)} /></label><div><p className="muted">配置项：{Object.keys(sourceSettings.schema ?? {}).join(", ") || "无"}</p><button onClick={() => void saveSourceSettings()} disabled={busy}>保存设置</button></div></div>}
-        <div className="settings-grid"><label>Cookie URL<input value={cookieUrl} onChange={(event) => setCookieUrl(event.target.value)} placeholder="https://example.com" /></label><label>Cookie 每行一条<textarea value={cookieText} onChange={(event) => setCookieText(event.target.value)} placeholder="name=value; Domain=..." /></label><button onClick={() => void importCookies()} disabled={busy || !cookieUrl || !cookieText}>导入 Cookie</button></div>
+        {sourceSettings && <div className="settings-grid"><label>源设置 JSON<textarea value={settingsJson} onChange={(event) => setSettingsJson(event.target.value)} /></label><div><p className="muted">配置项：{Object.keys(sourceSettings.schema ?? {}).join(", ") || "无"}</p><div className="actions"><button onClick={() => void saveSourceSettings()} disabled={busy}>保存设置</button><button onClick={() => void resetSourceSettings()} disabled={busy}>恢复默认</button></div></div></div>}
+        <div className="settings-grid"><label>Cookie URL<input value={cookieUrl} onChange={(event) => setCookieUrl(event.target.value)} placeholder="https://example.com" /></label><label>Cookie 每行一条<textarea value={cookieText} onChange={(event) => setCookieText(event.target.value)} placeholder="name=value; Domain=..." /></label><div className="actions"><button onClick={() => void importCookies()} disabled={busy || !cookieUrl || !cookieText}>导入 Cookie</button><button onClick={() => void clearCookies()} disabled={busy || !sourceKey}>清空 Cookie</button></div></div>
       </section>}
 
       {activeTab === "history" && <section className="panel history">
