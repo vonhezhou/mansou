@@ -174,14 +174,33 @@ export function App() {
     });
   }
 
-  async function readEpisode(nextEpisodeId = episodeId) {
+  async function readEpisode(nextEpisodeId = episodeId, initialPage = 0) {
     if (!details || !nextEpisodeId) return;
     await run(async () => {
       const data = await veneraApi.episodePages(sourceKey, details.comicId ?? details.id, nextEpisodeId);
       setEpisodeId(nextEpisodeId);
       setImages(data.images ?? []);
-      await veneraApi.saveHistory(sourceKey, details.comicId ?? details.id, nextEpisodeId);
+      await veneraApi.saveHistory(sourceKey, details.comicId ?? details.id, { episodeId: nextEpisodeId, page: initialPage, progress: data.images.length > 0 ? initialPage / data.images.length : 0 });
       setHistory(await veneraApi.listHistory());
+      if (initialPage > 0) window.setTimeout(() => document.getElementById(`page-${initialPage + 1}`)?.scrollIntoView({ block: "start" }), 100);
+    });
+  }
+
+  async function openHistoryItem(item: HistoryItem) {
+    const nextSourceKey = item.sourceKey ?? item.source_key;
+    const comicId = item.comicId ?? item.comic_id;
+    const nextEpisodeId = item.episodeId ?? item.episode_id;
+    if (!nextSourceKey || !comicId) return;
+    await run(async () => {
+      const data = await veneraApi.comicDetails(nextSourceKey, comicId);
+      const episodeToRead = nextEpisodeId ?? Object.keys(data.chapters ?? {})[0] ?? "_default";
+      const pages = await veneraApi.episodePages(nextSourceKey, data.comicId ?? data.id, episodeToRead);
+      setSourceKey(nextSourceKey);
+      setDetails(data);
+      setEpisodeId(episodeToRead);
+      setImages(pages.images ?? []);
+      setActiveTab("search");
+      window.setTimeout(() => document.getElementById(`page-${(item.page ?? 0) + 1}`)?.scrollIntoView({ block: "start" }), 100);
     });
   }
 
@@ -296,7 +315,7 @@ export function App() {
 
         <section className="panel reader">
           <h2>阅读器</h2>
-          {images.length === 0 ? <p className="muted">打开章节后显示图片，移动端为单列长条模式。</p> : images.map((image, index) => <img key={`${image}-${index}`} src={imageUrl(sourceKey, image, details?.comicId ?? details?.id, episodeId ?? undefined)} alt={`page ${index + 1}`} loading={index < 2 ? "eager" : "lazy"} />)}
+          {images.length === 0 ? <p className="muted">打开章节后显示图片，移动端为单列长条模式。</p> : images.map((image, index) => <img id={`page-${index + 1}`} key={`${image}-${index}`} src={imageUrl(sourceKey, image, details?.comicId ?? details?.id, episodeId ?? undefined)} alt={`page ${index + 1}`} loading={index < 2 ? "eager" : "lazy"} />)}
         </section>
       </>}
 
@@ -316,7 +335,7 @@ export function App() {
 
       {activeTab === "history" && <section className="panel history">
         <h2>阅读历史</h2>
-        {history.length === 0 ? <p className="muted">暂无历史记录。</p> : history.map((item) => <article key={`${item.sourceKey ?? item.source_key}:${item.comicId ?? item.comic_id}`}><strong>{item.comicId ?? item.comic_id}</strong><span className="muted">{item.sourceKey ?? item.source_key} / {item.episodeId ?? item.episode_id ?? "未记录章节"} / 第 {(item.page ?? 0) + 1} 页</span></article>)}
+        {history.length === 0 ? <p className="muted">暂无历史记录。</p> : history.map((item) => <button className="history-item" key={`${item.sourceKey ?? item.source_key}:${item.comicId ?? item.comic_id}`} onClick={() => void openHistoryItem(item)}><strong>{item.comicId ?? item.comic_id}</strong><span className="muted">{item.sourceKey ?? item.source_key} / {item.episodeId ?? item.episode_id ?? "未记录章节"} / 第 {(item.page ?? 0) + 1} 页</span></button>)}
       </section>}
 
       {activeTab === "downloads" && <section className="panel downloads">
