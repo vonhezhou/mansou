@@ -311,6 +311,9 @@ export async function createRuntimeApi(sourceKey: string, dataStore: SourceDataS
     load: (key: string) => dataStore.load(sourceKey, key),
     save: (key: string, value: unknown) => dataStore.save(sourceKey, key, value),
     delete: (key: string) => dataStore.delete(sourceKey, key),
+    loadData: (key: string) => dataStore.load(sourceKey, key),
+    saveData: (key: string, value: unknown) => dataStore.save(sourceKey, key, value),
+    deleteData: (key: string) => dataStore.delete(sourceKey, key),
   };
 
   const Log = {
@@ -348,5 +351,20 @@ export async function createRuntimeApi(sourceKey: string, dataStore: SourceDataS
     decryptRsa: (value: BytesInput, key: BytesInput) => crypto.privateDecrypt(toBuffer(key), toBuffer(value)),
   };
 
-  return { Network, Html, HtmlDocument, Data, Log, App, Convert, appVersion: config.appVersion };
+  return {
+    Network,
+    Http: Network,
+    HTML: Html,
+    Html,
+    HtmlDocument,
+    Data,
+    Storage: Data,
+    Log,
+    Console: Log,
+    App,
+    APP: App,
+    app: App,
+    Convert,
+    appVersion: config.appVersion,
+  };
 }

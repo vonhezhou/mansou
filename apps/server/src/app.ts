@@ -37,6 +37,7 @@ export async function buildApp() {
   const context: RouteContext = { repository, runtime, imageProxy, downloads, storage };
 
   app.addHook("onClose", async () => {
+    await runtime.close();
     storage.close();
   });
 

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { runtimeCompatibility } from "../runtime/compatibility.js";
+import { classifyPluginError } from "../runtime/errors.js";
 import type { RouteContext } from "./types.js";
 
 export async function registerDebugRoutes(app: FastifyInstance, context: RouteContext) {
@@ -11,42 +12,50 @@ export async function registerDebugRoutes(app: FastifyInstance, context: RouteCo
   app.get("/debug/:sourceKey/search", async (request) => {
     const params = z.object({ sourceKey: z.string() }).parse(request.params);
     const query = z.object({ keyword: z.string().default("test"), page: z.string().optional() }).parse(request.query);
-    return debugRun("search", () => context.runtime.search(params.sourceKey, query.keyword, query.page));
+    return debugRun(params.sourceKey, "search", () => context.runtime.search(params.sourceKey, query.keyword, query.page));
   });
 
   app.get("/debug/:sourceKey/comics/:comicId", async (request) => {
     const params = z.object({ sourceKey: z.string(), comicId: z.string() }).parse(request.params);
-    return debugRun("detail", () => context.runtime.comicDetails(params.sourceKey, params.comicId));
+    return debugRun(params.sourceKey, "detail", () => context.runtime.comicDetails(params.sourceKey, params.comicId));
   });
 
   app.get("/debug/:sourceKey/comics/:comicId/episodes/:episodeId/pages", async (request) => {
     const params = z.object({ sourceKey: z.string(), comicId: z.string(), episodeId: z.string() }).parse(request.params);
-    return debugRun("pages", () => context.runtime.comicPages(params.sourceKey, params.comicId, params.episodeId));
+    return debugRun(params.sourceKey, "pages", () => context.runtime.comicPages(params.sourceKey, params.comicId, params.episodeId));
   });
 
   app.get("/debug/:sourceKey/image", async (request) => {
     const params = z.object({ sourceKey: z.string() }).parse(request.params);
     const query = z.object({ imageKey: z.string(), comicId: z.string().optional(), episodeId: z.string().optional() }).parse(request.query);
-    return debugRun("image", async () => {
+    return debugRun(params.sourceKey, "image", async () => {
       const image = await context.imageProxy.loadBytes({ sourceKey: params.sourceKey, ...query }, false);
       return { contentType: image.contentType, bytes: image.data.length };
     });
   });
 }
 
-async function debugRun(name: string, task: () => Promise<unknown>) {
+async function debugRun(sourceKey: string, operation: string, task: () => Promise<unknown>) {
   const startedAt = Date.now();
   try {
     const data = await task();
-    return { ok: true, name, durationMs: Date.now() - startedAt, summary: summarizeDebugData(data) };
+    return { ok: true, sourceKey, operation, durationMs: Date.now() - startedAt, summary: summarizeDebugData(data) };
   } catch (error) {
+    const classified = classifyPluginError(error, sourceKey, operation);
+    const cause = classified.cause instanceof Error ? classified.cause : error;
     return {
       ok: false,
-      name,
+      sourceKey,
+      operation,
       durationMs: Date.now() - startedAt,
-      error: error instanceof Error ? error.message : String(error),
-      hint: debugHint(error),
-      stack: error instanceof Error ? error.stack?.split("\n").slice(0, 6) : undefined,
+      error: {
+        code: classified.code,
+        message: classified.message,
+        sourceKey: classified.sourceKey,
+        operation: classified.operation,
+        stack: cause instanceof Error ? cause.stack?.split("\n").slice(0, 6) : undefined,
+      },
+      hint: debugHint(classified),
     };
   }
 }

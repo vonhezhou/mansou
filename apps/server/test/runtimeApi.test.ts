@@ -62,4 +62,15 @@ describe("runtime api compatibility", () => {
     expect(first.parent.nodes.map((node: { type: string }) => node.type)).toContain("text");
     expect(first.parent.nodes[0].toElement()?.id).toBe("a");
   });
+
+  it("exposes APP as an App compatibility alias", async () => {
+    const { App, APP, app, Http, Network, Storage, Data, HTML, Html, Console, Log } = await createRuntimeApi("mock", new SourceDataStore(), new SourceCookieStore());
+    expect(APP).toBe(App);
+    expect(app).toBe(App);
+    expect(Http).toBe(Network);
+    expect(Storage).toBe(Data);
+    expect(HTML).toBe(Html);
+    expect(Console).toBe(Log);
+    expect(APP.version).toBe(App.version);
+  });
 });

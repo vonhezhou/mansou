@@ -19,11 +19,20 @@ describe("worker plugin isolation", () => {
     await writeFile(sourceFile, `class WorkerMock extends ComicSource {
       key = "worker_mock";
       name = "Worker Mock";
-      search = { load: async (keyword) => ({ comics: [{ id: keyword, title: "From Worker", cover: "" }] }) };
+      search = { load: async (keyword) => ({ comics: [{ id: keyword, title: (await Data.load("worker-key")).ok ? "From Worker" : "Missing Data", cover: "" }] }) };
       comic = {
         loadInfo: async (id) => ({ id, title: "Detail", cover: "", chapters: { one: "One" } }),
-        loadEp: async () => ({ images: ["mock://worker/1"] })
+        loadEp: async () => ({ images: ["mock://worker/1"] }),
+        onImageLoad: async (imageKey, comicId, epId) => ({ url: imageKey, headers: { referer: comicId + "/" + epId } })
       };
+      async init() {
+        await Data.save("worker-key", { ok: true });
+      }
+      getImageLoadingConfig = async (imageKey) => ({ url: imageKey, headers: { "x-root": "yes" } });
+      getThumbnailLoadingConfig = async (imageKey) => ({ url: imageKey, headers: { "x-thumbnail": "yes" } });
+      settings = { label: { default: "fallback" } };
+      loadSettingValue = () => this.loadSetting("label");
+      loadDataValue = async () => Data.load("worker-key");
     }`, "utf8");
 
     const runtime = new SourceRuntime();
@@ -32,5 +41,13 @@ describe("worker plugin isolation", () => {
     expect((await runtime.search("worker_mock", "hello")).comics[0]).toMatchObject({ id: "hello", title: "From Worker" });
     expect((await runtime.comicDetails("worker_mock", "comic-1")).title).toBe("Detail");
     expect((await runtime.comicPages("worker_mock", "comic-1", "one")).images).toEqual(["mock://worker/1"]);
+    await expect(runtime.imageLoadingConfig("worker_mock", "https://example.test/1.jpg", "comic-1", "one")).resolves.toMatchObject({
+      url: "https://example.test/1.jpg",
+      headers: { referer: "comic-1/one" },
+    });
+    await expect(runtime.imageLoadingConfig("worker_mock", "https://example.test/thumb.jpg", "", null, true)).resolves.toMatchObject({
+      url: "https://example.test/thumb.jpg",
+      headers: { "x-thumbnail": "yes" },
+    });
   });
 });

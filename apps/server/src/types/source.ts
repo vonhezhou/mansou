@@ -76,9 +76,15 @@ export type VeneraComicSource = {
     loadEp?: (id: string, ep?: string | null) => Promise<{ images: string[] }> | { images: string[] };
     getImageLoadingConfig?: (imageKey: string, comicId: string, epId: string | null) => Promise<Record<string, unknown>> | Record<string, unknown>;
     onImageLoad?: (imageKey: string, comicId: string, epId: string | null) => Promise<Record<string, unknown>> | Record<string, unknown>;
+    onLoadFailed?: (imageKey: string, comicId: string, epId: string | null, error: Error) => Promise<Record<string, unknown>> | Record<string, unknown>;
+    onResponse?: (imageKey: string, comicId: string, epId: string | null, response: Record<string, unknown>) => Promise<Record<string, unknown>> | Record<string, unknown>;
+    modifyImage?: (imageKey: string, comicId: string, epId: string | null, data: Buffer) => Promise<unknown> | unknown;
   };
   getImageLoadingConfig?: (imageKey: string, comicId: string, epId: string | null) => Promise<Record<string, unknown>> | Record<string, unknown>;
   getThumbnailLoadingConfig?: (imageKey: string) => Record<string, unknown>;
+  onLoadFailed?: (imageKey: string, comicId: string, epId: string | null, error: Error) => Promise<Record<string, unknown>> | Record<string, unknown>;
+  onResponse?: (imageKey: string, comicId: string, epId: string | null, response: Record<string, unknown>) => Promise<Record<string, unknown>> | Record<string, unknown>;
+  modifyImage?: (imageKey: string, comicId: string, epId: string | null, data: Buffer) => Promise<unknown> | unknown;
   init?: () => Promise<void> | void;
   [key: string]: unknown;
 };

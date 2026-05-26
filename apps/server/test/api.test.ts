@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
+import { resolveAssetPath } from "../src/routes/static.js";
 
 let app: FastifyInstance;
 let context: Awaited<ReturnType<typeof import("../src/app.js").buildApp>>["context"];
@@ -29,6 +30,12 @@ describe("api v1 mock source", () => {
     const response = await app.inject({ method: "GET", url: "/api/v1/health" });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ ok: true, name: "venera_web" });
+  });
+
+  it("rejects static asset path traversal", async () => {
+    const assetsDir = path.resolve("/tmp/venera-web/static/assets");
+    expect(resolveAssetPath(assetsDir, "main.js")).toBe(path.join(assetsDir, "main.js"));
+    expect(resolveAssetPath(assetsDir, "../app.js")).toBeNull();
   });
 
   it("returns runtime compatibility report", async () => {
@@ -178,5 +185,78 @@ describe("api v1 mock source", () => {
     });
     expect(retry.statusCode).toBe(200);
     expect(retry.json().item).toMatchObject({ task_id: taskId, status: "completed" });
+  });
+
+  it("persists classified per-image download failures", async () => {
+    const { config } = await import("../src/config/config.js");
+    const originalRetries = config.downloadRetries;
+    const originalLoadBytes = context.imageProxy.loadBytes.bind(context.imageProxy);
+    config.downloadRetries = 1;
+    context.imageProxy.loadBytes = async (input, useCache) => {
+      if (input.imageKey.endsWith("/3")) throw new Error("Failed to load image: 403 Forbidden");
+      return originalLoadBytes(input, useCache);
+    };
+
+    try {
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/v1/downloads",
+        payload: { sourceKey: "mock", comicId: "mock-comic-failing-image", episodeId: "chapter-1" },
+      });
+      expect(created.statusCode).toBe(200);
+      const taskId = created.json().id as string;
+
+      let taskStatus = "queued";
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        const task = await app.inject({ method: "GET", url: `/api/v1/downloads/${taskId}` });
+        taskStatus = task.json().status;
+        if (taskStatus === "failed") break;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      expect(taskStatus).toBe("failed");
+
+      const items = await app.inject({ method: "GET", url: `/api/v1/downloads/${taskId}/items` });
+      expect(items.statusCode).toBe(200);
+      expect(items.json()).toContainEqual(expect.objectContaining({ image_key: "mock://image/mock-comic-failing-image/chapter-1/3", status: "failed", error_code: "HTTP_403" }));
+    } finally {
+      context.imageProxy.loadBytes = originalLoadBytes;
+      config.downloadRetries = originalRetries;
+    }
+  });
+
+  it("downloads images whose keys are not valid URLs", async () => {
+    const originalComicPages = context.runtime.comicPages.bind(context.runtime);
+    const originalLoadBytes = context.imageProxy.loadBytes.bind(context.imageProxy);
+    context.runtime.comicPages = async (sourceKey, comicId, episodeId) => {
+      if (comicId === "plain-image-key") return { images: ["relative/image-key"] };
+      return originalComicPages(sourceKey, comicId, episodeId);
+    };
+    context.imageProxy.loadBytes = async (input, useCache) => {
+      if (input.imageKey === "relative/image-key") return { data: Buffer.from("plain"), contentType: "application/octet-stream", cached: false };
+      return originalLoadBytes(input, useCache);
+    };
+
+    try {
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/v1/downloads",
+        payload: { sourceKey: "mock", comicId: "plain-image-key", episodeId: "chapter-1" },
+      });
+      expect(created.statusCode).toBe(200);
+      const taskId = created.json().id as string;
+
+      let taskBody: { status: string; completed: number; total: number } | undefined;
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        const task = await app.inject({ method: "GET", url: `/api/v1/downloads/${taskId}` });
+        taskBody = task.json();
+        if (taskBody.status === "completed") break;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+
+      expect(taskBody).toMatchObject({ status: "completed", completed: 1, total: 1 });
+    } finally {
+      context.runtime.comicPages = originalComicPages;
+      context.imageProxy.loadBytes = originalLoadBytes;
+    }
   });
 });

@@ -309,9 +309,11 @@ export class DownloadService {
 
   private async downloadImages(task: DownloadTask, images: string[], episodeId: string, outputDir: string) {
     let nextIndex = 0;
+    let firstError: unknown;
     const workerCount = Math.max(1, Math.min(config.downloadConcurrency, images.length));
     const workers = Array.from({ length: workerCount }, async () => {
       while (true) {
+        if (firstError) return;
         const index = nextIndex;
         nextIndex += 1;
         if (index >= images.length) return;
@@ -323,13 +325,19 @@ export class DownloadService {
           continue;
         }
         this.update(task, { current: imageKey });
-        const filePath = await this.downloadImageWithRetry(task, imageKey, episodeId, outputDir, index);
-        this.storage?.saveDownloadItem({ taskId: task.id, imageKey, filePath, status: "completed" });
-        this.throwIfCancelled(task);
-        this.update(task, { completed: task.completed + 1 });
+        try {
+          const filePath = await this.downloadImageWithRetry(task, imageKey, episodeId, outputDir, index);
+          this.storage?.saveDownloadItem({ taskId: task.id, imageKey, filePath, status: "completed" });
+          this.throwIfCancelled(task);
+          this.update(task, { completed: task.completed + 1 });
+        } catch (error) {
+          firstError = error;
+          throw error;
+        }
       }
     });
-    await Promise.all(workers);
+    await Promise.allSettled(workers);
+    if (firstError) throw firstError;
     this.update(task, { current: undefined });
   }
 
@@ -354,9 +362,10 @@ export class DownloadService {
         return file;
       } catch (error) {
         lastError = error;
-        this.storage?.saveDownloadItem({ taskId: task.id, imageKey, status: "failed", retryCount: attempt, error: error instanceof Error ? error.message : String(error) });
+        const classified = classifyDownloadError(error);
+        this.storage?.saveDownloadItem({ taskId: task.id, imageKey, status: "failed", retryCount: attempt, error: classified.message, errorCode: classified.code });
         if (attempt < Math.max(1, config.downloadRetries)) {
-          await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+          await new Promise((resolve) => setTimeout(resolve, retryDelayMs(attempt)));
         }
       }
     }
@@ -397,14 +406,36 @@ export class DownloadService {
   }
 }
 
+function retryDelayMs(attempt: number) {
+  return Math.min(30000, 1000 * 2 ** (attempt - 1));
+}
+
+function classifyDownloadError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  const statusMatch = message.match(/\b(4\d\d|5\d\d)\b/);
+  if (statusMatch) return { code: `HTTP_${statusMatch[1]}`, message };
+  if (/timeout|timed out|abort/i.test(message)) return { code: "TIMEOUT", message };
+  if (/cancelled/i.test(message)) return { code: "CANCELLED", message };
+  return { code: "DOWNLOAD_ERROR", message };
+}
+
 function extensionFromContentType(contentType: string, imageKey: string) {
   if (contentType.includes("jpeg")) return ".jpg";
   if (contentType.includes("png")) return ".png";
   if (contentType.includes("webp")) return ".webp";
   if (contentType.includes("gif")) return ".gif";
   if (contentType.includes("svg")) return ".svg";
-  const match = new URL(imageKey).pathname.match(/\.[a-zA-Z0-9]+$/);
+  const pathname = urlPathname(imageKey);
+  const match = pathname.match(/\.[a-zA-Z0-9]+$/);
   return match?.[0] ?? ".bin";
+}
+
+function urlPathname(value: string) {
+  try {
+    return new URL(value).pathname;
+  } catch {
+    return value;
+  }
 }
 
 async function zipDirectory(sourceDir: string, outputFile: string) {

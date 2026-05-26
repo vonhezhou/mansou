@@ -148,7 +148,7 @@ class PluginCallTimeoutError extends Error {
 }
 
 type SourceLimiter = { active: number; queue: Array<() => void> };
-type RuntimeDiagnostic = { time: string; sourceKey?: string; operation: string; code: string; message: string };
+type RuntimeDiagnostic = { time: string; sourceKey?: string; operation: string; code: string; message: string; stack?: string[] };
 
 export class SourceRuntime {
   private readonly sources = new Map<string, LoadedSource>();
@@ -156,6 +156,7 @@ export class SourceRuntime {
   private readonly sourceLimiters = new Map<string, SourceLimiter>();
   private readonly recentErrors: RuntimeDiagnostic[] = [];
   private readonly failedLoads: RuntimeDiagnostic[] = [];
+  private reloadPromise?: Promise<LoadedSource[]>;
 
   constructor(
     private readonly repository = new SourceRepositoryService(),
@@ -166,8 +167,17 @@ export class SourceRuntime {
   }
 
   async loadInstalled() {
+    if (this.reloadPromise) return this.reloadPromise;
+    this.reloadPromise = this.loadInstalledOnce().finally(() => {
+      this.reloadPromise = undefined;
+    });
+    return this.reloadPromise;
+  }
+
+  private async loadInstalledOnce() {
     const scripts = await this.repository.listInstalledScripts();
     const loaded: LoadedSource[] = [];
+    await this.closeWorkers();
     this.sources.clear();
     for (const filePath of scripts) {
       try {
@@ -185,7 +195,8 @@ export class SourceRuntime {
 
   async loadScript(filePath: string) {
     if (config.pluginIsolation === "worker") {
-      const adapter = await WorkerSourceRuntimeAdapter.load(filePath);
+      const adapter = await WorkerSourceRuntimeAdapter.load(filePath, (sourceKey, error) => this.handleWorkerCrash(sourceKey, error));
+      await this.workerSources.get(adapter.source.key)?.close();
       this.workerSources.set(adapter.source.key, adapter);
       this.sources.set(adapter.source.key, adapter.source);
       return adapter.source;
@@ -222,10 +233,20 @@ export class SourceRuntime {
       UI: {
         showMessage: (...args: unknown[]) => console.info("[UI.showMessage]", ...args),
         showDialog: (...args: unknown[]) => console.info("[UI.showDialog]", ...args),
+        toast: (...args: unknown[]) => console.info("[UI.toast]", ...args),
       },
       ComicSource: ComicSourceBase,
       ...api,
     };
+    Object.assign(sandbox, {
+      globalThis: sandbox,
+      self: sandbox,
+      window: sandbox,
+      APP: api.App,
+      App: api.App,
+      app: api.App,
+      appVersion: config.appVersion,
+    });
     const context = vm.createContext(sandbox);
     const instance = vm.runInContext(
       `${script}\n;globalThis.__source = new ${className}();\n;globalThis.__source;`,
@@ -277,12 +298,18 @@ export class SourceRuntime {
       loadedSources: this.all(),
       failedLoads: this.failedLoads,
       recentErrors: this.recentErrors,
+      workers: [...this.workerSources.values()].map((worker) => worker.diagnostics()),
       sourceConcurrency: [...this.sourceLimiters.entries()].map(([sourceKey, limiter]) => ({
         sourceKey,
         active: limiter.active,
         queued: limiter.queue.length,
       })),
     };
+  }
+
+  async close() {
+    await this.closeWorkers();
+    this.sources.clear();
   }
 
   searchOptions(sourceKey: string) {
@@ -349,13 +376,37 @@ export class SourceRuntime {
 
   async comicPages(sourceKey: string, comicId: string, episodeId?: string | null) {
     const source = this.find(sourceKey).instance;
-    const worker = this.workerSources.get(sourceKey);
-    if (worker) return worker.comicPages(comicId, episodeId);
-    if (!source.comic?.loadEp) throw new Error(`Source does not support comic pages: ${sourceKey}`);
     if (sourceKey === "baozi" && episodeId != null && episodeId !== "_default") {
       const images = await loadBaoziPages(comicId, episodeId);
       if (images.length > 0) return { images };
     }
+    const worker = this.workerSources.get(sourceKey);
+    if (worker) {
+      try {
+        const result = await worker.comicPages(comicId, episodeId);
+        if (result.images?.length) return result;
+        if (sourceKey === "baozi" && episodeId != null && episodeId !== "_default") {
+          const images = await loadBaoziPages(comicId, episodeId);
+          if (images.length > 0) return { images };
+        }
+        if (sourceKey === "comick" && episodeId != null && episodeId !== "_default") {
+          const images = await loadComickPages(comicId, episodeId);
+          if (images.length > 0) return { images };
+        }
+        return result;
+      } catch (error) {
+        if (sourceKey === "baozi" && episodeId != null && episodeId !== "_default") {
+          const images = await loadBaoziPages(comicId, episodeId);
+          if (images.length > 0) return { images };
+        }
+        if (sourceKey === "comick" && episodeId != null && episodeId !== "_default") {
+          const images = await loadComickPages(comicId, episodeId);
+          if (images.length > 0) return { images };
+        }
+        throw error;
+      }
+    }
+    if (!source.comic?.loadEp) throw new Error(`Source does not support comic pages: ${sourceKey}`);
     try {
       const result = await this.runPluginCall(sourceKey, "comic.loadEp", () => source.comic!.loadEp!(comicId, episodeId === "_default" ? null : episodeId));
       return { images: result.images ?? [] };
@@ -372,19 +423,62 @@ export class SourceRuntime {
     }
   }
 
+  async imageLoadingConfig(sourceKey: string, imageKey: string, comicId: string, episodeId: string | null, thumbnail = false) {
+    const source = this.find(sourceKey).instance;
+    const worker = this.workerSources.get(sourceKey);
+    if (thumbnail) {
+      if (worker) return worker.thumbnailLoadingConfig(imageKey);
+      return source.getThumbnailLoadingConfig?.(imageKey) ?? {};
+    }
+    if (worker) return worker.imageLoadingConfig(imageKey, comicId, episodeId);
+    const loader = source.comic?.getImageLoadingConfig ?? source.comic?.onImageLoad ?? source.getImageLoadingConfig;
+    return normalizeLoadingConfig((await loader?.(imageKey, comicId, episodeId)) ?? {});
+  }
+
+  async imageLoadFailed(sourceKey: string, imageKey: string, comicId: string, episodeId: string | null, error: Error) {
+    const source = this.find(sourceKey).instance;
+    const worker = this.workerSources.get(sourceKey);
+    if (worker) return worker.imageLoadFailed(imageKey, comicId, episodeId, error.message);
+    const handler = source.comic?.onLoadFailed ?? source.onLoadFailed;
+    return normalizeLoadingConfig((await handler?.(imageKey, comicId, episodeId, error)) ?? {});
+  }
+
+  async imageResponse(sourceKey: string, imageKey: string, comicId: string, episodeId: string | null, response: { status: number; headers: Record<string, string>; url: string }) {
+    const source = this.find(sourceKey).instance;
+    const worker = this.workerSources.get(sourceKey);
+    if (worker) return worker.imageResponse(imageKey, comicId, episodeId, response);
+    const handler = source.comic?.onResponse ?? source.onResponse;
+    return normalizeLoadingConfig((await handler?.(imageKey, comicId, episodeId, response)) ?? {});
+  }
+
+  async modifyImage(sourceKey: string, imageKey: string, comicId: string, episodeId: string | null, data: Buffer) {
+    const source = this.find(sourceKey).instance;
+    const worker = this.workerSources.get(sourceKey);
+    if (worker) {
+      const result = await worker.modifyImage(imageKey, comicId, episodeId, Array.from(data));
+      return result?.data ? Buffer.from(result.data) : data;
+    }
+    const handler = source.comic?.modifyImage ?? source.modifyImage;
+    const result = await handler?.(imageKey, comicId, episodeId, data);
+    return normalizeImageBytes(result) ?? data;
+  }
+
   cookies(sourceKey: string) {
     this.find(sourceKey);
     return this.cookieStore.list(sourceKey);
   }
 
-  importCookies(sourceKey: string, url: string, cookies: Array<string | Record<string, unknown>> | string) {
-    this.find(sourceKey);
-    return this.cookieStore.import(sourceKey, url, cookies);
+  async importCookies(sourceKey: string, url: string, cookies: Array<string | Record<string, unknown>> | string) {
+    const source = this.find(sourceKey);
+    const imported = await this.cookieStore.import(sourceKey, url, cookies);
+    if (this.workerSources.has(sourceKey)) await this.loadScript(source.filePath);
+    return imported;
   }
 
-  clearCookies(sourceKey: string) {
-    this.find(sourceKey);
-    return this.cookieStore.clear(sourceKey);
+  async clearCookies(sourceKey: string) {
+    const source = this.find(sourceKey);
+    await this.cookieStore.clear(sourceKey);
+    if (this.workerSources.has(sourceKey)) await this.loadScript(source.filePath);
   }
 
   sourceSettings(sourceKey: string) {
@@ -429,6 +523,7 @@ export class SourceRuntime {
       operation: input.operation,
       code: error.code,
       message: error.message,
+      stack: getShortStack(error.cause ?? input.error),
     };
     this.recentErrors.unshift(diagnostic);
     if (this.recentErrors.length > 100) this.recentErrors.length = 100;
@@ -458,6 +553,18 @@ export class SourceRuntime {
     const next = limiter.queue.shift();
     if (next) next();
   }
+
+  private async closeWorkers() {
+    const workers = [...this.workerSources.values()];
+    this.workerSources.clear();
+    await Promise.all(workers.map((worker) => worker.close().catch(() => undefined)));
+  }
+
+  private handleWorkerCrash(sourceKey: string, error: Error) {
+    const current = this.workerSources.get(sourceKey);
+    if (current) this.workerSources.delete(sourceKey);
+    this.recordError({ sourceKey, operation: "worker.crash", error });
+  }
 }
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, sourceKey: string, operation: string) {
@@ -477,6 +584,27 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, sourceKey:
 function thumbnailToImageUrl(url: string) {
   const imageUrl = url.replace(/\/([0-9]+)t\.([^/.]+)(?:\.webp)?$/, "/$1.$2");
   return imageUrl.replace("//t3.nhentai.net/", "//i3.nhentai.net/");
+}
+
+function normalizeLoadingConfig(value: unknown) {
+  const normalized = normalizeValue(value) as Record<string, unknown> | undefined;
+  if (!normalized) return {};
+  return Object.fromEntries(Object.entries(normalized).filter((entry) => typeof entry[1] !== "function"));
+}
+
+function normalizeImageBytes(value: unknown): Buffer | undefined {
+  if (value == null) return undefined;
+  if (Buffer.isBuffer(value)) return value;
+  if (value instanceof ArrayBuffer) return Buffer.from(value);
+  if (ArrayBuffer.isView(value)) return Buffer.from(value.buffer, value.byteOffset, value.byteLength);
+  if (Array.isArray(value)) return Buffer.from(value);
+  if (value && typeof value === "object" && "data" in value) return normalizeImageBytes((value as { data?: unknown }).data);
+  return undefined;
+}
+
+function getShortStack(error: unknown) {
+  if (!(error instanceof Error) || !error.stack) return undefined;
+  return error.stack.split("\n").slice(0, 6);
 }
 
 async function loadBaoziPages(comicId: string, episodeId: string) {
@@ -506,6 +634,30 @@ async function loadBaoziPages(comicId: string, episodeId: string) {
     if (!pageResponse.ok) return [];
     const html = await pageResponse.text();
     return [...html.matchAll(/data-src=["']([^"']+)["']/g)].map((match) => match[1]);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function loadComickPages(comicId: string, episodeId: string) {
+  const [slug] = comicId.split("//");
+  const [hid, type, chapter, lang] = episodeId.split("//");
+  if (!slug || !hid || !type || !chapter || !lang) return [];
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.requestTimeoutMs);
+  try {
+    const suffix = type === "no" ? hid : `${hid}-${type}-${chapter}-${lang}`;
+    const response = await fetch(`https://comick.art/comic/${encodeURIComponent(slug)}/${suffix}`, {
+      headers: { "user-agent": "Mozilla/5.0", referer: "https://comick.art/" },
+      signal: controller.signal,
+    });
+    if (!response.ok) return [];
+    const html = await response.text();
+    const match = html.match(/<script[^>]+id=["']sv-data["'][^>]*>([\s\S]*?)<\/script>/);
+    if (!match) return [];
+    const data = JSON.parse(match[1]);
+    const images = data?.chapter?.images;
+    return Array.isArray(images) ? images.map((image) => String(image?.url ?? "")).filter(Boolean) : [];
   } finally {
     clearTimeout(timeout);
   }

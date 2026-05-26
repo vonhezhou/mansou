@@ -40,35 +40,41 @@ export class ImageProxyService {
       }
     }
 
-    const loadedSource = this.runtime.find(input.sourceKey).instance;
-    let loadingConfig: Record<string, unknown> = {};
-    if (input.thumbnail) {
-      loadingConfig = loadedSource.getThumbnailLoadingConfig?.(input.imageKey) ?? {};
-    } else {
-      const loader = loadedSource.comic?.getImageLoadingConfig ?? loadedSource.comic?.onImageLoad ?? loadedSource.getImageLoadingConfig;
-      loadingConfig = (await loader?.(input.imageKey, input.comicId ?? "", input.episodeId ?? null)) ?? {};
+    let loadingConfig = await this.runtime.imageLoadingConfig(
+      input.sourceKey,
+      input.imageKey,
+      input.comicId ?? "",
+      input.episodeId ?? null,
+      input.thumbnail,
+    );
+
+    let response: Response;
+    try {
+      response = await this.fetchImage(String(loadingConfig.url ?? input.imageKey), loadingConfig);
+    } catch (error) {
+      const fallback = await this.runtime.imageLoadFailed(input.sourceKey, input.imageKey, input.comicId ?? "", input.episodeId ?? null, error instanceof Error ? error : new Error(String(error)));
+      if (!Object.keys(fallback).length) throw error;
+      loadingConfig = { ...loadingConfig, ...fallback };
+      response = await this.fetchImage(String(loadingConfig.url ?? input.imageKey), loadingConfig);
     }
 
-    const requestUrl = String(loadingConfig.url ?? input.imageKey);
-    const parsedUrl = new URL(requestUrl.startsWith("//") ? `https:${requestUrl}` : requestUrl);
-    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
-      throw new Error(`Unsupported image protocol: ${parsedUrl.protocol}`);
-    }
-    const response = await fetchWithProxy(requestUrl.startsWith("//") ? `https:${requestUrl}` : requestUrl, {
-      method: String(loadingConfig.method ?? "GET"),
-      headers: (loadingConfig.headers as Record<string, string> | undefined) ?? {
-        "user-agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-      },
-      body: loadingConfig.data == null ? undefined : String(loadingConfig.data),
+    const responseConfig = await this.runtime.imageResponse(input.sourceKey, input.imageKey, input.comicId ?? "", input.episodeId ?? null, {
+      status: response.status,
+      headers: normalizeHeaders(response.headers),
+      url: response.url,
     });
+    if (!response.ok && Object.keys(responseConfig).length) {
+      loadingConfig = { ...loadingConfig, ...responseConfig };
+      response = await this.fetchImage(String(loadingConfig.url ?? input.imageKey), loadingConfig);
+    }
     if (!response.ok) {
       throw new Error(`Failed to load image: ${response.status} ${response.statusText}`);
     }
     const contentLength = Number(response.headers.get("content-length") ?? 0);
     if (contentLength > config.maxImageBytes) throw new Error("Image response is too large");
 
-    const data = Buffer.from(await response.arrayBuffer());
+    let data: Buffer = Buffer.from(await response.arrayBuffer());
+    data = await this.runtime.modifyImage(input.sourceKey, input.imageKey, input.comicId ?? "", input.episodeId ?? null, data);
     if (data.length > config.maxImageBytes) throw new Error("Image response is too large");
     if (useCache) {
       await ensureDir(path.dirname(cachePath));
@@ -126,6 +132,30 @@ export class ImageProxyService {
     if (data[0] === 0x52 && data[1] === 0x49 && data[2] === 0x46 && data[3] === 0x46) return "image/webp";
     return "application/octet-stream";
   }
+
+  private async fetchImage(requestUrl: string, loadingConfig: Record<string, unknown>) {
+    const normalizedUrl = requestUrl.startsWith("//") ? `https:${requestUrl}` : requestUrl;
+    const parsedUrl = new URL(normalizedUrl);
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+      throw new Error(`Unsupported image protocol: ${parsedUrl.protocol}`);
+    }
+    return fetchWithProxy(normalizedUrl, {
+      method: String(loadingConfig.method ?? "GET"),
+      headers: (loadingConfig.headers as Record<string, string> | undefined) ?? {
+        "user-agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+      },
+      body: loadingConfig.data == null ? undefined : String(loadingConfig.data),
+    });
+  }
+}
+
+function normalizeHeaders(headers: Headers) {
+  const result: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    result[key] = value;
+  });
+  return result;
 }
 
 async function listFiles(dir: string): Promise<string[]> {

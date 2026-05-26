@@ -2,6 +2,8 @@ import { parentPort, workerData } from "node:worker_threads";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import vm from "node:vm";
+import { createStorage } from "@venera/storage";
+import { config } from "../config/config.js";
 import { fetchWithProxy } from "../utils/fetch.js";
 import { SourceCookieStore } from "./cookieStore.js";
 import { SourceDataStore } from "./dataStore.js";
@@ -38,8 +40,9 @@ class ComicSourceBase {
 }
 
 const preludeSourceKey = path.basename(workerData.filePath, ".js");
-const sourceDataStore = new SourceDataStore();
-const cookieStore = new SourceCookieStore();
+const storage = createStorage(String(workerData.dataDir ?? config.dataDir));
+const sourceDataStore = new SourceDataStore(storage);
+const cookieStore = new SourceCookieStore(storage);
 const api = await createRuntimeApi(preludeSourceKey, sourceDataStore, cookieStore);
 
 const script = await readFile(workerData.filePath, "utf8");
@@ -50,6 +53,9 @@ const sandbox = {
   console,
   setTimeout,
   clearTimeout,
+  setInterval,
+  clearInterval,
+  Promise,
   URL,
   URLSearchParams,
   TextDecoder,
@@ -69,11 +75,18 @@ const sandbox = {
   },
   UI: {
     showMessage: (...args: unknown[]) => console.info("[UI.showMessage]", ...args),
-    showDialog: (...args: unknown[]) => console.info("[UI.showDialog]", ...args),
-  },
+      showDialog: (...args: unknown[]) => console.info("[UI.showDialog]", ...args),
+      toast: (...args: unknown[]) => console.info("[UI.toast]", ...args),
+    },
   ComicSource: ComicSourceBase,
   ...api,
 };
+Object.assign(sandbox, {
+  globalThis: sandbox,
+  self: sandbox,
+  window: sandbox,
+  appVersion: config.appVersion,
+});
 
 const context = vm.createContext(sandbox);
 const source = vm.runInContext(`${script}\n;globalThis.__source = new ${className}();\n;globalThis.__source;`, context, {
@@ -86,7 +99,20 @@ const source = vm.runInContext(`${script}\n;globalThis.__source = new ${classNam
   url?: string;
   init?: () => Promise<void> | void;
   search?: { load?: (keyword: string, options: string[], page: number) => unknown; loadNext?: (keyword: string, options: string[], next?: string | null) => unknown; optionList?: Array<{ default?: unknown; options?: string[] }> };
-  comic?: { loadInfo?: (id: string) => unknown; loadEp?: (id: string, ep?: string | null) => unknown };
+  comic?: {
+    loadInfo?: (id: string) => unknown;
+    loadEp?: (id: string, ep?: string | null) => unknown;
+    getImageLoadingConfig?: (imageKey: string, comicId: string, epId: string | null) => unknown;
+    onImageLoad?: (imageKey: string, comicId: string, epId: string | null) => unknown;
+    onLoadFailed?: (imageKey: string, comicId: string, epId: string | null, error: Error) => unknown;
+    onResponse?: (imageKey: string, comicId: string, epId: string | null, response: Record<string, unknown>) => unknown;
+    modifyImage?: (imageKey: string, comicId: string, epId: string | null, data: Buffer) => unknown;
+  };
+  getImageLoadingConfig?: (imageKey: string, comicId: string, epId: string | null) => unknown;
+  getThumbnailLoadingConfig?: (imageKey: string) => unknown;
+  onLoadFailed?: (imageKey: string, comicId: string, epId: string | null, error: Error) => unknown;
+  onResponse?: (imageKey: string, comicId: string, epId: string | null, response: Record<string, unknown>) => unknown;
+  modifyImage?: (imageKey: string, comicId: string, epId: string | null, data: Buffer) => unknown;
 };
 
 await source.init?.();
@@ -126,9 +152,35 @@ async function dispatch(method: string, args: unknown[]) {
   }
   if (method === "comicDetails") {
     const comicId = String(args[0]);
-    return { ...(normalizeValue(await source.comic?.loadInfo?.(comicId)) as Record<string, unknown>), sourceKey: source.key, comicId };
+    const normalized = normalizeValue(await source.comic?.loadInfo?.(comicId)) as Record<string, unknown>;
+    return { ...normalized, chapters: normalizeChapters(normalized.chapters), sourceKey: source.key, comicId };
   }
   if (method === "comicPages") return normalizeValue(await source.comic?.loadEp?.(String(args[0]), args[1] == null || args[1] === "_default" ? null : String(args[1])));
+  if (method === "imageLoadingConfig") {
+    const [imageKey, comicId, episodeId] = args as [string, string, string | null];
+    const loader = source.comic?.getImageLoadingConfig ?? source.comic?.onImageLoad ?? source.getImageLoadingConfig;
+    return normalizeLoadingConfig(await loader?.(imageKey, comicId, episodeId));
+  }
+  if (method === "imageLoadFailed") {
+    const [imageKey, comicId, episodeId, message] = args as [string, string, string | null, string];
+    const handler = source.comic?.onLoadFailed ?? source.onLoadFailed;
+    return normalizeLoadingConfig(await handler?.(imageKey, comicId, episodeId, new Error(message)));
+  }
+  if (method === "imageResponse") {
+    const [imageKey, comicId, episodeId, response] = args as [string, string, string | null, Record<string, unknown>];
+    const handler = source.comic?.onResponse ?? source.onResponse;
+    return normalizeLoadingConfig(await handler?.(imageKey, comicId, episodeId, response));
+  }
+  if (method === "modifyImage") {
+    const [imageKey, comicId, episodeId, data] = args as [string, string, string | null, number[]];
+    const handler = source.comic?.modifyImage ?? source.modifyImage;
+    const result = await handler?.(imageKey, comicId, episodeId, Buffer.from(data));
+    const bytes = normalizeImageBytes(result);
+    return bytes ? { data: Array.from(bytes) } : undefined;
+  }
+  if (method === "thumbnailLoadingConfig") {
+    return normalizeLoadingConfig(await source.getThumbnailLoadingConfig?.(String(args[0])));
+  }
   throw new Error(`Unsupported worker method: ${method}`);
 }
 
@@ -172,6 +224,37 @@ function normalizeValue(value: unknown): unknown {
     return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, normalizeValue(item)]));
   }
   return value;
+}
+
+function normalizeChapters(chapters: unknown): Record<string, string> | undefined {
+  if (!chapters || typeof chapters !== "object" || Array.isArray(chapters)) return undefined;
+  const flattened: Record<string, string> = {};
+  for (const [key, value] of Object.entries(chapters as Record<string, unknown>)) {
+    if (typeof value === "string") {
+      flattened[key] = value;
+    } else if (value && typeof value === "object" && !Array.isArray(value)) {
+      for (const [episodeId, title] of Object.entries(value as Record<string, unknown>)) {
+        if (typeof title === "string") flattened[episodeId] = title;
+      }
+    }
+  }
+  return Object.keys(flattened).length > 0 ? flattened : undefined;
+}
+
+function normalizeLoadingConfig(value: unknown) {
+  const normalized = normalizeValue(value) as Record<string, unknown> | undefined;
+  if (!normalized) return {};
+  return Object.fromEntries(Object.entries(normalized).filter((entry) => typeof entry[1] !== "function"));
+}
+
+function normalizeImageBytes(value: unknown): Buffer | undefined {
+  if (value == null) return undefined;
+  if (Buffer.isBuffer(value)) return value;
+  if (value instanceof ArrayBuffer) return Buffer.from(value);
+  if (ArrayBuffer.isView(value)) return Buffer.from(value.buffer, value.byteOffset, value.byteLength);
+  if (Array.isArray(value)) return Buffer.from(value);
+  if (value && typeof value === "object" && "data" in value) return normalizeImageBytes((value as { data?: unknown }).data);
+  return undefined;
 }
 
 function defaultSearchOptions() {

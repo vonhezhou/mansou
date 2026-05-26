@@ -13,10 +13,51 @@ class MockSource extends ComicSource {
             type: "input",
             default: 6,
         },
+        cookieEchoUrl: {
+            title: "Cookie Echo URL",
+            type: "input",
+            default: "",
+        },
+        imageFallbackUrl: {
+            title: "Image Fallback URL",
+            type: "input",
+            default: "",
+        },
+        imageErrorUrl: {
+            title: "Image Error URL",
+            type: "input",
+            default: "",
+        },
     }
 
     search = {
         load: async (keyword, options, page) => {
+            if (keyword === "api-alias") {
+                return {
+                    comics: [{ id: "api-alias", title: `${APP.version}:${app.version}:${Boolean(Http.get)}:${Boolean(Storage.loadData)}`, cover: "mock://cover/api-alias" }],
+                    maxPage: 1,
+                }
+            }
+            if (keyword === "cookie-check") {
+                const response = await Network.request(this.loadSetting("cookieEchoUrl"))
+                return {
+                    comics: [{ id: "cookie-check", title: response.text, cover: "mock://cover/cookie-check" }],
+                    maxPage: 1,
+                }
+            }
+            if (keyword === "data-save") {
+                await Data.save("workerValue", "saved")
+                return {
+                    comics: [{ id: "data-save", title: await Data.load("workerValue"), cover: "mock://cover/data-save" }],
+                    maxPage: 1,
+                }
+            }
+            if (keyword === "data-read") {
+                return {
+                    comics: [{ id: "data-read", title: await Data.load("workerValue"), cover: "mock://cover/data-read" }],
+                    maxPage: 1,
+                }
+            }
             const resultCount = Number(this.loadSetting("resultCount") || 6)
             return {
                 comics: Array.from({ length: resultCount }, (_, offset) => offset + 1).map((index) => ({
@@ -53,6 +94,24 @@ class MockSource extends ComicSource {
             return {
                 images: [1, 2, 3, 4, 5].map((index) => `mock://image/${comicId}/${epId}/${index}`),
             }
+        },
+        getImageLoadingConfig: (imageKey) => {
+            if (imageKey === "hook://fallback") return { url: "bad://image" }
+            if (imageKey === "hook://response") return { url: this.loadSetting("imageErrorUrl") }
+            if (imageKey === "hook://modify") return { url: this.loadSetting("imageFallbackUrl") }
+            return {}
+        },
+        onLoadFailed: (imageKey) => {
+            if (imageKey === "hook://fallback") return { url: this.loadSetting("imageFallbackUrl") }
+            return {}
+        },
+        onResponse: (imageKey) => {
+            if (imageKey === "hook://response") return { url: this.loadSetting("imageFallbackUrl") }
+            return {}
+        },
+        modifyImage: (imageKey, comicId, epId, data) => {
+            if (imageKey === "hook://modify") return Array.from(data).reverse()
+            return data
         },
     }
 }
