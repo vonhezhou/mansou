@@ -89,13 +89,13 @@
   gap: 4px;
 }
 
-.reader {
+.chapter-preview {
   display: grid;
   gap: 16px;
   justify-items: center;
 }
 
-.reader img {
+.chapter-preview img {
   width: min(900px, 100%);
   border-radius: var(--radius-md);
   background: #020617;

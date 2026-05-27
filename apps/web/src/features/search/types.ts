@@ -1,0 +1,37 @@
+import type { Comic } from "@venera/contracts";
+import type { AggregatedSearchItem, Details, Source } from "../../types.js";
+
+export type SearchViewProps = {
+  busy: boolean;
+  sourceKey: string;
+  detailSourceKey: string;
+  sources: Source[];
+  keyword: string;
+  searchMode: "single" | "aggregate";
+  aggregateSourceKeys: string[];
+  aggregateResultLayout: "grouped" | "flat";
+  results: Comic[];
+  aggregatedResults: AggregatedSearchItem[];
+  details: Details | null;
+  episodeId: string | null;
+  selectedEpisodeIds: string[];
+  previewImages: string[];
+  hasSearched: boolean;
+  searchPage: number;
+  searchMaxPage?: number;
+  canLoadMore: boolean;
+  downloadCreateStatus: string | null;
+  onSourceChange: (value: string) => void;
+  onKeywordChange: (value: string) => void;
+  onSearchModeChange: (value: "single" | "aggregate") => void;
+  onToggleAggregateSource: (value: string) => void;
+  onAggregateResultLayoutChange: (value: "grouped" | "flat") => void;
+  onSearch: () => void;
+  onLoadMore: () => void;
+  onOpenComic: (comic: Comic, sourceKey?: string) => void;
+  onDownloadComic: (comic: Comic, sourceKey?: string) => void;
+  onPreviewEpisode: (episodeId?: string | null) => void;
+  onToggleSelectedEpisode: (episodeId: string) => void;
+  onSelectEpisodes: (action: "all" | "clear" | "invert") => void;
+  onCreateDownload: (mode: "first" | "selected" | "all") => void;
+};
