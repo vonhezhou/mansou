@@ -5,11 +5,12 @@ import { getAccessToken, saveAccessTokenValue } from "./api/client.js";
 import { AppShell } from "./app/AppShell.js";
 import { isTabKey, type TabKey } from "./app/navigation.js";
 import { getHistoryComicId, getHistoryEpisodeId, getHistorySourceKey } from "./lib/history.js";
-import type { AggregatedSearchItem, CacheStats, Details, DownloadItem, DownloadTask, Health, HistoryItem, RepositorySource, SettingsResponse, Source, SourceMetadata } from "./types.js";
+import type { AggregatedSearchItem, Details, Health, HistoryItem, RepositorySource, SettingsResponse, Source, SourceMetadata } from "./types.js";
 import { DownloadsView } from "./features/downloads/DownloadsView.js";
 import { HistoryView } from "./features/history/HistoryView.js";
 import { SearchView } from "./features/search/SearchView.js";
 import { SourcesView } from "./features/sources/SourcesView.js";
+import { useDownloads } from "./hooks/useDownloads.js";
 
 function readInitialTab(): TabKey {
   const hash = window.location.hash.slice(1);
@@ -36,10 +37,6 @@ export function App() {
   const [episodeId, setEpisodeId] = useState<string | null>(null);
   const [selectedEpisodeIds, setSelectedEpisodeIds] = useState<string[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
-  const [downloads, setDownloads] = useState<DownloadTask[]>([]);
-  const [downloadItems, setDownloadItems] = useState<Record<string, DownloadItem[]>>({});
-  const [failedItemsOnly, setFailedItemsOnly] = useState(false);
-  const [cache, setCache] = useState<CacheStats | null>(null);
   const [sourceMetadata, setSourceMetadata] = useState<SourceMetadata[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [sourceSettings, setSourceSettings] = useState<SettingsResponse | null>(null);
@@ -55,14 +52,14 @@ export function App() {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [previewingChapter, setPreviewingChapter] = useState(false);
   const [creatingDownload, setCreatingDownload] = useState(false);
-  const [loadingDownloads, setLoadingDownloads] = useState(false);
   const [managingSources, setManagingSources] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const downloadsState = useDownloads(runWith);
 
   useEffect(() => {
     void refresh();
     const events = new EventSource(downloadsEventUrl());
-    events.addEventListener("downloads", (event) => setDownloads(JSON.parse((event as MessageEvent).data)));
+    events.addEventListener("downloads", (event) => downloadsState.setDownloads(JSON.parse((event as MessageEvent).data)));
     return () => events.close();
   }, [accessToken]);
 
@@ -104,8 +101,8 @@ export function App() {
       setAvailableSources(repository);
       if (loaded[0] && !loaded.some((source) => source.key === sourceKey)) setSourceKey(loaded[0].key);
       setAggregateSourceKeys((current) => current.length ? current.filter((key) => loaded.some((source) => source.key === key)) : loaded.filter((source) => source.hasSearch).slice(0, 1).map((source) => source.key));
-      await loadDownloads();
-      setCache(await veneraApi.getCacheStats());
+      await downloadsState.loadDownloads();
+      await downloadsState.loadCacheStats();
       setHistory(await veneraApi.listHistory());
     });
   }
@@ -300,7 +297,7 @@ export function App() {
       }
       setDownloadCreateStatus(`创建完成：成功 ${success}，失败 ${failed}`);
       setActiveTab("downloads");
-      await loadDownloads();
+      await downloadsState.loadDownloads();
     });
   }
 
@@ -323,56 +320,7 @@ export function App() {
     await runWith(setCreatingDownload, async () => {
       await veneraApi.createDownload({ sourceKey: nextSourceKey, comicId: comic.id, all: true });
       setActiveTab("downloads");
-      await loadDownloads();
-    });
-  }
-
-  async function loadDownloads() {
-    setDownloads(await veneraApi.listDownloads());
-  }
-
-  async function clearCache() {
-    await runWith(setLoadingDownloads, async () => setCache(await veneraApi.clearCache()));
-  }
-
-  async function pruneCache() {
-    await runWith(setLoadingDownloads, async () => setCache(await veneraApi.pruneCache()));
-  }
-
-  async function loadDownloadItems(task: DownloadTask) {
-    await runWith(setLoadingDownloads, async () => {
-      const items = await veneraApi.listDownloadItems(task.id);
-      setDownloadItems((current) => ({ ...current, [task.id]: items }));
-    });
-  }
-
-  async function retryDownloadItem(task: DownloadTask, item: DownloadItem) {
-    const imageKey = item.imageKey ?? item.image_key;
-    if (!imageKey) return;
-    await runWith(setLoadingDownloads, async () => {
-      await veneraApi.retryDownloadItem(task.id, imageKey);
-      await loadDownloadItems(task);
-      await loadDownloads();
-    });
-  }
-
-  async function downloadAction(task: DownloadTask, action: "cancel" | "rerun" | "cbz" | "delete" | "delete-files") {
-    await runWith(setLoadingDownloads, async () => {
-      if (action === "cancel") await veneraApi.cancelDownload(task.id);
-      if (action === "rerun") await veneraApi.rerunDownload(task.id);
-      if (action === "cbz") {
-        const result = await veneraApi.exportDownloadCbz(task.id);
-        window.alert(`CBZ: ${result.path}`);
-      }
-      if (action === "delete") {
-        if (!window.confirm(`删除下载任务「${task.title ?? task.comicId}」？`)) return;
-        await veneraApi.deleteDownload(task.id);
-      }
-      if (action === "delete-files") {
-        if (!window.confirm(`删除下载任务「${task.title ?? task.comicId}」及已下载文件？`)) return;
-        await veneraApi.deleteDownload(task.id, true);
-      }
-      await loadDownloads();
+      await downloadsState.loadDownloads();
     });
   }
 
@@ -385,7 +333,7 @@ export function App() {
   const shellBusy = refreshing;
   const searchBusy = searching || loadingDetails || previewingChapter || creatingDownload;
   const sourcesBusy = managingSources || refreshing;
-  const downloadsBusy = loadingDownloads;
+  const downloadsBusy = downloadsState.loadingDownloads;
 
   return (
     <AppShell activeTab={activeTab} accessToken={accessToken} busy={shellBusy} error={error} health={health} onAccessTokenChange={saveAccessToken} onRefresh={() => { void checkHealth(); void refresh(); }} onTabChange={setActiveTab}>
@@ -395,7 +343,7 @@ export function App() {
 
       {activeTab === "history" && <HistoryView history={history} onOpenHistoryItem={(item, mode) => void openHistoryItem(item, mode)} />}
 
-      {activeTab === "downloads" && <DownloadsView busy={downloadsBusy} cache={cache} downloads={downloads} downloadItems={downloadItems} failedItemsOnly={failedItemsOnly} onFailedItemsOnlyChange={setFailedItemsOnly} onPruneCache={() => void pruneCache()} onClearCache={() => void clearCache()} onLoadDownloadItems={(task) => void loadDownloadItems(task)} onDownloadAction={(task, action) => void downloadAction(task, action)} onRetryDownloadItem={(task, item) => void retryDownloadItem(task, item)} />}
+      {activeTab === "downloads" && <DownloadsView busy={downloadsBusy} cache={downloadsState.cache} downloads={downloadsState.downloads} downloadItems={downloadsState.downloadItems} failedItemsOnly={downloadsState.failedItemsOnly} onFailedItemsOnlyChange={downloadsState.setFailedItemsOnly} onPruneCache={() => void downloadsState.pruneCache()} onClearCache={() => void downloadsState.clearCache()} onLoadDownloadItems={(task) => void downloadsState.loadDownloadItems(task)} onDownloadAction={(task, action) => void downloadsState.downloadAction(task, action)} onRetryDownloadItem={(task, item) => void downloadsState.retryDownloadItem(task, item)} />}
     </AppShell>
   );
 }
