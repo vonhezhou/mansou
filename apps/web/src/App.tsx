@@ -7,7 +7,7 @@ import { isTabKey, type TabKey } from "./app/navigation.js";
 import { getHistoryComicId, getHistoryEpisodeId, getHistorySourceKey } from "./lib/history.js";
 import type { AggregatedSearchItem, CacheStats, Details, DownloadItem, DownloadTask, Health, HistoryItem, RepositorySource, SettingsResponse, Source, SourceMetadata } from "./types.js";
 import { DownloadsView } from "./features/downloads/DownloadsView.js";
-import { HistoryView } from "./views/HistoryView.js";
+import { HistoryView } from "./features/history/HistoryView.js";
 import { SearchView } from "./features/search/SearchView.js";
 import { SourcesView } from "./features/sources/SourcesView.js";
 
