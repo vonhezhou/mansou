@@ -1,0 +1,153 @@
+.source-label {
+  color: #93c5fd;
+  font-size: 0.85rem;
+}
+
+.source-picker { margin-top: 12px; }
+
+.aggregate-results {
+  display: grid;
+  gap: 18px;
+}
+
+.aggregate-source {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.aggregate-source header {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.aggregate-source h3 {
+  margin: 0;
+  color: #bfdbfe;
+}
+
+.details { align-self: start; }
+
+.details h3 {
+  font-size: 1.7rem;
+  margin-bottom: 0.25rem;
+}
+
+.detail-cover {
+  width: min(220px, 100%);
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  background: #020617;
+}
+
+.chapter-chip {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  border-radius: var(--radius-md);
+}
+
+.chapter-chip label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.source-list,
+.history,
+.download-items {
+  display: grid;
+  gap: 10px;
+}
+
+.source-list article,
+.history article,
+.history-item,
+.download-items div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #0b1328;
+}
+
+.history-item {
+  width: 100%;
+  color: var(--color-text);
+  text-align: left;
+}
+
+.source-list article div {
+  display: grid;
+  gap: 4px;
+}
+
+.reader {
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+}
+
+.reader img {
+  width: min(900px, 100%);
+  border-radius: var(--radius-md);
+  background: #020617;
+  box-shadow: var(--shadow-card);
+}
+
+.downloads article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.downloads progress {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: var(--color-primary);
+}
+
+.downloads small { color: #fecaca; }
+
+.task-meta {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.download-filters label { flex: 1 1 220px; }
+
+.download-items {
+  grid-column: 1 / -1;
+  margin-top: 8px;
+}
+
+.download-items div { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+.download-items span { overflow-wrap: anywhere; }
+
+.download-group { margin-top: 18px; }
+
+.download-group h3 {
+  margin-bottom: 4px;
+  color: #bfdbfe;
+}
+
+@media (max-width: 960px) {
+  .source-list article,
+  .history article,
+  .history-item,
+  .download-items div,
+  .downloads article { grid-template-columns: 1fr; }
+}

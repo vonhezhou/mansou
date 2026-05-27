@@ -1,0 +1,110 @@
+.shell {
+  width: min(1440px, 100%);
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: end;
+  padding: 30px;
+  border: 1px solid rgba(79, 140, 255, 0.18);
+  border-radius: var(--radius-xl);
+  background: linear-gradient(135deg, rgba(17, 28, 47, 0.96), rgba(7, 11, 20, 0.96));
+  box-shadow: var(--shadow-panel);
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 4.8rem);
+  line-height: 0.95;
+  letter-spacing: -0.06em;
+}
+
+.hero p {
+  max-width: 720px;
+  color: var(--color-muted);
+}
+
+.hero-actions {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 260px) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.tabs {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: rgba(7, 11, 20, 0.86);
+  backdrop-filter: blur(18px);
+}
+
+.tabs button {
+  flex: 1;
+  background: transparent;
+  color: var(--color-muted);
+}
+
+.tabs button.active {
+  background: var(--color-primary-strong);
+  color: white;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: 180px 220px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: end;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 20px;
+}
+
+.tool-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.6fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 14px;
+}
+
+@media (max-width: 960px) {
+  .hero,
+  .hero-actions,
+  .controls,
+  .grid,
+  .tool-row,
+  .settings-grid { grid-template-columns: 1fr; }
+
+  .tabs {
+    border-radius: var(--radius-lg);
+    overflow-x: auto;
+  }
+
+  .tabs button { min-width: 92px; }
+}
+
+@media (max-width: 640px) {
+  .shell { padding: 12px; }
+  .hero { padding: 22px; border-radius: var(--radius-lg); }
+}
