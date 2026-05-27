@@ -50,7 +50,13 @@ export function App() {
   const [activeTab, setActiveTab] = useState<TabKey>(readInitialTab);
   const [health, setHealth] = useState<Health | null>(null);
   const [downloadCreateStatus, setDownloadCreateStatus] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [previewingChapter, setPreviewingChapter] = useState(false);
+  const [creatingDownload, setCreatingDownload] = useState(false);
+  const [loadingDownloads, setLoadingDownloads] = useState(false);
+  const [managingSources, setManagingSources] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,15 +74,15 @@ export function App() {
     window.location.hash = activeTab;
   }, [activeTab]);
 
-  async function run(task: () => Promise<void>) {
-    setBusy(true);
+  async function runWith(setLoading: (value: boolean) => void, task: () => Promise<void>) {
+    setLoading(true);
     setError(null);
     try {
       await task();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setBusy(false);
+      setLoading(false);
     }
   }
 
@@ -89,7 +95,7 @@ export function App() {
   }
 
   async function refresh() {
-    await run(async () => {
+    await runWith(setRefreshing, async () => {
       const loaded = await veneraApi.listInstalledSources();
       const metadata = await veneraApi.listSourceMetadata();
       const repository = await veneraApi.listAvailableSources();
@@ -105,7 +111,7 @@ export function App() {
   }
 
   async function search() {
-    await run(async () => {
+    await runWith(setSearching, async () => {
       const data = await veneraApi.search(sourceKey, keyword, { page: 1 });
       startTransition(() => {
         setResults(data.comics ?? []);
@@ -121,7 +127,7 @@ export function App() {
   }
 
   async function aggregatedSearch() {
-    await run(async () => {
+    await runWith(setSearching, async () => {
       const data = await veneraApi.aggregatedSearch(keyword, aggregateSourceKeys);
       startTransition(() => {
         setAggregatedResults(data);
@@ -142,7 +148,7 @@ export function App() {
   }
 
   async function loadMoreResults() {
-    await run(async () => {
+    await runWith(setSearching, async () => {
       const nextPage = searchPage + 1;
       const data = await veneraApi.search(sourceKey, keyword, searchNext ? { next: searchNext } : { page: nextPage });
       startTransition(() => {
@@ -155,7 +161,7 @@ export function App() {
   }
 
   async function openComic(comic: Comic, nextSourceKey = sourceKey) {
-    await run(async () => {
+    await runWith(setLoadingDetails, async () => {
       const data = await veneraApi.comicDetails(nextSourceKey, comic.id);
       const firstEpisode = Object.keys(data.chapters ?? {})[0] ?? "_default";
       setSourceKey(nextSourceKey);
@@ -168,7 +174,7 @@ export function App() {
   }
 
   async function loadSourceSettings(nextSourceKey = sourceKey) {
-    await run(async () => {
+    await runWith(setManagingSources, async () => {
       const data = await veneraApi.getSourceSettings(nextSourceKey);
       setSourceSettings(data);
       setSettingsJson(JSON.stringify(data.values ?? {}, null, 2));
@@ -176,14 +182,14 @@ export function App() {
   }
 
   async function saveSourceSettings() {
-    await run(async () => {
+    await runWith(setManagingSources, async () => {
       await veneraApi.updateSourceSettings(sourceKey, JSON.parse(settingsJson));
       await loadSourceSettings(sourceKey);
     });
   }
 
   async function resetSourceSettings() {
-    await run(async () => {
+    await runWith(setManagingSources, async () => {
       const data = await veneraApi.clearSourceSettings(sourceKey);
       setSourceSettings(data);
       setSettingsJson(JSON.stringify(data.values ?? {}, null, 2));
@@ -191,7 +197,7 @@ export function App() {
   }
 
   async function importCookies() {
-    await run(async () => {
+    await runWith(setManagingSources, async () => {
       const cookies = cookieText.split("\n").map((line) => line.trim()).filter(Boolean);
       await veneraApi.importCookies(sourceKey, cookieUrl, cookies);
       setCookieText("");
@@ -200,7 +206,7 @@ export function App() {
 
   async function clearCookies() {
     if (!window.confirm(`清空源「${sourceKey}」的 Cookie？`)) return;
-    await run(async () => {
+    await runWith(setManagingSources, async () => {
       await veneraApi.clearCookies(sourceKey);
       setCookieText("");
     });
@@ -208,28 +214,28 @@ export function App() {
 
   async function installSelectedSource() {
     if (!installSource) return;
-    await run(async () => {
+    await runWith(setManagingSources, async () => {
       await veneraApi.installSource(installSource);
       await refresh();
     });
   }
 
   async function refreshRepository() {
-    await run(async () => {
+    await runWith(setManagingSources, async () => {
       const data = await veneraApi.refreshRepository();
       setAvailableSources(data.sources ?? []);
     });
   }
 
   async function reloadSources() {
-    await run(async () => {
+    await runWith(setManagingSources, async () => {
       await veneraApi.reloadSources();
       await refresh();
     });
   }
 
   async function setSourceEnabled(metadata: SourceMetadata, enabled: boolean) {
-    await run(async () => {
+    await runWith(setManagingSources, async () => {
       await veneraApi.setSourceEnabled(metadata.key, enabled);
       await refresh();
     });
@@ -237,7 +243,7 @@ export function App() {
 
   async function previewEpisode(nextEpisodeId = episodeId, initialPage = 0) {
     if (!details || !nextEpisodeId) return;
-    await run(async () => {
+    await runWith(setPreviewingChapter, async () => {
       const data = await veneraApi.episodePages(detailSourceKey, details.comicId ?? details.id, nextEpisodeId);
       setEpisodeId(nextEpisodeId);
       setPreviewImages(data.images ?? []);
@@ -252,7 +258,7 @@ export function App() {
     const comicId = getHistoryComicId(item);
     const nextEpisodeId = getHistoryEpisodeId(item);
     if (!nextSourceKey || !comicId) return;
-    await run(async () => {
+    await runWith(mode === "details" ? setLoadingDetails : setPreviewingChapter, async () => {
       const data = await veneraApi.comicDetails(nextSourceKey, comicId);
       const episodeToRead = nextEpisodeId ?? Object.keys(data.chapters ?? {})[0] ?? "_default";
       setSourceKey(nextSourceKey);
@@ -273,7 +279,7 @@ export function App() {
 
   async function createDownload(mode: "first" | "selected" | "all") {
     if (!details) return;
-    await run(async () => {
+    await runWith(setCreatingDownload, async () => {
       const comicId = details.comicId ?? details.id;
       const firstEpisode = Object.keys(details.chapters ?? {})[0] ?? "_default";
       const episodeIds = mode === "selected" ? selectedEpisodeIds : [firstEpisode];
@@ -314,7 +320,7 @@ export function App() {
   }
 
   async function downloadComic(comic: Comic, nextSourceKey = sourceKey) {
-    await run(async () => {
+    await runWith(setCreatingDownload, async () => {
       await veneraApi.createDownload({ sourceKey: nextSourceKey, comicId: comic.id, all: true });
       setActiveTab("downloads");
       await loadDownloads();
@@ -326,15 +332,15 @@ export function App() {
   }
 
   async function clearCache() {
-    await run(async () => setCache(await veneraApi.clearCache()));
+    await runWith(setLoadingDownloads, async () => setCache(await veneraApi.clearCache()));
   }
 
   async function pruneCache() {
-    await run(async () => setCache(await veneraApi.pruneCache()));
+    await runWith(setLoadingDownloads, async () => setCache(await veneraApi.pruneCache()));
   }
 
   async function loadDownloadItems(task: DownloadTask) {
-    await run(async () => {
+    await runWith(setLoadingDownloads, async () => {
       const items = await veneraApi.listDownloadItems(task.id);
       setDownloadItems((current) => ({ ...current, [task.id]: items }));
     });
@@ -343,7 +349,7 @@ export function App() {
   async function retryDownloadItem(task: DownloadTask, item: DownloadItem) {
     const imageKey = item.imageKey ?? item.image_key;
     if (!imageKey) return;
-    await run(async () => {
+    await runWith(setLoadingDownloads, async () => {
       await veneraApi.retryDownloadItem(task.id, imageKey);
       await loadDownloadItems(task);
       await loadDownloads();
@@ -351,7 +357,7 @@ export function App() {
   }
 
   async function downloadAction(task: DownloadTask, action: "cancel" | "rerun" | "cbz" | "delete" | "delete-files") {
-    await run(async () => {
+    await runWith(setLoadingDownloads, async () => {
       if (action === "cancel") await veneraApi.cancelDownload(task.id);
       if (action === "rerun") await veneraApi.rerunDownload(task.id);
       if (action === "cbz") {
@@ -376,16 +382,20 @@ export function App() {
   }
 
   const canLoadMore = Boolean(searchNext) || (searchMaxPage !== undefined && searchPage < searchMaxPage);
+  const shellBusy = refreshing;
+  const searchBusy = searching || loadingDetails || previewingChapter || creatingDownload;
+  const sourcesBusy = managingSources || refreshing;
+  const downloadsBusy = loadingDownloads;
 
   return (
-    <AppShell activeTab={activeTab} accessToken={accessToken} busy={busy} error={error} health={health} onAccessTokenChange={saveAccessToken} onRefresh={() => { void checkHealth(); void refresh(); }} onTabChange={setActiveTab}>
-      {activeTab === "search" && <SearchView busy={busy} sourceKey={sourceKey} detailSourceKey={detailSourceKey} sources={sources} keyword={keyword} searchMode={searchMode} aggregateSourceKeys={aggregateSourceKeys} aggregateResultLayout={aggregateResultLayout} results={results} aggregatedResults={aggregatedResults} details={details} episodeId={episodeId} selectedEpisodeIds={selectedEpisodeIds} previewImages={previewImages} hasSearched={hasSearched} searchPage={searchPage} searchMaxPage={searchMaxPage} canLoadMore={canLoadMore} downloadCreateStatus={downloadCreateStatus} onSourceChange={setSourceKey} onKeywordChange={setKeyword} onSearchModeChange={setSearchMode} onToggleAggregateSource={toggleAggregateSource} onAggregateResultLayoutChange={setAggregateResultLayout} onSearch={() => void submitSearch()} onLoadMore={() => void loadMoreResults()} onOpenComic={(comic, nextSourceKey) => void openComic(comic, nextSourceKey)} onDownloadComic={(comic, nextSourceKey) => void downloadComic(comic, nextSourceKey)} onPreviewEpisode={(id) => void previewEpisode(id)} onToggleSelectedEpisode={toggleSelectedEpisode} onSelectEpisodes={selectEpisodes} onCreateDownload={(mode) => void createDownload(mode)} />}
+    <AppShell activeTab={activeTab} accessToken={accessToken} busy={shellBusy} error={error} health={health} onAccessTokenChange={saveAccessToken} onRefresh={() => { void checkHealth(); void refresh(); }} onTabChange={setActiveTab}>
+      {activeTab === "search" && <SearchView busy={searchBusy} sourceKey={sourceKey} detailSourceKey={detailSourceKey} sources={sources} keyword={keyword} searchMode={searchMode} aggregateSourceKeys={aggregateSourceKeys} aggregateResultLayout={aggregateResultLayout} results={results} aggregatedResults={aggregatedResults} details={details} episodeId={episodeId} selectedEpisodeIds={selectedEpisodeIds} previewImages={previewImages} hasSearched={hasSearched} searchPage={searchPage} searchMaxPage={searchMaxPage} canLoadMore={canLoadMore} downloadCreateStatus={downloadCreateStatus} onSourceChange={setSourceKey} onKeywordChange={setKeyword} onSearchModeChange={setSearchMode} onToggleAggregateSource={toggleAggregateSource} onAggregateResultLayoutChange={setAggregateResultLayout} onSearch={() => void submitSearch()} onLoadMore={() => void loadMoreResults()} onOpenComic={(comic, nextSourceKey) => void openComic(comic, nextSourceKey)} onDownloadComic={(comic, nextSourceKey) => void downloadComic(comic, nextSourceKey)} onPreviewEpisode={(id) => void previewEpisode(id)} onToggleSelectedEpisode={toggleSelectedEpisode} onSelectEpisodes={selectEpisodes} onCreateDownload={(mode) => void createDownload(mode)} />}
 
-      {activeTab === "sources" && <SourcesView busy={busy} sourceKey={sourceKey} installSource={installSource} availableSources={availableSources} sourceMetadata={sourceMetadata} sourceSettings={sourceSettings} settingsJson={settingsJson} cookieUrl={cookieUrl} cookieText={cookieText} onInstallSourceChange={setInstallSource} onSettingsJsonChange={setSettingsJson} onCookieUrlChange={setCookieUrl} onCookieTextChange={setCookieText} onInstallSelectedSource={() => void installSelectedSource()} onRefreshRepository={() => void refreshRepository()} onReloadSources={() => void reloadSources()} onLoadSourceSettings={() => void loadSourceSettings()} onSetSourceEnabled={(source, enabled) => void setSourceEnabled(source, enabled)} onSaveSourceSettings={() => void saveSourceSettings()} onResetSourceSettings={() => void resetSourceSettings()} onImportCookies={() => void importCookies()} onClearCookies={() => void clearCookies()} />}
+      {activeTab === "sources" && <SourcesView busy={sourcesBusy} sourceKey={sourceKey} installSource={installSource} availableSources={availableSources} sourceMetadata={sourceMetadata} sourceSettings={sourceSettings} settingsJson={settingsJson} cookieUrl={cookieUrl} cookieText={cookieText} onInstallSourceChange={setInstallSource} onSettingsJsonChange={setSettingsJson} onCookieUrlChange={setCookieUrl} onCookieTextChange={setCookieText} onInstallSelectedSource={() => void installSelectedSource()} onRefreshRepository={() => void refreshRepository()} onReloadSources={() => void reloadSources()} onLoadSourceSettings={() => void loadSourceSettings()} onSetSourceEnabled={(source, enabled) => void setSourceEnabled(source, enabled)} onSaveSourceSettings={() => void saveSourceSettings()} onResetSourceSettings={() => void resetSourceSettings()} onImportCookies={() => void importCookies()} onClearCookies={() => void clearCookies()} />}
 
       {activeTab === "history" && <HistoryView history={history} onOpenHistoryItem={(item, mode) => void openHistoryItem(item, mode)} />}
 
-      {activeTab === "downloads" && <DownloadsView busy={busy} cache={cache} downloads={downloads} downloadItems={downloadItems} failedItemsOnly={failedItemsOnly} onFailedItemsOnlyChange={setFailedItemsOnly} onPruneCache={() => void pruneCache()} onClearCache={() => void clearCache()} onLoadDownloadItems={(task) => void loadDownloadItems(task)} onDownloadAction={(task, action) => void downloadAction(task, action)} onRetryDownloadItem={(task, item) => void retryDownloadItem(task, item)} />}
+      {activeTab === "downloads" && <DownloadsView busy={downloadsBusy} cache={cache} downloads={downloads} downloadItems={downloadItems} failedItemsOnly={failedItemsOnly} onFailedItemsOnlyChange={setFailedItemsOnly} onPruneCache={() => void pruneCache()} onClearCache={() => void clearCache()} onLoadDownloadItems={(task) => void loadDownloadItems(task)} onDownloadAction={(task, action) => void downloadAction(task, action)} onRetryDownloadItem={(task, item) => void retryDownloadItem(task, item)} />}
     </AppShell>
   );
 }
