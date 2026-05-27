@@ -2,6 +2,8 @@ import { useEffect, useState, startTransition } from "react";
 import type { Comic } from "@venera/contracts";
 import { downloadsEventUrl, veneraApi } from "./api/venera.js";
 import { getAccessToken, saveAccessTokenValue } from "./api/client.js";
+import { AppShell } from "./app/AppShell.js";
+import { isTabKey, type TabKey } from "./app/navigation.js";
 import { getHistoryComicId, getHistoryEpisodeId, getHistorySourceKey } from "./lib/history.js";
 import type { AggregatedSearchItem, CacheStats, Details, DownloadItem, DownloadTask, Health, HistoryItem, RepositorySource, SettingsResponse, Source, SourceMetadata } from "./types.js";
 import { DownloadsView } from "./views/DownloadsView.js";
@@ -9,18 +11,9 @@ import { HistoryView } from "./views/HistoryView.js";
 import { SearchView } from "./views/SearchView.js";
 import { SourcesView } from "./views/SourcesView.js";
 
-const tabs = [
-  { key: "search", label: "搜索" },
-  { key: "history", label: "历史" },
-  { key: "downloads", label: "下载" },
-  { key: "sources", label: "源管理" },
-] as const;
-
-type TabKey = typeof tabs[number]["key"];
-
 function readInitialTab(): TabKey {
   const hash = window.location.hash.slice(1);
-  return tabs.some((tab) => tab.key === hash) ? hash as TabKey : "search";
+  return isTabKey(hash) ? hash : "search";
 }
 
 export function App() {
@@ -385,26 +378,7 @@ export function App() {
   const canLoadMore = Boolean(searchNext) || (searchMaxPage !== undefined && searchPage < searchMaxPage);
 
   return (
-    <main className="shell">
-      <header className="hero">
-        <div>
-          <p className="eyebrow">Venera Web</p>
-          <h1>插件漫画源的 Web 阅读台</h1>
-          <p>搜索、阅读、下载和源管理已接入 `/api/v1`，正在从 PoC 控制台推进为正式前端。</p>
-        </div>
-        <div className="hero-actions">
-          <span className={health?.ok ? "health online" : "health offline"}>{health?.ok ? "服务在线" : "服务未连接"}</span>
-          <label>访问 Token<input value={accessToken} onChange={(event) => saveAccessToken(event.target.value)} placeholder="可选" type="password" /></label>
-          <button onClick={() => { void checkHealth(); void refresh(); }} disabled={busy}>刷新</button>
-        </div>
-      </header>
-
-      {error && <section className="alert">{error}</section>}
-
-      <nav className="tabs" aria-label="主要功能">
-        {tabs.map((tab) => <button className={tab.key === activeTab ? "active" : ""} key={tab.key} onClick={() => setActiveTab(tab.key)}>{tab.label}</button>)}
-      </nav>
-
+    <AppShell activeTab={activeTab} accessToken={accessToken} busy={busy} error={error} health={health} onAccessTokenChange={saveAccessToken} onRefresh={() => { void checkHealth(); void refresh(); }} onTabChange={setActiveTab}>
       {activeTab === "search" && <SearchView busy={busy} sourceKey={sourceKey} detailSourceKey={detailSourceKey} sources={sources} keyword={keyword} searchMode={searchMode} aggregateSourceKeys={aggregateSourceKeys} aggregateResultLayout={aggregateResultLayout} results={results} aggregatedResults={aggregatedResults} details={details} episodeId={episodeId} selectedEpisodeIds={selectedEpisodeIds} images={images} hasSearched={hasSearched} searchPage={searchPage} searchMaxPage={searchMaxPage} canLoadMore={canLoadMore} downloadCreateStatus={downloadCreateStatus} onSourceChange={setSourceKey} onKeywordChange={setKeyword} onSearchModeChange={setSearchMode} onToggleAggregateSource={toggleAggregateSource} onAggregateResultLayoutChange={setAggregateResultLayout} onSearch={() => void submitSearch()} onLoadMore={() => void loadMoreResults()} onOpenComic={(comic, nextSourceKey) => void openComic(comic, nextSourceKey)} onDownloadComic={(comic, nextSourceKey) => void downloadComic(comic, nextSourceKey)} onReadEpisode={(id) => void readEpisode(id)} onToggleSelectedEpisode={toggleSelectedEpisode} onSelectEpisodes={selectEpisodes} onCreateDownload={(mode) => void createDownload(mode)} />}
 
       {activeTab === "sources" && <SourcesView busy={busy} sourceKey={sourceKey} installSource={installSource} availableSources={availableSources} sourceMetadata={sourceMetadata} sourceSettings={sourceSettings} settingsJson={settingsJson} cookieUrl={cookieUrl} cookieText={cookieText} onInstallSourceChange={setInstallSource} onSettingsJsonChange={setSettingsJson} onCookieUrlChange={setCookieUrl} onCookieTextChange={setCookieText} onInstallSelectedSource={() => void installSelectedSource()} onRefreshRepository={() => void refreshRepository()} onReloadSources={() => void reloadSources()} onLoadSourceSettings={() => void loadSourceSettings()} onSetSourceEnabled={(source, enabled) => void setSourceEnabled(source, enabled)} onSaveSourceSettings={() => void saveSourceSettings()} onResetSourceSettings={() => void resetSourceSettings()} onImportCookies={() => void importCookies()} onClearCookies={() => void clearCookies()} />}
@@ -412,6 +386,6 @@ export function App() {
       {activeTab === "history" && <HistoryView history={history} onOpenHistoryItem={(item, mode) => void openHistoryItem(item, mode)} />}
 
       {activeTab === "downloads" && <DownloadsView busy={busy} cache={cache} downloads={downloads} downloadItems={downloadItems} failedItemsOnly={failedItemsOnly} onFailedItemsOnlyChange={setFailedItemsOnly} onPruneCache={() => void pruneCache()} onClearCache={() => void clearCache()} onLoadDownloadItems={(task) => void loadDownloadItems(task)} onDownloadAction={(task, action) => void downloadAction(task, action)} onRetryDownloadItem={(task, item) => void retryDownloadItem(task, item)} />}
-    </main>
+    </AppShell>
   );
 }
