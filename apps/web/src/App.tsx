@@ -5,12 +5,13 @@ import { getAccessToken, saveAccessTokenValue } from "./api/client.js";
 import { AppShell } from "./app/AppShell.js";
 import { isTabKey, type TabKey } from "./app/navigation.js";
 import { getHistoryComicId, getHistoryEpisodeId, getHistorySourceKey } from "./lib/history.js";
-import type { AggregatedSearchItem, Details, Health, HistoryItem, RepositorySource, SettingsResponse, Source, SourceMetadata } from "./types.js";
+import type { AggregatedSearchItem, Details, Health, HistoryItem } from "./types.js";
 import { DownloadsView } from "./features/downloads/DownloadsView.js";
 import { HistoryView } from "./features/history/HistoryView.js";
 import { SearchView } from "./features/search/SearchView.js";
 import { SourcesView } from "./features/sources/SourcesView.js";
 import { useDownloads } from "./hooks/useDownloads.js";
+import { useSources } from "./hooks/useSources.js";
 
 function readInitialTab(): TabKey {
   const hash = window.location.hash.slice(1);
@@ -18,10 +19,7 @@ function readInitialTab(): TabKey {
 }
 
 export function App() {
-  const [sources, setSources] = useState<Source[]>([]);
-  const [availableSources, setAvailableSources] = useState<RepositorySource[]>([]);
   const [sourceKey, setSourceKey] = useState("mock");
-  const [installSource, setInstallSource] = useState("");
   const [keyword, setKeyword] = useState("test");
   const [searchMode, setSearchMode] = useState<"single" | "aggregate">("single");
   const [aggregateSourceKeys, setAggregateSourceKeys] = useState<string[]>([]);
@@ -37,12 +35,7 @@ export function App() {
   const [episodeId, setEpisodeId] = useState<string | null>(null);
   const [selectedEpisodeIds, setSelectedEpisodeIds] = useState<string[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
-  const [sourceMetadata, setSourceMetadata] = useState<SourceMetadata[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [sourceSettings, setSourceSettings] = useState<SettingsResponse | null>(null);
-  const [settingsJson, setSettingsJson] = useState("{}");
-  const [cookieUrl, setCookieUrl] = useState("");
-  const [cookieText, setCookieText] = useState("");
   const [accessToken, setAccessToken] = useState(getAccessToken());
   const [activeTab, setActiveTab] = useState<TabKey>(readInitialTab);
   const [health, setHealth] = useState<Health | null>(null);
@@ -52,9 +45,9 @@ export function App() {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [previewingChapter, setPreviewingChapter] = useState(false);
   const [creatingDownload, setCreatingDownload] = useState(false);
-  const [managingSources, setManagingSources] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const downloadsState = useDownloads(runWith);
+  const sourcesState = useSources(runWith, sourceKey, setSourceKey);
 
   useEffect(() => {
     void refresh();
@@ -93,13 +86,7 @@ export function App() {
 
   async function refresh() {
     await runWith(setRefreshing, async () => {
-      const loaded = await veneraApi.listInstalledSources();
-      const metadata = await veneraApi.listSourceMetadata();
-      const repository = await veneraApi.listAvailableSources();
-      setSources(loaded);
-      setSourceMetadata(metadata);
-      setAvailableSources(repository);
-      if (loaded[0] && !loaded.some((source) => source.key === sourceKey)) setSourceKey(loaded[0].key);
+      const loaded = await sourcesState.loadSources();
       setAggregateSourceKeys((current) => current.length ? current.filter((key) => loaded.some((source) => source.key === key)) : loaded.filter((source) => source.hasSearch).slice(0, 1).map((source) => source.key));
       await downloadsState.loadDownloads();
       await downloadsState.loadCacheStats();
@@ -167,74 +154,6 @@ export function App() {
       setEpisodeId(firstEpisode);
       setSelectedEpisodeIds([]);
       setPreviewImages([]);
-    });
-  }
-
-  async function loadSourceSettings(nextSourceKey = sourceKey) {
-    await runWith(setManagingSources, async () => {
-      const data = await veneraApi.getSourceSettings(nextSourceKey);
-      setSourceSettings(data);
-      setSettingsJson(JSON.stringify(data.values ?? {}, null, 2));
-    });
-  }
-
-  async function saveSourceSettings() {
-    await runWith(setManagingSources, async () => {
-      await veneraApi.updateSourceSettings(sourceKey, JSON.parse(settingsJson));
-      await loadSourceSettings(sourceKey);
-    });
-  }
-
-  async function resetSourceSettings() {
-    await runWith(setManagingSources, async () => {
-      const data = await veneraApi.clearSourceSettings(sourceKey);
-      setSourceSettings(data);
-      setSettingsJson(JSON.stringify(data.values ?? {}, null, 2));
-    });
-  }
-
-  async function importCookies() {
-    await runWith(setManagingSources, async () => {
-      const cookies = cookieText.split("\n").map((line) => line.trim()).filter(Boolean);
-      await veneraApi.importCookies(sourceKey, cookieUrl, cookies);
-      setCookieText("");
-    });
-  }
-
-  async function clearCookies() {
-    if (!window.confirm(`清空源「${sourceKey}」的 Cookie？`)) return;
-    await runWith(setManagingSources, async () => {
-      await veneraApi.clearCookies(sourceKey);
-      setCookieText("");
-    });
-  }
-
-  async function installSelectedSource() {
-    if (!installSource) return;
-    await runWith(setManagingSources, async () => {
-      await veneraApi.installSource(installSource);
-      await refresh();
-    });
-  }
-
-  async function refreshRepository() {
-    await runWith(setManagingSources, async () => {
-      const data = await veneraApi.refreshRepository();
-      setAvailableSources(data.sources ?? []);
-    });
-  }
-
-  async function reloadSources() {
-    await runWith(setManagingSources, async () => {
-      await veneraApi.reloadSources();
-      await refresh();
-    });
-  }
-
-  async function setSourceEnabled(metadata: SourceMetadata, enabled: boolean) {
-    await runWith(setManagingSources, async () => {
-      await veneraApi.setSourceEnabled(metadata.key, enabled);
-      await refresh();
     });
   }
 
@@ -332,14 +251,14 @@ export function App() {
   const canLoadMore = Boolean(searchNext) || (searchMaxPage !== undefined && searchPage < searchMaxPage);
   const shellBusy = refreshing;
   const searchBusy = searching || loadingDetails || previewingChapter || creatingDownload;
-  const sourcesBusy = managingSources || refreshing;
+  const sourcesBusy = sourcesState.managingSources || refreshing;
   const downloadsBusy = downloadsState.loadingDownloads;
 
   return (
     <AppShell activeTab={activeTab} accessToken={accessToken} busy={shellBusy} error={error} health={health} onAccessTokenChange={saveAccessToken} onRefresh={() => { void checkHealth(); void refresh(); }} onTabChange={setActiveTab}>
-      {activeTab === "search" && <SearchView busy={searchBusy} sourceKey={sourceKey} detailSourceKey={detailSourceKey} sources={sources} keyword={keyword} searchMode={searchMode} aggregateSourceKeys={aggregateSourceKeys} aggregateResultLayout={aggregateResultLayout} results={results} aggregatedResults={aggregatedResults} details={details} episodeId={episodeId} selectedEpisodeIds={selectedEpisodeIds} previewImages={previewImages} hasSearched={hasSearched} searchPage={searchPage} searchMaxPage={searchMaxPage} canLoadMore={canLoadMore} downloadCreateStatus={downloadCreateStatus} onSourceChange={setSourceKey} onKeywordChange={setKeyword} onSearchModeChange={setSearchMode} onToggleAggregateSource={toggleAggregateSource} onAggregateResultLayoutChange={setAggregateResultLayout} onSearch={() => void submitSearch()} onLoadMore={() => void loadMoreResults()} onOpenComic={(comic, nextSourceKey) => void openComic(comic, nextSourceKey)} onDownloadComic={(comic, nextSourceKey) => void downloadComic(comic, nextSourceKey)} onPreviewEpisode={(id) => void previewEpisode(id)} onToggleSelectedEpisode={toggleSelectedEpisode} onSelectEpisodes={selectEpisodes} onCreateDownload={(mode) => void createDownload(mode)} />}
+      {activeTab === "search" && <SearchView busy={searchBusy} sourceKey={sourceKey} detailSourceKey={detailSourceKey} sources={sourcesState.sources} keyword={keyword} searchMode={searchMode} aggregateSourceKeys={aggregateSourceKeys} aggregateResultLayout={aggregateResultLayout} results={results} aggregatedResults={aggregatedResults} details={details} episodeId={episodeId} selectedEpisodeIds={selectedEpisodeIds} previewImages={previewImages} hasSearched={hasSearched} searchPage={searchPage} searchMaxPage={searchMaxPage} canLoadMore={canLoadMore} downloadCreateStatus={downloadCreateStatus} onSourceChange={setSourceKey} onKeywordChange={setKeyword} onSearchModeChange={setSearchMode} onToggleAggregateSource={toggleAggregateSource} onAggregateResultLayoutChange={setAggregateResultLayout} onSearch={() => void submitSearch()} onLoadMore={() => void loadMoreResults()} onOpenComic={(comic, nextSourceKey) => void openComic(comic, nextSourceKey)} onDownloadComic={(comic, nextSourceKey) => void downloadComic(comic, nextSourceKey)} onPreviewEpisode={(id) => void previewEpisode(id)} onToggleSelectedEpisode={toggleSelectedEpisode} onSelectEpisodes={selectEpisodes} onCreateDownload={(mode) => void createDownload(mode)} />}
 
-      {activeTab === "sources" && <SourcesView busy={sourcesBusy} sourceKey={sourceKey} installSource={installSource} availableSources={availableSources} sourceMetadata={sourceMetadata} sourceSettings={sourceSettings} settingsJson={settingsJson} cookieUrl={cookieUrl} cookieText={cookieText} onInstallSourceChange={setInstallSource} onSettingsJsonChange={setSettingsJson} onCookieUrlChange={setCookieUrl} onCookieTextChange={setCookieText} onInstallSelectedSource={() => void installSelectedSource()} onRefreshRepository={() => void refreshRepository()} onReloadSources={() => void reloadSources()} onLoadSourceSettings={() => void loadSourceSettings()} onSetSourceEnabled={(source, enabled) => void setSourceEnabled(source, enabled)} onSaveSourceSettings={() => void saveSourceSettings()} onResetSourceSettings={() => void resetSourceSettings()} onImportCookies={() => void importCookies()} onClearCookies={() => void clearCookies()} />}
+      {activeTab === "sources" && <SourcesView busy={sourcesBusy} sourceKey={sourceKey} installSource={sourcesState.installSource} availableSources={sourcesState.availableSources} sourceMetadata={sourcesState.sourceMetadata} sourceSettings={sourcesState.sourceSettings} settingsJson={sourcesState.settingsJson} cookieUrl={sourcesState.cookieUrl} cookieText={sourcesState.cookieText} onInstallSourceChange={sourcesState.setInstallSource} onSettingsJsonChange={sourcesState.setSettingsJson} onCookieUrlChange={sourcesState.setCookieUrl} onCookieTextChange={sourcesState.setCookieText} onInstallSelectedSource={() => void sourcesState.installSelectedSource(refresh)} onRefreshRepository={() => void sourcesState.refreshRepository()} onReloadSources={() => void sourcesState.reloadSources(refresh)} onLoadSourceSettings={() => void sourcesState.loadSourceSettings()} onSetSourceEnabled={(source, enabled) => void sourcesState.setSourceEnabled(source, enabled, refresh)} onSaveSourceSettings={() => void sourcesState.saveSourceSettings()} onResetSourceSettings={() => void sourcesState.resetSourceSettings()} onImportCookies={() => void sourcesState.importCookies()} onClearCookies={() => void sourcesState.clearCookies()} />}
 
       {activeTab === "history" && <HistoryView history={history} onOpenHistoryItem={(item, mode) => void openHistoryItem(item, mode)} />}
 
