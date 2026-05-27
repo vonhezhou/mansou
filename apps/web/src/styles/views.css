@@ -64,6 +64,20 @@
   gap: 10px;
 }
 
+.source-panel {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #0b1328;
+}
+
+.source-management-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
+  gap: 16px;
+}
+
 .source-list article,
 .history article,
 .history-item,
@@ -77,6 +91,8 @@
   border-radius: var(--radius-md);
   background: #0b1328;
 }
+
+.source-list article { grid-template-columns: minmax(0, 1fr) auto auto; }
 
 .history-item {
   width: 100%;
@@ -174,6 +190,7 @@
 }
 
 @media (max-width: 960px) {
+  .source-management-grid,
   .source-list article,
   .history article,
   .history-item,

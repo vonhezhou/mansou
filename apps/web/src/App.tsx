@@ -9,7 +9,7 @@ import type { AggregatedSearchItem, CacheStats, Details, DownloadItem, DownloadT
 import { DownloadsView } from "./features/downloads/DownloadsView.js";
 import { HistoryView } from "./views/HistoryView.js";
 import { SearchView } from "./features/search/SearchView.js";
-import { SourcesView } from "./views/SourcesView.js";
+import { SourcesView } from "./features/sources/SourcesView.js";
 
 function readInitialTab(): TabKey {
   const hash = window.location.hash.slice(1);
