@@ -10,7 +10,16 @@ type CompatResult = {
   details: string;
   pages: string;
   image: string;
+  download: string;
   notes: string[];
+};
+
+type DownloadProbeResult = {
+  status: string;
+  phase?: string;
+  error?: string;
+  errorCode?: string;
+  logs?: Array<Record<string, unknown>>;
 };
 
 const args = parseArgs(process.argv.slice(2));
@@ -19,9 +28,11 @@ const keyword = args.keyword ?? "one";
 const isolation = args.isolation ?? config.pluginIsolation;
 const output = args.output;
 const format = args.format ?? (output?.endsWith(".md") ? "markdown" : "json");
+const verifyDownload = args.download === "true" || args.download === true;
+const downloadTimeoutMs = Number(args.downloadTimeoutMs ?? 180000);
 
 if (args.help || sources.length === 0) {
-  console.log("Usage: VENERA_DATA_DIR=/tmp/venera-compat pnpm --filter @venera/server compat:worker -- --source=baozi,comick --keyword=one --output=result.md --format=markdown");
+  console.log("Usage: VENERA_DATA_DIR=/tmp/venera-compat pnpm --filter @venera/server compat:worker -- --source=baozi,comick --keyword=one --download=true --output=result.md --format=markdown");
   process.exit(args.help ? 0 : 1);
 }
 
@@ -38,14 +49,14 @@ async function run() {
     await initializeApp(built.context);
     const results: CompatResult[] = [];
     for (const source of sources) results.push(await verifySource(built.app, source));
-    return { isolation, keyword, dataDir: config.dataDir, results };
+    return { isolation, keyword, dataDir: config.dataDir, download: verifyDownload, results };
   } finally {
     await built.app.close();
   }
 }
 
 async function verifySource(app: FastifyInstance, source: string): Promise<CompatResult> {
-  const result: CompatResult = { source, install: "pending", search: "pending", details: "pending", pages: "pending", image: "pending", notes: [] };
+  const result: CompatResult = { source, install: "pending", search: "pending", details: "pending", pages: "pending", image: "pending", download: verifyDownload ? "pending" : "skipped", notes: [] };
   const loaded = await app.inject({ method: "GET", url: `/api/v1/sources/${enc(source)}` });
   if (loaded.statusCode === 200 && loaded.json()) {
     result.install = "loaded";
@@ -82,7 +93,33 @@ async function verifySource(app: FastifyInstance, source: string): Promise<Compa
   const imageBody = image.json();
   result.image = image.statusCode === 200 && imageBody.ok ? "pass" : `fail ${image.statusCode}`;
   if (!imageBody.ok) note(result, JSON.stringify(imageBody));
+
+  if (verifyDownload) {
+    const download = await app.inject({ method: "POST", url: "/api/v1/downloads", payload: { sourceKey: source, comicId, episodeId } });
+    result.download = status(download.statusCode);
+    if (download.statusCode !== 200) return note(result, download.body);
+    const taskId = download.json().id;
+    const completed = await waitForDownload(app, taskId);
+    result.download = completed.status === "completed" ? "pass" : `fail ${completed.status}`;
+    if (completed.status !== "completed") {
+      note(result, JSON.stringify({ errorCode: completed.errorCode, error: completed.error, phase: completed.phase, logs: completed.logs?.slice(-5) }));
+    }
+  }
   return result;
+}
+
+async function waitForDownload(app: FastifyInstance, taskId: string): Promise<DownloadProbeResult> {
+  const deadline = Date.now() + downloadTimeoutMs;
+  let last: DownloadProbeResult = { status: "unknown" };
+  while (Date.now() < deadline) {
+    const response = await app.inject({ method: "GET", url: `/api/v1/downloads/${enc(taskId)}` });
+    if (response.statusCode !== 200) return { status: `http_${response.statusCode}`, error: response.body };
+    last = response.json() as DownloadProbeResult;
+    if (["completed", "failed", "cancelled", "paused"].includes(String(last.status))) return last;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  await app.inject({ method: "POST", url: `/api/v1/downloads/${enc(taskId)}/cancel` });
+  return { ...last, status: "timeout", error: `Download did not finish within ${downloadTimeoutMs}ms` };
 }
 
 function parseArgs(values: string[]) {
@@ -94,7 +131,7 @@ function parseArgs(values: string[]) {
       result[key] = item ?? true;
     }
   }
-  return result as { _: string[]; source?: string; sources?: string; keyword?: string; isolation?: string; output?: string; format?: "json" | "markdown"; help?: boolean };
+  return result as { _: string[]; source?: string; sources?: string; keyword?: string; isolation?: string; output?: string; format?: "json" | "markdown"; download?: string | boolean; downloadTimeoutMs?: string; help?: boolean };
 }
 
 function splitList(value: string) {
@@ -119,17 +156,18 @@ function firstEpisode(details: { chapters?: Record<string, string> }) {
   return keys.find((key) => key !== "No Volume" && key !== "_default") ?? keys[0] ?? "_default";
 }
 
-function renderMarkdown(result: { isolation: string; keyword: string; dataDir: string; results: CompatResult[] }) {
+function renderMarkdown(result: { isolation: string; keyword: string; dataDir: string; download: boolean; results: CompatResult[] }) {
   const lines = [
     `# Source Compatibility`,
     ``,
     `- isolation: ${result.isolation}`,
     `- keyword: ${result.keyword}`,
     `- dataDir: ${result.dataDir}`,
+    `- download: ${result.download}`,
     ``,
-    `| 源 | 安装 | 搜索 | 详情 | 章节 | 图片 | 备注 |`,
-    `| --- | --- | --- | --- | --- | --- | --- |`,
-    ...result.results.map((item) => `| ${item.source} | ${item.install} | ${item.search} | ${item.details} | ${item.pages} | ${item.image} | ${item.notes.join("<br>").replace(/\|/g, "\\|")} |`),
+    `| 源 | 安装 | 搜索 | 详情 | 章节 | 图片 | 下载 | 备注 |`,
+    `| --- | --- | --- | --- | --- | --- | --- | --- |`,
+    ...result.results.map((item) => `| ${item.source} | ${item.install} | ${item.search} | ${item.details} | ${item.pages} | ${item.image} | ${item.download} | ${item.notes.join("<br>").replace(/\|/g, "\\|")} |`),
     ``,
   ];
   return lines.join("\n");

@@ -23,9 +23,12 @@
       <section id="search-view" class="view active">
         <form id="search-form" class="toolbar">
           <input id="keyword" placeholder="关键词" value="test" />
-          <select id="source"></select>
           <button type="submit">搜索</button>
         </form>
+        <div class="source-picker">
+          <div class="muted">选择要参与聚合搜索的源</div>
+          <div id="search-sources" class="source-options"></div>
+        </div>
         <div id="results" class="grid"></div>
       </section>
 

@@ -1,5 +1,5 @@
 import { api, apiBase, withAccessToken } from "./client.js";
-import type { AggregatedSearchItem, CacheStats, Details, DownloadItem, DownloadTask, Health, HistoryItem, RepositorySource, SearchResult, SettingsResponse, Source, SourceMetadata } from "../types.js";
+import type { AggregatedSearchItem, CacheStats, Details, DownloadItem, DownloadTask, Health, HistoryItem, RepositorySource, RetryFailedDownloadImagesResult, SearchResult, SettingsResponse, Source, SourceMetadata } from "../types.js";
 
 function comicDetailPath(sourceKey: string, comicId: string) {
   return `/comics/${encodeURIComponent(sourceKey)}/${encodeURIComponent(comicId)}`;
@@ -53,6 +53,9 @@ export const veneraApi = {
   listDownloads: () => api<DownloadTask[]>("/downloads"),
   listDownloadItems: (taskId: string) => api<DownloadItem[]>(`/downloads/${encodeURIComponent(taskId)}/items`),
   retryDownloadItem: (taskId: string, imageKey: string) => api(`/downloads/${encodeURIComponent(taskId)}/items/retry`, { method: "POST", body: JSON.stringify({ imageKey }) }),
+  retryFailedDownloadItems: (taskId: string) => api<RetryFailedDownloadImagesResult>(`/downloads/${encodeURIComponent(taskId)}/items/retry-failed`, { method: "POST" }),
+  pauseDownload: (taskId: string) => api<DownloadTask>(`/downloads/${encodeURIComponent(taskId)}/pause`, { method: "POST" }),
+  resumeDownload: (taskId: string) => api<DownloadTask>(`/downloads/${encodeURIComponent(taskId)}/resume`, { method: "POST" }),
   cancelDownload: (taskId: string) => api(`/downloads/${encodeURIComponent(taskId)}/cancel`, { method: "POST" }),
   rerunDownload: (taskId: string) => api(`/downloads/${encodeURIComponent(taskId)}/rerun`, { method: "POST" }),
   exportDownloadCbz: (taskId: string) => api<{ path: string }>(`/downloads/${encodeURIComponent(taskId)}/cbz`, { method: "POST" }),

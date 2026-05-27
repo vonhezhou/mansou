@@ -10,13 +10,14 @@ import { ImageProxyService } from "./imageProxy.js";
 import { ensureDir, readJson, safeFilename, writeJson } from "../utils/fs.js";
 import { config } from "../config/config.js";
 
-type DownloadStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
+type DownloadStatus = "queued" | "running" | "paused" | "completed" | "failed" | "cancelled";
 type DownloadPhase =
   | "queued"
   | "loading_details"
   | "loading_pages"
   | "downloading_images"
   | "writing_metadata"
+  | "paused"
   | "completed"
   | "failed"
   | "cancelled";
@@ -33,6 +34,8 @@ export type DownloadTask = {
   total: number;
   completed: number;
   error?: string;
+  errorCode?: string;
+  recovered?: boolean;
   current?: string;
   logs: Array<{ time: string; phase: DownloadPhase; message: string }>;
   outputDir?: string;
@@ -44,6 +47,7 @@ export class DownloadService {
   private readonly tasks = new Map<string, DownloadTask>();
   private readonly cancelledTasks = new Set<string>();
   private readonly activeTasks = new Set<string>();
+  private readonly listeners = new Set<(tasks: DownloadTask[]) => void>();
 
   constructor(
     private readonly runtime: SourceRuntime,
@@ -63,6 +67,8 @@ export class DownloadService {
           ? [...(task.logs ?? []), { time: new Date().toISOString(), phase: "queued", message: "Task recovered after service restart" }]
           : (task.logs ?? []),
         error: shouldResume ? undefined : task.error,
+        errorCode: shouldResume ? undefined : task.errorCode,
+        recovered: shouldResume ? true : task.recovered,
         current: shouldResume ? undefined : task.current,
       });
     }
@@ -72,12 +78,22 @@ export class DownloadService {
   }
 
   create(input: { sourceKey: string; comicId: string; episodeId?: string; all?: boolean }) {
+    const episodeId = input.episodeId ?? "_default";
+    const existing = this.all().find((task) =>
+      task.sourceKey === input.sourceKey &&
+      task.comicId === input.comicId &&
+      Boolean(task.all) === Boolean(input.all) &&
+      (input.all || task.episodeId === episodeId || task.episodeId === "__all__") &&
+      (task.status === "queued" || task.status === "running" || task.status === "paused" || task.status === "completed"),
+    );
+    if (existing) return existing;
+
     const now = new Date().toISOString();
     const task: DownloadTask = {
       id: randomUUID(),
       sourceKey: input.sourceKey,
       comicId: input.comicId,
-      episodeId: input.episodeId ?? "_default",
+      episodeId,
       all: input.all,
       status: "queued",
       phase: "queued",
@@ -90,8 +106,15 @@ export class DownloadService {
     this.tasks.set(task.id, task);
     this.saveTask(task);
     this.reloadTasksFromStorage();
+    this.emitChange();
     this.processQueue();
     return task;
+  }
+
+  subscribe(listener: (tasks: DownloadTask[]) => void) {
+    this.listeners.add(listener);
+    listener(this.all());
+    return () => this.listeners.delete(listener);
   }
 
   rerun(id: string) {
@@ -115,6 +138,33 @@ export class DownloadService {
     this.update(task, { status: "cancelled", phase: "cancelled", error: "Cancelled by user", current: undefined });
     this.addLog(task, "cancelled", "Task cancelled by user");
     this.reloadTasksFromStorage();
+    this.emitChange();
+    this.processQueue();
+    return task;
+  }
+
+  pause(id: string) {
+    const task = this.tasks.get(id);
+    if (!task) return null;
+    if (task.status !== "queued" && task.status !== "running") return task;
+    this.cancelledTasks.add(id);
+    this.update(task, { status: "paused", phase: "paused", error: undefined, errorCode: undefined, current: undefined });
+    this.addLog(task, "paused", "Task paused by user");
+    this.reloadTasksFromStorage();
+    this.emitChange();
+    this.processQueue();
+    return task;
+  }
+
+  resume(id: string) {
+    const task = this.tasks.get(id);
+    if (!task) return null;
+    if (task.status !== "paused" && task.status !== "failed") return task;
+    this.cancelledTasks.delete(id);
+    this.update(task, { status: "queued", phase: "queued", error: undefined, errorCode: undefined, current: undefined });
+    this.addLog(task, "queued", "Task resumed by user");
+    this.reloadTasksFromStorage();
+    this.emitChange();
     this.processQueue();
     return task;
   }
@@ -141,12 +191,33 @@ export class DownloadService {
     this.activeTasks.delete(id);
     if (!this.storage) await this.saveTasks();
     this.reloadTasksFromStorage();
+    this.emitChange();
     if (deleteFiles && task.outputDir) {
       await rm(task.outputDir, { recursive: true, force: true });
       await rm(`${task.outputDir}.cbz`, { force: true });
     }
     this.processQueue();
     return task;
+  }
+
+  async retryFailedImages(id: string) {
+    const task = this.tasks.get(id);
+    if (!task) return null;
+    const failedItems = (this.storage?.listDownloadItems(id) as Array<{ image_key?: string; imageKey?: string; status?: string }> | undefined ?? [])
+      .filter((item) => item.status === "failed");
+    const results = [];
+    for (const item of failedItems) {
+      const imageKey = item.image_key ?? item.imageKey;
+      if (!imageKey) continue;
+      try {
+        results.push({ imageKey, ok: true, result: await this.retryImage(id, imageKey) });
+      } catch (error) {
+        results.push({ imageKey, ok: false, error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+    this.reloadTasksFromStorage();
+    this.emitChange();
+    return { task: this.find(id), retried: results.length, results };
   }
 
   async retryImage(id: string, imageKey: string) {
@@ -264,18 +335,25 @@ export class DownloadService {
       }
     } catch (error) {
       if (this.cancelledTasks.has(task.id)) {
-        this.update(task, { status: "cancelled", phase: "cancelled", error: "Cancelled by user", current: undefined });
-        this.addLog(task, "cancelled", "Task cancelled by user");
+        if (task.status === "paused") {
+          this.update(task, { status: "paused", phase: "paused", current: undefined });
+          this.addLog(task, "paused", "Task paused by user");
+        } else {
+          this.update(task, { status: "cancelled", phase: "cancelled", error: "Cancelled by user", errorCode: "CANCELLED", current: undefined });
+          this.addLog(task, "cancelled", "Task cancelled by user");
+        }
         this.cancelledTasks.delete(task.id);
         this.reloadTasksFromStorage();
         return;
       }
+      const classified = classifyDownloadError(error);
       this.update(task, {
         status: "failed",
         phase: "failed",
-        error: error instanceof Error ? error.message : String(error),
+        error: classified.message,
+        errorCode: classified.code,
       });
-      this.addLog(task, "failed", error instanceof Error ? error.message : String(error));
+      this.addLog(task, "failed", `${classified.code}: ${classified.message}`);
     } finally {
       this.reloadTasksFromStorage();
     }
@@ -295,6 +373,7 @@ export class DownloadService {
   private saveTask(task: DownloadTask) {
     if (this.storage) {
       this.storage.saveDownload(task as unknown as Record<string, unknown>);
+      this.emitChange();
       return;
     }
     void this.saveTasks();
@@ -305,6 +384,12 @@ export class DownloadService {
     const tasks = this.storage.listDownloads() as DownloadTask[];
     this.tasks.clear();
     for (const task of tasks) this.tasks.set(task.id, task);
+  }
+
+  private emitChange() {
+    if (this.listeners.size === 0) return;
+    const tasks = [...this.tasks.values()];
+    for (const listener of this.listeners) listener(tasks);
   }
 
   private async downloadImages(task: DownloadTask, images: string[], episodeId: string, outputDir: string) {
@@ -321,7 +406,7 @@ export class DownloadService {
         const imageKey = images[index];
         const completedFile = await this.completedFilePath(task.id, imageKey);
         if (completedFile) {
-          this.storage?.saveDownloadItem({ taskId: task.id, imageKey, filePath: completedFile, status: "completed" });
+        this.storage?.saveDownloadItem({ taskId: task.id, imageKey, filePath: completedFile, status: "completed" });
           continue;
         }
         this.update(task, { current: imageKey });
@@ -414,9 +499,10 @@ function classifyDownloadError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   const statusMatch = message.match(/\b(4\d\d|5\d\d)\b/);
   if (statusMatch) return { code: `HTTP_${statusMatch[1]}`, message };
-  if (/timeout|timed out|abort/i.test(message)) return { code: "TIMEOUT", message };
-  if (/cancelled/i.test(message)) return { code: "CANCELLED", message };
-  return { code: "DOWNLOAD_ERROR", message };
+    if (/timeout|timed out|abort/i.test(message)) return { code: "TIMEOUT", message };
+    if (/cancelled/i.test(message)) return { code: "CANCELLED", message };
+    if (/too large/i.test(message)) return { code: "IMAGE_TOO_LARGE", message };
+    return { code: "DOWNLOAD_ERROR", message };
 }
 
 function extensionFromContentType(contentType: string, imageKey: string) {

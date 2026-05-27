@@ -35,12 +35,62 @@ function imageUrl(sourceKey, imageKey, comicId = "", episodeId = "", thumbnail =
 
 async function loadSources() {
   state.sources = await api("/api/v1/sources");
-  const select = $("#source");
-  select.innerHTML = state.sources
-    .filter((source) => source.hasSearch)
-    .map((source) => `<option value="${source.key}">${source.name}</option>`)
-    .join("");
+  const searchableSources = state.sources.filter((source) => source.hasSearch);
+  $("#search-sources").innerHTML = searchableSources.length
+    ? searchableSources
+        .map(
+          (source, index) => `
+            <label class="source-option">
+              <input type="checkbox" name="search-source" value="${source.key}" ${index === 0 ? "checked" : ""} />
+              <span>${source.name}</span>
+              <span class="muted">${source.key}</span>
+            </label>
+          `,
+        )
+        .join("")
+    : `<span class="muted">没有可搜索的源</span>`;
   renderSources();
+}
+
+function selectedSearchSources() {
+  return [...document.querySelectorAll('input[name="search-source"]:checked')].map((input) => input.value);
+}
+
+function formatTime(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
+
+function sourceName(sourceKey) {
+  return state.sources.find((source) => source.key === sourceKey)?.name ?? sourceKey;
+}
+
+function taskScope(task) {
+  if (task.all || task.episodeId === "__all__") return "全本";
+  return task.episodeId === "_default" ? "首章" : `章节 ${task.episodeId}`;
+}
+
+async function createDownloads(requests) {
+  const created = [];
+  for (const body of requests) {
+    created.push(await postJson("/api/v1/downloads", body));
+  }
+  alert(`已创建 ${created.length} 个下载任务`);
+  await loadDownloads();
+}
+
+function firstChapterId(chapters) {
+  return Object.keys(chapters)[0] ?? "_default";
+}
+
+function selectedChapterIds() {
+  return [...document.querySelectorAll('input[name="download-chapter"]:checked')].map((input) => input.value);
+}
+
+function downloadChapterBody(sourceKey, comicId, episodeId) {
+  return episodeId === "_default" ? { sourceKey, comicId } : { sourceKey, comicId, episodeId };
 }
 
 function renderSources() {
@@ -57,26 +107,71 @@ function renderSources() {
     .join("");
 }
 
-async function search(event) {
-  event?.preventDefault();
-  const sourceKey = $("#source").value;
-  const keyword = $("#keyword").value.trim();
-  if (!sourceKey || !keyword) return;
-  $("#results").innerHTML = "加载中...";
+async function runAggregatedSearch(keyword, sourceKeys) {
+  const params = new URLSearchParams({ keyword, sources: sourceKeys.join(",") });
+  const groups = await api(`/api/v1/search?${params}`);
+  return groups.flatMap((group) => {
+    if (group.error) return [{ type: "error", sourceKey: group.sourceKey, sourceName: group.sourceName, error: group.error }];
+    return (group.result?.comics ?? []).map((comic) => ({
+      ...comic,
+      type: "comic",
+      sourceKey: group.sourceKey,
+      sourceName: group.sourceName,
+    }));
+  });
+}
+
+async function loadSingleSourceSearch(sourceKey, keyword) {
   const result = await api(`/api/v1/search/${sourceKey}?keyword=${encodeURIComponent(keyword)}&page=1`);
-  $("#results").innerHTML = result.comics
-    .map(
-      (comic) => `
-        <article class="card" data-comic-id="${comic.id}" data-source-key="${sourceKey}">
-          <img src="${imageUrl(sourceKey, comic.cover, comic.id, "", true)}" loading="lazy" />
+  return result.comics.map((comic) => ({ ...comic, type: "comic", sourceKey, sourceName: sourceName(sourceKey) }));
+}
+
+function renderSearchResults(items) {
+  if (items.length === 0) {
+    $("#results").innerHTML = `<div class="muted">没有结果</div>`;
+    return;
+  }
+  $("#results").innerHTML = items
+    .map((item) => {
+      if (item.type === "error") {
+        return `
+          <article class="card error-card">
+            <div class="card-body">
+              <h3>${item.sourceName}</h3>
+              <div class="muted">${item.sourceKey}</div>
+              <div class="muted">${item.error}</div>
+            </div>
+          </article>
+        `;
+      }
+      return `
+        <article class="card" data-comic-id="${item.id}" data-source-key="${item.sourceKey}">
+          <img src="${imageUrl(item.sourceKey, item.cover, item.id, "", true)}" loading="lazy" />
           <div class="card-body">
-            <h3>${comic.title}</h3>
-            <div class="muted">${comic.subtitle || comic.description || comic.id}</div>
+            <div class="source-badge">${item.sourceName}</div>
+            <h3>${item.title}</h3>
+            <div class="muted">${item.subtitle || item.description || item.id}</div>
           </div>
         </article>
-      `,
-    )
+      `;
+    })
     .join("");
+}
+
+async function search(event) {
+  event?.preventDefault();
+  const sourceKeys = selectedSearchSources();
+  const keyword = $("#keyword").value.trim();
+  if (!keyword) return;
+  if (sourceKeys.length === 0) {
+    $("#results").innerHTML = `<div class="muted">请至少选择一个源</div>`;
+    return;
+  }
+  $("#results").innerHTML = "加载中...";
+  const items = sourceKeys.length === 1
+    ? await loadSingleSourceSearch(sourceKeys[0], keyword)
+    : await runAggregatedSearch(keyword, sourceKeys);
+  renderSearchResults(items);
 }
 
 async function openDetail(sourceKey, comicId) {
@@ -89,22 +184,24 @@ async function openDetail(sourceKey, comicId) {
       <h2>${detail.title}</h2>
       <p>${detail.description || ""}</p>
       <div class="actions">
-        <button id="download-all">下载全部章节</button>
+        <button id="download-first">只下载首章</button>
+        <button id="download-selected">下载所选章节</button>
+        <button id="download-all">下载全本</button>
       </div>
       <div class="chapters">
         ${Object.entries(chapters)
-          .map(([id, title]) => `<button data-episode-id="${id}">${title}</button><button data-download-episode-id="${id}">下载</button>`)
+          .map(([id, title]) => `
+            <label class="chapter-option">
+              <input type="checkbox" name="download-chapter" value="${id}" />
+              <span>${title}</span>
+            </label>
+            <button data-episode-id="${id}">阅读</button>
+          `)
           .join("")}
       </div>
     </div>
   `;
   show("detail");
-}
-
-async function createDownload(body) {
-  const task = await postJson("/api/v1/downloads", body);
-  alert(`已创建下载任务: ${task.id}`);
-  await loadDownloads();
 }
 
 async function openReader(episodeId) {
@@ -125,7 +222,13 @@ async function loadDownloads() {
       (task) => `
         <div class="list-item">
           <strong>${task.title || task.comicId}</strong>
-          <div class="muted">${task.sourceKey} / ${task.status} / ${task.completed}/${task.total}</div>
+          <div class="muted">${sourceName(task.sourceKey)} (${task.sourceKey}) / ${task.status} / ${task.completed}/${task.total}</div>
+          <div class="meta-grid">
+            <span>任务 ID: ${task.id}</span>
+            <span>漫画 ID: ${task.comicId}</span>
+            <span>范围: ${taskScope(task)}</span>
+            <span>创建: ${formatTime(task.createdAt)}</span>
+          </div>
           <div class="muted">${task.outputDir || ""}</div>
           ${task.error ? `<div class="muted">${task.error}</div>` : ""}
           <div class="actions">
@@ -165,14 +268,22 @@ $("#results").addEventListener("click", (event) => {
 $("#detail").addEventListener("click", (event) => {
   const button = event.target.closest("button[data-episode-id]");
   if (button) openReader(button.dataset.episodeId);
-  const downloadButton = event.target.closest("button[data-download-episode-id]");
-  if (downloadButton) {
+  if (event.target.closest("#download-first")) {
+    const { sourceKey, comicId, chapters } = state.currentDetail;
+    void createDownloads([downloadChapterBody(sourceKey, comicId, firstChapterId(chapters || { _default: "默认章节" }))]);
+  }
+  if (event.target.closest("#download-selected")) {
     const { sourceKey, comicId } = state.currentDetail;
-    void createDownload({ sourceKey, comicId, episodeId: downloadButton.dataset.downloadEpisodeId });
+    const episodeIds = selectedChapterIds();
+    if (episodeIds.length === 0) {
+      alert("请先选择章节");
+      return;
+    }
+    void createDownloads(episodeIds.map((episodeId) => downloadChapterBody(sourceKey, comicId, episodeId)));
   }
   if (event.target.closest("#download-all")) {
     const { sourceKey, comicId } = state.currentDetail;
-    void createDownload({ sourceKey, comicId, all: true });
+    void createDownloads([{ sourceKey, comicId, all: true }]);
   }
 });
 $("#downloads").addEventListener("click", async (event) => {

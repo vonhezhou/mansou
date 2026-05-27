@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { notFound } from "./errors.js";
 import type { RouteContext } from "./types.js";
 
 export async function registerDownloadRoutes(app: FastifyInstance, context: RouteContext) {
@@ -9,10 +10,14 @@ export async function registerDownloadRoutes(app: FastifyInstance, context: Rout
       "cache-control": "no-cache",
       connection: "keep-alive",
     });
-    const send = () => reply.raw.write(`event: downloads\ndata: ${JSON.stringify(context.downloads.all())}\n\n`);
-    send();
-    const timer = setInterval(send, 2000);
-    reply.raw.on("close", () => clearInterval(timer));
+    const unsubscribe = context.downloads.subscribe((tasks) => {
+      reply.raw.write(`event: downloads\ndata: ${JSON.stringify(tasks)}\n\n`);
+    });
+    const heartbeat = setInterval(() => reply.raw.write(`: heartbeat\n\n`), 30000);
+    reply.raw.on("close", () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    });
   });
 
   app.post("/downloads", async (request) => {
@@ -22,63 +27,66 @@ export async function registerDownloadRoutes(app: FastifyInstance, context: Rout
 
   app.get("/downloads", async () => context.downloads.all());
 
-  app.get("/downloads/:taskId", async (request, reply) => {
+  app.get("/downloads/:taskId", async (request) => {
     const params = z.object({ taskId: z.string() }).parse(request.params);
     const task = context.downloads.find(params.taskId);
-    if (!task) {
-      reply.code(404);
-      return { error: { code: "DOWNLOAD_NOT_FOUND", message: "Download task not found", requestId: request.id } };
-    }
+    if (!task) throw notFound("DOWNLOAD_NOT_FOUND", "Download task not found");
     return task;
   });
 
-  app.get("/downloads/:taskId/items", async (request, reply) => {
+  app.get("/downloads/:taskId/items", async (request) => {
     const params = z.object({ taskId: z.string() }).parse(request.params);
-    if (!context.downloads.find(params.taskId)) {
-      reply.code(404);
-      return { error: { code: "DOWNLOAD_NOT_FOUND", message: "Download task not found", requestId: request.id } };
-    }
+    if (!context.downloads.find(params.taskId)) throw notFound("DOWNLOAD_NOT_FOUND", "Download task not found");
     return context.storage.listDownloadItems(params.taskId);
   });
 
-  app.post("/downloads/:taskId/rerun", async (request, reply) => {
+  app.post("/downloads/:taskId/rerun", async (request) => {
     const params = z.object({ taskId: z.string() }).parse(request.params);
     const task = context.downloads.rerun(params.taskId);
-    if (!task) {
-      reply.code(404);
-      return { error: { code: "DOWNLOAD_NOT_FOUND", message: "Download task not found", requestId: request.id } };
-    }
+    if (!task) throw notFound("DOWNLOAD_NOT_FOUND", "Download task not found");
     return task;
   });
 
-  app.post("/downloads/:taskId/cancel", async (request, reply) => {
+  app.post("/downloads/:taskId/resume", async (request) => {
+    const params = z.object({ taskId: z.string() }).parse(request.params);
+    const task = context.downloads.resume(params.taskId);
+    if (!task) throw notFound("DOWNLOAD_NOT_FOUND", "Download task not found");
+    return task;
+  });
+
+  app.post("/downloads/:taskId/pause", async (request) => {
+    const params = z.object({ taskId: z.string() }).parse(request.params);
+    const task = context.downloads.pause(params.taskId);
+    if (!task) throw notFound("DOWNLOAD_NOT_FOUND", "Download task not found");
+    return task;
+  });
+
+  app.post("/downloads/:taskId/cancel", async (request) => {
     const params = z.object({ taskId: z.string() }).parse(request.params);
     const task = context.downloads.cancel(params.taskId);
-    if (!task) {
-      reply.code(404);
-      return { error: { code: "DOWNLOAD_NOT_FOUND", message: "Download task not found", requestId: request.id } };
-    }
+    if (!task) throw notFound("DOWNLOAD_NOT_FOUND", "Download task not found");
     return task;
   });
 
-  app.post("/downloads/:taskId/cbz", async (request, reply) => {
+  app.post("/downloads/:taskId/cbz", async (request) => {
     const params = z.object({ taskId: z.string() }).parse(request.params);
     const result = await context.downloads.exportCbz(params.taskId);
-    if (!result) {
-      reply.code(404);
-      return { error: { code: "DOWNLOAD_NOT_FOUND", message: "Download task not found", requestId: request.id } };
-    }
+    if (!result) throw notFound("DOWNLOAD_NOT_FOUND", "Download task not found");
     return result;
   });
 
-  app.post("/downloads/:taskId/items/retry", async (request, reply) => {
+  app.post("/downloads/:taskId/items/retry", async (request) => {
     const params = z.object({ taskId: z.string() }).parse(request.params);
     const body = z.object({ imageKey: z.string() }).parse(request.body);
     const result = await context.downloads.retryImage(params.taskId, body.imageKey);
-    if (!result) {
-      reply.code(404);
-      return { error: { code: "DOWNLOAD_NOT_FOUND", message: "Download task not found", requestId: request.id } };
-    }
+    if (!result) throw notFound("DOWNLOAD_NOT_FOUND", "Download task not found");
+    return result;
+  });
+
+  app.post("/downloads/:taskId/items/retry-failed", async (request) => {
+    const params = z.object({ taskId: z.string() }).parse(request.params);
+    const result = await context.downloads.retryFailedImages(params.taskId);
+    if (!result) throw notFound("DOWNLOAD_NOT_FOUND", "Download task not found");
     return result;
   });
 
@@ -86,10 +94,7 @@ export async function registerDownloadRoutes(app: FastifyInstance, context: Rout
     const params = z.object({ taskId: z.string() }).parse(request.params);
     const query = z.object({ files: z.coerce.boolean().optional() }).parse(request.query);
     const task = await context.downloads.delete(params.taskId, query.files ?? false);
-    if (!task) {
-      reply.code(404);
-      return { error: { code: "DOWNLOAD_NOT_FOUND", message: "Download task not found", requestId: request.id } };
-    }
+    if (!task) throw notFound("DOWNLOAD_NOT_FOUND", "Download task not found");
     return task;
   });
 }

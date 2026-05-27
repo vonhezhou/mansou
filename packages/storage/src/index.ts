@@ -168,8 +168,8 @@ class AppStorage {
     const id = `${input.sourceKey}:${input.comicId}`;
     const now = new Date().toISOString();
     this.db
-      .prepare("insert into history(id, source_key, comic_id, episode_id, page, progress, updated_at) values (?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set episode_id = excluded.episode_id, page = excluded.page, progress = excluded.progress, updated_at = excluded.updated_at")
-      .run(id, input.sourceKey, input.comicId, input.episodeId ?? null, input.page ?? 0, input.progress ?? 0, now);
+      .prepare("insert into history(id, source_key, comic_id, title, cover, episode_id, page, progress, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set title = coalesce(excluded.title, history.title), cover = coalesce(excluded.cover, history.cover), episode_id = excluded.episode_id, page = excluded.page, progress = excluded.progress, updated_at = excluded.updated_at")
+      .run(id, input.sourceKey, input.comicId, input.title ?? null, input.cover ?? null, input.episodeId ?? null, input.page ?? 0, input.progress ?? 0, now);
     return this.getHistory(input.sourceKey, input.comicId);
   }
 }
@@ -285,5 +285,12 @@ function migrate(db: Database.Database) {
     const names = new Set(columns.map((column) => column.name));
     if (!names.has("error_code")) db.exec("alter table download_items add column error_code text");
     db.exec("insert into schema_migrations(version, applied_at) values (3, datetime('now'))");
+  }
+  if (version < 4) {
+    const columns = db.prepare("pragma table_info(history)").all() as Array<{ name: string }>;
+    const names = new Set(columns.map((column) => column.name));
+    if (!names.has("title")) db.exec("alter table history add column title text");
+    if (!names.has("cover")) db.exec("alter table history add column cover text");
+    db.exec("insert into schema_migrations(version, applied_at) values (4, datetime('now'))");
   }
 }

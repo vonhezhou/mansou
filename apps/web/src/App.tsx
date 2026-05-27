@@ -30,6 +30,8 @@ export function App() {
   const [installSource, setInstallSource] = useState("");
   const [keyword, setKeyword] = useState("test");
   const [searchMode, setSearchMode] = useState<"single" | "aggregate">("single");
+  const [aggregateSourceKeys, setAggregateSourceKeys] = useState<string[]>([]);
+  const [aggregateResultLayout, setAggregateResultLayout] = useState<"grouped" | "flat">("grouped");
   const [results, setResults] = useState<Comic[]>([]);
   const [aggregatedResults, setAggregatedResults] = useState<AggregatedSearchItem[]>([]);
   const [searchPage, setSearchPage] = useState(1);
@@ -37,7 +39,9 @@ export function App() {
   const [searchMaxPage, setSearchMaxPage] = useState<number | undefined>();
   const [hasSearched, setHasSearched] = useState(false);
   const [details, setDetails] = useState<Details | null>(null);
+  const [detailSourceKey, setDetailSourceKey] = useState(sourceKey);
   const [episodeId, setEpisodeId] = useState<string | null>(null);
+  const [selectedEpisodeIds, setSelectedEpisodeIds] = useState<string[]>([]);
   const [images, setImages] = useState<string[]>([]);
   const [downloads, setDownloads] = useState<DownloadTask[]>([]);
   const [downloadItems, setDownloadItems] = useState<Record<string, DownloadItem[]>>({});
@@ -52,6 +56,7 @@ export function App() {
   const [accessToken, setAccessToken] = useState(getAccessToken());
   const [activeTab, setActiveTab] = useState<TabKey>(readInitialTab);
   const [health, setHealth] = useState<Health | null>(null);
+  const [downloadCreateStatus, setDownloadCreateStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -99,6 +104,7 @@ export function App() {
       setSourceMetadata(metadata);
       setAvailableSources(repository);
       if (loaded[0] && !loaded.some((source) => source.key === sourceKey)) setSourceKey(loaded[0].key);
+      setAggregateSourceKeys((current) => current.length ? current.filter((key) => loaded.some((source) => source.key === key)) : loaded.filter((source) => source.hasSearch).slice(0, 1).map((source) => source.key));
       await loadDownloads();
       setCache(await veneraApi.getCacheStats());
       setHistory(await veneraApi.listHistory());
@@ -123,7 +129,7 @@ export function App() {
 
   async function aggregatedSearch() {
     await run(async () => {
-      const data = await veneraApi.aggregatedSearch(keyword);
+      const data = await veneraApi.aggregatedSearch(keyword, aggregateSourceKeys);
       startTransition(() => {
         setAggregatedResults(data);
         setResults([]);
@@ -160,8 +166,10 @@ export function App() {
       const data = await veneraApi.comicDetails(nextSourceKey, comic.id);
       const firstEpisode = Object.keys(data.chapters ?? {})[0] ?? "_default";
       setSourceKey(nextSourceKey);
+      setDetailSourceKey(nextSourceKey);
       setDetails(data);
       setEpisodeId(firstEpisode);
+      setSelectedEpisodeIds([]);
       setImages([]);
     });
   }
@@ -237,16 +245,16 @@ export function App() {
   async function readEpisode(nextEpisodeId = episodeId, initialPage = 0) {
     if (!details || !nextEpisodeId) return;
     await run(async () => {
-      const data = await veneraApi.episodePages(sourceKey, details.comicId ?? details.id, nextEpisodeId);
+      const data = await veneraApi.episodePages(detailSourceKey, details.comicId ?? details.id, nextEpisodeId);
       setEpisodeId(nextEpisodeId);
       setImages(data.images ?? []);
-      await veneraApi.saveHistory(sourceKey, details.comicId ?? details.id, { episodeId: nextEpisodeId, page: initialPage, progress: data.images.length > 0 ? initialPage / data.images.length : 0 });
+      await veneraApi.saveHistory(detailSourceKey, details.comicId ?? details.id, { episodeId: nextEpisodeId, page: initialPage, progress: data.images.length > 0 ? initialPage / data.images.length : 0 });
       setHistory(await veneraApi.listHistory());
       if (initialPage > 0) window.setTimeout(() => document.getElementById(`page-${initialPage + 1}`)?.scrollIntoView({ block: "start" }), 100);
     });
   }
 
-  async function openHistoryItem(item: HistoryItem) {
+  async function openHistoryItem(item: HistoryItem, mode: "details" | "read") {
     const nextSourceKey = getHistorySourceKey(item);
     const comicId = getHistoryComicId(item);
     const nextEpisodeId = getHistoryEpisodeId(item);
@@ -254,22 +262,62 @@ export function App() {
     await run(async () => {
       const data = await veneraApi.comicDetails(nextSourceKey, comicId);
       const episodeToRead = nextEpisodeId ?? Object.keys(data.chapters ?? {})[0] ?? "_default";
-      const pages = await veneraApi.episodePages(nextSourceKey, data.comicId ?? data.id, episodeToRead);
       setSourceKey(nextSourceKey);
+      setDetailSourceKey(nextSourceKey);
       setDetails(data);
       setEpisodeId(episodeToRead);
-      setImages(pages.images ?? []);
+      setSelectedEpisodeIds([]);
       setActiveTab("search");
-      window.setTimeout(() => document.getElementById(`page-${(item.page ?? 0) + 1}`)?.scrollIntoView({ block: "start" }), 100);
+      if (mode === "details") {
+        setImages([]);
+      } else {
+        const pages = await veneraApi.episodePages(nextSourceKey, data.comicId ?? data.id, episodeToRead);
+        setImages(pages.images ?? []);
+        window.setTimeout(() => document.getElementById(`page-${(item.page ?? 0) + 1}`)?.scrollIntoView({ block: "start" }), 100);
+      }
     });
   }
 
-  async function createDownload(all = false) {
+  async function createDownload(mode: "first" | "selected" | "all") {
     if (!details) return;
     await run(async () => {
-      await veneraApi.createDownload({ sourceKey, comicId: details.comicId ?? details.id, episodeId: episodeId ?? undefined, all });
+      const comicId = details.comicId ?? details.id;
+      const firstEpisode = Object.keys(details.chapters ?? {})[0] ?? "_default";
+      const episodeIds = mode === "selected" ? selectedEpisodeIds : [firstEpisode];
+      const requests = mode === "all"
+        ? [{ sourceKey: detailSourceKey, comicId, all: true }]
+        : episodeIds.map((id) => ({ sourceKey: detailSourceKey, comicId, episodeId: id }));
+      let success = 0;
+      let failed = 0;
+      setDownloadCreateStatus(`创建中：0/${requests.length}`);
+      for (const request of requests) {
+        try {
+          await veneraApi.createDownload(request);
+          success += 1;
+        } catch {
+          failed += 1;
+        }
+        setDownloadCreateStatus(`创建中：${success + failed}/${requests.length}，成功 ${success}，失败 ${failed}`);
+      }
+      setDownloadCreateStatus(`创建完成：成功 ${success}，失败 ${failed}`);
+      setActiveTab("downloads");
       await loadDownloads();
     });
+  }
+
+  function toggleAggregateSource(source: string) {
+    setAggregateSourceKeys((current) => current.includes(source) ? current.filter((key) => key !== source) : [...current, source]);
+  }
+
+  function toggleSelectedEpisode(id: string) {
+    setSelectedEpisodeIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  }
+
+  function selectEpisodes(action: "all" | "clear" | "invert") {
+    const ids = Object.keys(details?.chapters ?? {});
+    if (action === "all") setSelectedEpisodeIds(ids);
+    if (action === "clear") setSelectedEpisodeIds([]);
+    if (action === "invert") setSelectedEpisodeIds((current) => ids.filter((id) => !current.includes(id)));
   }
 
   async function downloadComic(comic: Comic, nextSourceKey = sourceKey) {
@@ -357,11 +405,11 @@ export function App() {
         {tabs.map((tab) => <button className={tab.key === activeTab ? "active" : ""} key={tab.key} onClick={() => setActiveTab(tab.key)}>{tab.label}</button>)}
       </nav>
 
-      {activeTab === "search" && <SearchView busy={busy} sourceKey={sourceKey} sources={sources} keyword={keyword} searchMode={searchMode} results={results} aggregatedResults={aggregatedResults} details={details} episodeId={episodeId} images={images} hasSearched={hasSearched} searchPage={searchPage} searchMaxPage={searchMaxPage} canLoadMore={canLoadMore} onSourceChange={setSourceKey} onKeywordChange={setKeyword} onSearchModeChange={setSearchMode} onSearch={() => void submitSearch()} onLoadMore={() => void loadMoreResults()} onOpenComic={(comic, nextSourceKey) => void openComic(comic, nextSourceKey)} onDownloadComic={(comic, nextSourceKey) => void downloadComic(comic, nextSourceKey)} onReadEpisode={(id) => void readEpisode(id)} onCreateDownload={(all) => void createDownload(all)} />}
+      {activeTab === "search" && <SearchView busy={busy} sourceKey={sourceKey} detailSourceKey={detailSourceKey} sources={sources} keyword={keyword} searchMode={searchMode} aggregateSourceKeys={aggregateSourceKeys} aggregateResultLayout={aggregateResultLayout} results={results} aggregatedResults={aggregatedResults} details={details} episodeId={episodeId} selectedEpisodeIds={selectedEpisodeIds} images={images} hasSearched={hasSearched} searchPage={searchPage} searchMaxPage={searchMaxPage} canLoadMore={canLoadMore} downloadCreateStatus={downloadCreateStatus} onSourceChange={setSourceKey} onKeywordChange={setKeyword} onSearchModeChange={setSearchMode} onToggleAggregateSource={toggleAggregateSource} onAggregateResultLayoutChange={setAggregateResultLayout} onSearch={() => void submitSearch()} onLoadMore={() => void loadMoreResults()} onOpenComic={(comic, nextSourceKey) => void openComic(comic, nextSourceKey)} onDownloadComic={(comic, nextSourceKey) => void downloadComic(comic, nextSourceKey)} onReadEpisode={(id) => void readEpisode(id)} onToggleSelectedEpisode={toggleSelectedEpisode} onSelectEpisodes={selectEpisodes} onCreateDownload={(mode) => void createDownload(mode)} />}
 
       {activeTab === "sources" && <SourcesView busy={busy} sourceKey={sourceKey} installSource={installSource} availableSources={availableSources} sourceMetadata={sourceMetadata} sourceSettings={sourceSettings} settingsJson={settingsJson} cookieUrl={cookieUrl} cookieText={cookieText} onInstallSourceChange={setInstallSource} onSettingsJsonChange={setSettingsJson} onCookieUrlChange={setCookieUrl} onCookieTextChange={setCookieText} onInstallSelectedSource={() => void installSelectedSource()} onRefreshRepository={() => void refreshRepository()} onReloadSources={() => void reloadSources()} onLoadSourceSettings={() => void loadSourceSettings()} onSetSourceEnabled={(source, enabled) => void setSourceEnabled(source, enabled)} onSaveSourceSettings={() => void saveSourceSettings()} onResetSourceSettings={() => void resetSourceSettings()} onImportCookies={() => void importCookies()} onClearCookies={() => void clearCookies()} />}
 
-      {activeTab === "history" && <HistoryView history={history} onOpenHistoryItem={(item) => void openHistoryItem(item)} />}
+      {activeTab === "history" && <HistoryView history={history} onOpenHistoryItem={(item, mode) => void openHistoryItem(item, mode)} />}
 
       {activeTab === "downloads" && <DownloadsView busy={busy} cache={cache} downloads={downloads} downloadItems={downloadItems} failedItemsOnly={failedItemsOnly} onFailedItemsOnlyChange={setFailedItemsOnly} onPruneCache={() => void pruneCache()} onClearCache={() => void clearCache()} onLoadDownloadItems={(task) => void loadDownloadItems(task)} onDownloadAction={(task, action) => void downloadAction(task, action)} onRetryDownloadItem={(task, item) => void retryDownloadItem(task, item)} />}
     </main>

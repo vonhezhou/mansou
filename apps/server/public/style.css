@@ -81,6 +81,26 @@ main {
   min-width: min(420px, 100%);
 }
 
+.source-picker {
+  margin: -8px 0 20px;
+}
+
+.source-options,
+.meta-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.source-option,
+.chapter-option {
+  background: #191b20;
+  border: 1px solid #2d3138;
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
 .view {
   display: none;
 }
@@ -120,6 +140,16 @@ main {
   margin: 0;
 }
 
+.source-badge {
+  color: #8ab4ff;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.error-card {
+  border-color: #6b3b3b;
+}
+
 .muted {
   color: #a7adb8;
   font-size: 12px;
@@ -150,6 +180,17 @@ main {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 16px;
+}
+
+.meta-grid {
+  color: #cbd5e1;
+  font-size: 12px;
+}
+
+.meta-grid span {
+  background: #252932;
+  border-radius: 8px;
+  padding: 6px 8px;
 }
 
 #reader {

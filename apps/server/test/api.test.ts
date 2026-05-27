@@ -62,7 +62,11 @@ describe("api v1 mock source", () => {
     expect(response.json().paths["/api/v1/search/{sourceKey}"].get.operationId).toBe("searchSource");
     expect(response.json().paths["/api/v1/comics/{sourceKey}/detail"].get.operationId).toBe("getComicDetailsByQuery");
     expect(response.json().paths["/api/v1/debug/runtime/diagnostics"].get.operationId).toBe("getRuntimeDiagnostics");
+    expect(response.json().paths["/api/v1/downloads/{taskId}/items/retry-failed"].post.operationId).toBe("retryFailedDownloadImages");
+    expect(response.json().paths["/api/v1/downloads/{taskId}/pause"].post.operationId).toBe("pauseDownload");
+    expect(response.json().paths["/api/v1/downloads/{taskId}/resume"].post.operationId).toBe("resumeDownload");
     expect(response.json().components.schemas.DownloadTask).toBeTruthy();
+    expect(response.json().components.schemas.RetryFailedDownloadImagesResult).toBeTruthy();
   });
 
   it("searches, loads details, pages, and image bytes", async () => {
@@ -144,10 +148,10 @@ describe("api v1 mock source", () => {
     const history = await app.inject({
       method: "PUT",
       url: "/api/v1/library/history/mock/mock-comic-1",
-      payload: { episodeId: "chapter-1", page: 2, progress: 0.4 },
+      payload: { title: "History Title", cover: "mock://cover/history", episodeId: "chapter-1", page: 2, progress: 0.4 },
     });
     expect(history.statusCode).toBe(200);
-    expect(history.json()).toMatchObject({ source_key: "mock", comic_id: "mock-comic-1", episode_id: "chapter-1", page: 2 });
+    expect(history.json()).toMatchObject({ source_key: "mock", comic_id: "mock-comic-1", title: "History Title", cover: "mock://cover/history", episode_id: "chapter-1", page: 2 });
 
     const cache = await app.inject({ method: "GET", url: "/api/v1/settings/cache" });
     expect(cache.statusCode).toBe(200);
@@ -187,6 +191,59 @@ describe("api v1 mock source", () => {
     expect(retry.json().item).toMatchObject({ task_id: taskId, status: "completed" });
   });
 
+  it("deduplicates equivalent download tasks", async () => {
+    const payload = { sourceKey: "mock", comicId: "mock-comic-dedupe", episodeId: "chapter-1" };
+    const first = await app.inject({ method: "POST", url: "/api/v1/downloads", payload });
+    const second = await app.inject({ method: "POST", url: "/api/v1/downloads", payload });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(second.json().id).toBe(first.json().id);
+  });
+
+  it("sends download events from the service subscription", async () => {
+    const events: unknown[][] = [];
+    const unsubscribe = context.downloads.subscribe((tasks) => events.push(tasks));
+    try {
+      await app.inject({
+        method: "POST",
+        url: "/api/v1/downloads",
+        payload: { sourceKey: "mock", comicId: "mock-comic-events", episodeId: "chapter-1" },
+      });
+      expect(events.length).toBeGreaterThan(1);
+      expect(events.at(-1)).toEqual(expect.arrayContaining([expect.objectContaining({ comicId: "mock-comic-events" })]));
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it("pauses and resumes download tasks", async () => {
+    const originalLoadBytes = context.imageProxy.loadBytes.bind(context.imageProxy);
+    context.imageProxy.loadBytes = async (input, useCache) => {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      return originalLoadBytes(input, useCache);
+    };
+
+    try {
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/v1/downloads",
+        payload: { sourceKey: "mock", comicId: "mock-comic-pause", episodeId: "chapter-1" },
+      });
+      const taskId = created.json().id as string;
+
+      const paused = await app.inject({ method: "POST", url: `/api/v1/downloads/${taskId}/pause` });
+      expect(paused.statusCode).toBe(200);
+      expect(paused.json().status).toBe("paused");
+
+      const resumed = await app.inject({ method: "POST", url: `/api/v1/downloads/${taskId}/resume` });
+      expect(resumed.statusCode).toBe(200);
+      expect(resumed.json().status).toBe("queued");
+    } finally {
+      context.imageProxy.loadBytes = originalLoadBytes;
+    }
+  });
+
   it("persists classified per-image download failures", async () => {
     const { config } = await import("../src/config/config.js");
     const originalRetries = config.downloadRetries;
@@ -214,10 +271,18 @@ describe("api v1 mock source", () => {
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
       expect(taskStatus).toBe("failed");
+      const failedTask = await app.inject({ method: "GET", url: `/api/v1/downloads/${taskId}` });
+      expect(failedTask.json()).toMatchObject({ errorCode: "HTTP_403" });
 
       const items = await app.inject({ method: "GET", url: `/api/v1/downloads/${taskId}/items` });
       expect(items.statusCode).toBe(200);
       expect(items.json()).toContainEqual(expect.objectContaining({ image_key: "mock://image/mock-comic-failing-image/chapter-1/3", status: "failed", error_code: "HTTP_403" }));
+
+      context.imageProxy.loadBytes = originalLoadBytes;
+      const retryFailed = await app.inject({ method: "POST", url: `/api/v1/downloads/${taskId}/items/retry-failed` });
+      expect(retryFailed.statusCode).toBe(200);
+      expect(retryFailed.json()).toMatchObject({ retried: 1 });
+      expect(retryFailed.json().results[0]).toMatchObject({ ok: true, imageKey: "mock://image/mock-comic-failing-image/chapter-1/3" });
     } finally {
       context.imageProxy.loadBytes = originalLoadBytes;
       config.downloadRetries = originalRetries;
