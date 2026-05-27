@@ -116,6 +116,35 @@
   accent-color: var(--color-primary);
 }
 
+.download-summary,
+.cache-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #0b1328;
+}
+
+.download-summary span,
+.cache-panel > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.status-badge {
+  justify-self: end;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: var(--color-muted);
+  background: #0b1328;
+}
+
 .downloads small { color: #fecaca; }
 
 .task-meta {

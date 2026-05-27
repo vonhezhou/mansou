@@ -127,6 +127,10 @@
 .actions button:nth-last-child(-n + 2):hover:not(:disabled),
 .source-tools .settings-grid:last-child .actions button:last-child:hover:not(:disabled) { background: #dc2626; }
 
+button.danger { background: var(--color-danger); }
+button.danger:hover:not(:disabled) { background: #dc2626; }
+button.accent { background: var(--color-info); color: #031827; }
+
 .load-more {
   display: flex;
   gap: 12px;
