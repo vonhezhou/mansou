@@ -107,4 +107,6 @@
 @media (max-width: 640px) {
   .shell { padding: 12px; }
   .hero { padding: 22px; border-radius: var(--radius-lg); }
+  .hero h1 { font-size: clamp(2rem, 13vw, 3.2rem); }
+  .hero-actions button { width: 100%; }
 }

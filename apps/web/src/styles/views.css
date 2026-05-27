@@ -29,7 +29,11 @@
   color: #bfdbfe;
 }
 
-.details { align-self: start; }
+.details {
+  position: sticky;
+  top: 86px;
+  align-self: start;
+}
 
 .details h3 {
   font-size: 1.7rem;
@@ -196,4 +200,7 @@
   .history-item,
   .download-items div,
   .downloads article { grid-template-columns: 1fr; }
+
+  .details { position: static; }
+  .status-badge { justify-self: start; }
 }

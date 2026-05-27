@@ -153,6 +153,13 @@ button.accent { background: var(--color-info); color: #031827; }
   .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .load-more { align-items: stretch; flex-direction: column; }
   .card-actions { grid-template-columns: 1fr; }
+  .actions,
+  .result-toolbar,
+  .selection-actions,
+  .download-filters { align-items: stretch; flex-direction: column; }
+  .actions button,
+  .result-toolbar button,
+  .selection-actions button { width: 100%; }
 }
 
 @media (max-width: 420px) {
