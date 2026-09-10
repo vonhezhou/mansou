@@ -24,20 +24,25 @@ describe("plugin call limits", () => {
   it("times out long-running plugin calls", async () => {
     config.pluginCallTimeoutMs = 10;
     const runtime = new SourceRuntime();
-    await runtime.loadScript(await writeSource(`class Limited extends ComicSource {
+    await runtime.loadScript(
+      await writeSource(`class Limited extends ComicSource {
       key = "limited";
       name = "Limited";
       search = { load: async () => new Promise((resolve) => setTimeout(() => resolve({ comics: [] }), 100)) };
-    }`));
+    }`),
+    );
 
-    await expect(runtime.search("limited", "x")).rejects.toThrow("Plugin call timed out: limited.search.load");
+    await expect(runtime.search("limited", "x")).rejects.toThrow(
+      "Plugin call timed out: limited.search.load",
+    );
   });
 
   it("limits concurrent calls per source", async () => {
     config.pluginCallTimeoutMs = 1000;
     config.pluginSourceConcurrency = 1;
     const runtime = new SourceRuntime();
-    await runtime.loadScript(await writeSource(`class Limited extends ComicSource {
+    await runtime.loadScript(
+      await writeSource(`class Limited extends ComicSource {
       key = "limited";
       name = "Limited";
       search = { load: async () => {
@@ -47,9 +52,13 @@ describe("plugin call limits", () => {
         globalThis.active -= 1;
         return { comics: [{ id: String(globalThis.maxActive), title: "ok", cover: "" }] };
       } };
-    }`));
+    }`),
+    );
 
-    const [first, second] = await Promise.all([runtime.search("limited", "x"), runtime.search("limited", "y")]);
+    const [first, second] = await Promise.all([
+      runtime.search("limited", "x"),
+      runtime.search("limited", "y"),
+    ]);
     expect(first.comics[0].id).toBe("1");
     expect(second.comics[0].id).toBe("1");
   });

@@ -1,4 +1,6 @@
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 body {
   margin: 0;
@@ -11,7 +13,9 @@ body {
 button,
 input,
 select,
-textarea { font: inherit; }
+textarea {
+  font: inherit;
+}
 
 button {
   border: 1px solid transparent;
@@ -20,10 +24,17 @@ button {
   background: var(--color-primary-strong);
   color: white;
   cursor: pointer;
-  transition: background 0.16s ease, border-color 0.16s ease, opacity 0.16s ease, transform 0.16s ease;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    opacity 0.16s ease,
+    transform 0.16s ease;
 }
 
-button:hover:not(:disabled) { background: var(--color-primary); transform: translateY(-1px); }
+button:hover:not(:disabled) {
+  background: var(--color-primary);
+  transform: translateY(-1px);
+}
 
 button:focus-visible,
 input:focus-visible,
@@ -64,4 +75,6 @@ textarea {
 h1,
 h2,
 h3,
-p { overflow-wrap: anywhere; }
+p {
+  overflow-wrap: anywhere;
+}

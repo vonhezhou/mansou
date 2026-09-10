@@ -44,18 +44,26 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await app.close();
-  await new Promise<void>((resolve, reject) => testServer.close((error) => error ? reject(error) : resolve()));
+  await new Promise<void>((resolve, reject) =>
+    testServer.close((error) => (error ? reject(error) : resolve())),
+  );
   config.dataDir = originalDataDir;
   config.pluginIsolation = originalIsolation;
 });
 
 describe("api v1 mock source with worker isolation", () => {
   it("searches, loads details, pages, image bytes, and downloads", async () => {
-    const diagnostics = await app.inject({ method: "GET", url: "/api/v1/debug/runtime/diagnostics" });
+    const diagnostics = await app.inject({
+      method: "GET",
+      url: "/api/v1/debug/runtime/diagnostics",
+    });
     expect(diagnostics.statusCode).toBe(200);
     expect(diagnostics.json()).toMatchObject({ isolation: "worker" });
 
-    const search = await app.inject({ method: "GET", url: "/api/v1/search/mock?keyword=test&page=1" });
+    const search = await app.inject({
+      method: "GET",
+      url: "/api/v1/search/mock?keyword=test&page=1",
+    });
     expect(search.statusCode).toBe(200);
     expect(search.json().comics[0]).toMatchObject({ id: "mock-comic-1", title: "Mock test 1" });
 
@@ -63,7 +71,10 @@ describe("api v1 mock source with worker isolation", () => {
     expect(details.statusCode).toBe(200);
     expect(details.json()).toMatchObject({ title: "Mock Comic mock-comic-1" });
 
-    const pages = await app.inject({ method: "GET", url: "/api/v1/comics/mock/mock-comic-1/episodes/chapter-1/pages" });
+    const pages = await app.inject({
+      method: "GET",
+      url: "/api/v1/comics/mock/mock-comic-1/episodes/chapter-1/pages",
+    });
     expect(pages.statusCode).toBe(200);
     expect(pages.json().images).toHaveLength(5);
 
@@ -109,20 +120,32 @@ describe("api v1 mock source with worker isolation", () => {
     });
     expect(cookies.statusCode).toBe(200);
 
-    const cookieCheck = await app.inject({ method: "GET", url: "/api/v1/search/mock?keyword=cookie-check&page=1" });
+    const cookieCheck = await app.inject({
+      method: "GET",
+      url: "/api/v1/search/mock?keyword=cookie-check&page=1",
+    });
     expect(cookieCheck.statusCode).toBe(200);
     expect(cookieCheck.json().comics[0].title).toContain("session=worker");
 
-    const dataSave = await app.inject({ method: "GET", url: "/api/v1/search/mock?keyword=data-save&page=1" });
+    const dataSave = await app.inject({
+      method: "GET",
+      url: "/api/v1/search/mock?keyword=data-save&page=1",
+    });
     expect(dataSave.statusCode).toBe(200);
     expect(dataSave.json().comics[0].title).toBe("saved");
 
     await context.runtime.loadInstalled();
-    const dataRead = await app.inject({ method: "GET", url: "/api/v1/search/mock?keyword=data-read&page=1" });
+    const dataRead = await app.inject({
+      method: "GET",
+      url: "/api/v1/search/mock?keyword=data-read&page=1",
+    });
     expect(dataRead.statusCode).toBe(200);
     expect(dataRead.json().comics[0].title).toBe("saved");
 
-    const settingCheck = await app.inject({ method: "GET", url: "/api/v1/search/mock?keyword=test&page=1" });
+    const settingCheck = await app.inject({
+      method: "GET",
+      url: "/api/v1/search/mock?keyword=test&page=1",
+    });
     expect(settingCheck.statusCode).toBe(200);
     expect(settingCheck.json().comics).toHaveLength(2);
   });
@@ -131,19 +154,30 @@ describe("api v1 mock source with worker isolation", () => {
     const settings = await app.inject({
       method: "PUT",
       url: "/api/v1/sources/mock/settings",
-      payload: { values: { imageFallbackUrl: `${baseUrl}/image`, imageErrorUrl: `${baseUrl}/error` } },
+      payload: {
+        values: { imageFallbackUrl: `${baseUrl}/image`, imageErrorUrl: `${baseUrl}/error` },
+      },
     });
     expect(settings.statusCode).toBe(200);
 
-    const fallback = await app.inject({ method: "GET", url: "/api/v1/image?sourceKey=mock&imageKey=hook%3A%2F%2Ffallback" });
+    const fallback = await app.inject({
+      method: "GET",
+      url: "/api/v1/image?sourceKey=mock&imageKey=hook%3A%2F%2Ffallback",
+    });
     expect(fallback.statusCode).toBe(200);
     expect(Buffer.from(fallback.body).toString("hex")).toBe("010203");
 
-    const response = await app.inject({ method: "GET", url: "/api/v1/image?sourceKey=mock&imageKey=hook%3A%2F%2Fresponse" });
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/image?sourceKey=mock&imageKey=hook%3A%2F%2Fresponse",
+    });
     expect(response.statusCode).toBe(200);
     expect(Buffer.from(response.body).toString("hex")).toBe("010203");
 
-    const modified = await app.inject({ method: "GET", url: "/api/v1/image?sourceKey=mock&imageKey=hook%3A%2F%2Fmodify" });
+    const modified = await app.inject({
+      method: "GET",
+      url: "/api/v1/image?sourceKey=mock&imageKey=hook%3A%2F%2Fmodify",
+    });
     expect(modified.statusCode).toBe(200);
     expect(Buffer.from(modified.body).toString("hex")).toBe("030201");
   });

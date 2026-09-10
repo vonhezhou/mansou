@@ -30,12 +30,23 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const downloadsState = useDownloads(runWith);
   const sourcesState = useSources(runWith, sourceKey, setSourceKey);
-  const searchState = useSearch({ runWith, sourceKey, detailSourceKey, setSourceKey, setDetailSourceKey, setActiveTab, setHistory, loadDownloads: downloadsState.loadDownloads });
+  const searchState = useSearch({
+    runWith,
+    sourceKey,
+    detailSourceKey,
+    setSourceKey,
+    setDetailSourceKey,
+    setActiveTab,
+    setHistory,
+    loadDownloads: downloadsState.loadDownloads,
+  });
 
   useEffect(() => {
     void refresh();
     const events = new EventSource(downloadsEventUrl());
-    events.addEventListener("downloads", (event) => downloadsState.setDownloads(JSON.parse((event as MessageEvent).data)));
+    events.addEventListener("downloads", (event) =>
+      downloadsState.setDownloads(JSON.parse((event as MessageEvent).data)),
+    );
     return () => events.close();
   }, [accessToken]);
 
@@ -94,9 +105,19 @@ export function App() {
       if (mode === "details") {
         searchState.setPreviewImages([]);
       } else {
-        const pages = await veneraApi.episodePages(nextSourceKey, data.comicId ?? data.id, episodeToRead);
+        const pages = await veneraApi.episodePages(
+          nextSourceKey,
+          data.comicId ?? data.id,
+          episodeToRead,
+        );
         searchState.setPreviewImages(pages.images ?? []);
-        window.setTimeout(() => document.getElementById(`page-${(item.page ?? 0) + 1}`)?.scrollIntoView({ block: "start" }), 100);
+        window.setTimeout(
+          () =>
+            document
+              .getElementById(`page-${(item.page ?? 0) + 1}`)
+              ?.scrollIntoView({ block: "start" }),
+          100,
+        );
       }
     });
   }
@@ -111,14 +132,113 @@ export function App() {
   const downloadsBusy = downloadsState.loadingDownloads;
 
   return (
-    <AppShell activeTab={activeTab} accessToken={accessToken} busy={shellBusy} error={error} health={health} onAccessTokenChange={saveAccessToken} onRefresh={() => { void checkHealth(); void refresh(); }} onTabChange={setActiveTab}>
-      {activeTab === "search" && <SearchView busy={searchState.searchBusy} sourceKey={sourceKey} detailSourceKey={detailSourceKey} sources={sourcesState.sources} keyword={searchState.keyword} searchMode={searchState.searchMode} aggregateSourceKeys={searchState.aggregateSourceKeys} aggregateResultLayout={searchState.aggregateResultLayout} results={searchState.results} aggregatedResults={searchState.aggregatedResults} details={searchState.details} episodeId={searchState.episodeId} selectedEpisodeIds={searchState.selectedEpisodeIds} previewImages={searchState.previewImages} hasSearched={searchState.hasSearched} searchPage={searchState.searchPage} searchMaxPage={searchState.searchMaxPage} canLoadMore={searchState.canLoadMore} downloadCreateStatus={searchState.downloadCreateStatus} onSourceChange={setSourceKey} onKeywordChange={searchState.setKeyword} onSearchModeChange={searchState.setSearchMode} onToggleAggregateSource={searchState.toggleAggregateSource} onAggregateResultLayoutChange={searchState.setAggregateResultLayout} onSearch={() => void searchState.submitSearch()} onLoadMore={() => void searchState.loadMoreResults()} onOpenComic={(comic, nextSourceKey) => void searchState.openComic(comic, nextSourceKey)} onDownloadComic={(comic, nextSourceKey) => void searchState.downloadComic(comic, nextSourceKey)} onPreviewEpisode={(id) => void searchState.previewEpisode(id)} onToggleSelectedEpisode={searchState.toggleSelectedEpisode} onSelectEpisodes={searchState.selectEpisodes} onCreateDownload={(mode) => void searchState.createDownload(mode)} />}
+    <AppShell
+      activeTab={activeTab}
+      accessToken={accessToken}
+      busy={shellBusy}
+      error={error}
+      health={health}
+      onAccessTokenChange={saveAccessToken}
+      onRefresh={() => {
+        void checkHealth();
+        void refresh();
+      }}
+      onTabChange={setActiveTab}
+    >
+      {activeTab === "search" && (
+        <SearchView
+          busy={searchState.searchBusy}
+          sourceKey={sourceKey}
+          detailSourceKey={detailSourceKey}
+          sources={sourcesState.sources}
+          keyword={searchState.keyword}
+          searchMode={searchState.searchMode}
+          aggregateSourceKeys={searchState.aggregateSourceKeys}
+          aggregateResultLayout={searchState.aggregateResultLayout}
+          results={searchState.results}
+          aggregatedResults={searchState.aggregatedResults}
+          details={searchState.details}
+          episodeId={searchState.episodeId}
+          selectedEpisodeIds={searchState.selectedEpisodeIds}
+          episodePageCounts={searchState.episodePageCounts}
+          previewImages={searchState.previewImages}
+          hasSearched={searchState.hasSearched}
+          searchPage={searchState.searchPage}
+          searchMaxPage={searchState.searchMaxPage}
+          canLoadMore={searchState.canLoadMore}
+          downloadCreateStatus={searchState.downloadCreateStatus}
+          onSourceChange={sourcesState.changeSourceKey}
+          onKeywordChange={searchState.setKeyword}
+          onSearchModeChange={searchState.setSearchMode}
+          onToggleAggregateSource={searchState.toggleAggregateSource}
+          onAggregateResultLayoutChange={searchState.setAggregateResultLayout}
+          onSearch={() => void searchState.submitSearch()}
+          onLoadMore={() => void searchState.loadMoreResults()}
+          onOpenComic={(comic, nextSourceKey) => void searchState.openComic(comic, nextSourceKey)}
+          onDownloadComic={(comic, nextSourceKey) =>
+            void searchState.downloadComic(comic, nextSourceKey)
+          }
+          onPreviewEpisode={(id) => void searchState.previewEpisode(id)}
+          onCountAllPages={() => void searchState.countAllPages()}
+          onToggleSelectedEpisode={searchState.toggleSelectedEpisode}
+          onSelectEpisodes={searchState.selectEpisodes}
+          onCreateDownload={(mode) => void searchState.createDownload(mode)}
+        />
+      )}
 
-      {activeTab === "sources" && <SourcesView busy={sourcesBusy} sourceKey={sourceKey} installSource={sourcesState.installSource} availableSources={sourcesState.availableSources} sourceMetadata={sourcesState.sourceMetadata} sourceSettings={sourcesState.sourceSettings} settingsJson={sourcesState.settingsJson} cookieUrl={sourcesState.cookieUrl} cookieText={sourcesState.cookieText} onInstallSourceChange={sourcesState.setInstallSource} onSettingsJsonChange={sourcesState.setSettingsJson} onCookieUrlChange={sourcesState.setCookieUrl} onCookieTextChange={sourcesState.setCookieText} onInstallSelectedSource={() => void sourcesState.installSelectedSource(refresh)} onRefreshRepository={() => void sourcesState.refreshRepository()} onReloadSources={() => void sourcesState.reloadSources(refresh)} onLoadSourceSettings={() => void sourcesState.loadSourceSettings()} onSetSourceEnabled={(source, enabled) => void sourcesState.setSourceEnabled(source, enabled, refresh)} onSaveSourceSettings={() => void sourcesState.saveSourceSettings()} onResetSourceSettings={() => void sourcesState.resetSourceSettings()} onImportCookies={() => void sourcesState.importCookies()} onClearCookies={() => void sourcesState.clearCookies()} />}
+      {activeTab === "sources" && (
+        <SourcesView
+          busy={sourcesBusy}
+          sourceKey={sourceKey}
+          installSource={sourcesState.installSource}
+          availableSources={sourcesState.availableSources}
+          sourceMetadata={sourcesState.sourceMetadata}
+          sourceSettings={sourcesState.sourceSettings}
+          sourceSettingsKey={sourcesState.sourceSettingsKey}
+          settingsJson={sourcesState.settingsJson}
+          cookieUrl={sourcesState.cookieUrl}
+          cookieText={sourcesState.cookieText}
+          onSourceChange={sourcesState.changeSourceKey}
+          onInstallSourceChange={sourcesState.setInstallSource}
+          onSettingsJsonChange={sourcesState.setSettingsJson}
+          onCookieUrlChange={sourcesState.setCookieUrl}
+          onCookieTextChange={sourcesState.setCookieText}
+          onInstallSelectedSource={() => void sourcesState.installSelectedSource(refresh)}
+          onRefreshRepository={() => void sourcesState.refreshRepository()}
+          onReloadSources={() => void sourcesState.reloadSources(refresh)}
+          onLoadSourceSettings={() => void sourcesState.loadSourceSettings()}
+          onSetSourceEnabled={(source, enabled) =>
+            void sourcesState.setSourceEnabled(source, enabled, refresh)
+          }
+          onSaveSourceSettings={() => void sourcesState.saveSourceSettings()}
+          onResetSourceSettings={() => void sourcesState.resetSourceSettings()}
+          onImportCookies={() => void sourcesState.importCookies()}
+          onClearCookies={() => void sourcesState.clearCookies()}
+        />
+      )}
 
-      {activeTab === "history" && <HistoryView history={history} onOpenHistoryItem={(item, mode) => void openHistoryItem(item, mode)} />}
+      {activeTab === "history" && (
+        <HistoryView
+          history={history}
+          onOpenHistoryItem={(item, mode) => void openHistoryItem(item, mode)}
+        />
+      )}
 
-      {activeTab === "downloads" && <DownloadsView busy={downloadsBusy} cache={downloadsState.cache} downloads={downloadsState.downloads} downloadItems={downloadsState.downloadItems} failedItemsOnly={downloadsState.failedItemsOnly} onFailedItemsOnlyChange={downloadsState.setFailedItemsOnly} onPruneCache={() => void downloadsState.pruneCache()} onClearCache={() => void downloadsState.clearCache()} onLoadDownloadItems={(task) => void downloadsState.loadDownloadItems(task)} onDownloadAction={(task, action) => void downloadsState.downloadAction(task, action)} onRetryDownloadItem={(task, item) => void downloadsState.retryDownloadItem(task, item)} />}
+      {activeTab === "downloads" && (
+        <DownloadsView
+          busy={downloadsBusy}
+          cache={downloadsState.cache}
+          downloads={downloadsState.downloads}
+          downloadItems={downloadsState.downloadItems}
+          failedItemsOnly={downloadsState.failedItemsOnly}
+          onFailedItemsOnlyChange={downloadsState.setFailedItemsOnly}
+          onPruneCache={() => void downloadsState.pruneCache()}
+          onClearCache={() => void downloadsState.clearCache()}
+          onLoadDownloadItems={(task) => void downloadsState.loadDownloadItems(task)}
+          onDownloadAction={(task, action) => void downloadsState.downloadAction(task, action)}
+          onRetryDownloadItem={(task, item) => void downloadsState.retryDownloadItem(task, item)}
+        />
+      )}
     </AppShell>
   );
 }

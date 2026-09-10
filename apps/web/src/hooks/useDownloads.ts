@@ -44,7 +44,10 @@ export function useDownloads(runWith: RunWith) {
     });
   }
 
-  async function downloadAction(task: DownloadTask, action: "cancel" | "rerun" | "cbz" | "delete" | "delete-files") {
+  async function downloadAction(
+    task: DownloadTask,
+    action: "cancel" | "rerun" | "cbz" | "delete" | "delete-files",
+  ) {
     await runWith(setLoadingDownloads, async () => {
       if (action === "cancel") await veneraApi.cancelDownload(task.id);
       if (action === "rerun") await veneraApi.rerunDownload(task.id);

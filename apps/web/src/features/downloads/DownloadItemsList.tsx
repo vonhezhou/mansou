@@ -11,5 +11,26 @@ type DownloadItemsListProps = {
 export function DownloadItemsList(props: DownloadItemsListProps) {
   if (!props.items?.length) return null;
 
-  return <div className="download-items">{props.items.map((item) => { const imageKey = getDownloadImageKey(item); return <div key={imageKey}><span>{imageKey}</span><span>{item.status}{item.error ? ` / ${item.error}` : ""}</span><button onClick={() => props.onRetryDownloadItem(props.task, item)} disabled={props.busy}>重试</button></div>; })}</div>;
+  return (
+    <div className="download-items">
+      {props.items.map((item) => {
+        const imageKey = getDownloadImageKey(item);
+        return (
+          <div key={imageKey}>
+            <span>{imageKey}</span>
+            <span>
+              {item.status}
+              {item.error ? ` / ${item.error}` : ""}
+            </span>
+            <button
+              onClick={() => props.onRetryDownloadItem(props.task, item)}
+              disabled={props.busy}
+            >
+              重试
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
 }

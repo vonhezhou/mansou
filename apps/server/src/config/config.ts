@@ -15,7 +15,9 @@ export const config = {
   appVersion: process.env.VENERA_APP_VERSION ?? "1.0.0",
   locale: process.env.VENERA_LOCALE ?? "zh_CN",
   requestTimeoutMs: Number(process.env.VENERA_REQUEST_TIMEOUT_MS ?? 60000),
-  pluginCallTimeoutMs: Number(process.env.VENERA_PLUGIN_CALL_TIMEOUT_MS ?? process.env.VENERA_REQUEST_TIMEOUT_MS ?? 60000),
+  pluginCallTimeoutMs: Number(
+    process.env.VENERA_PLUGIN_CALL_TIMEOUT_MS ?? process.env.VENERA_REQUEST_TIMEOUT_MS ?? 60000,
+  ),
   pluginSourceConcurrency: Number(process.env.VENERA_PLUGIN_SOURCE_CONCURRENCY ?? 4),
   pluginIsolation: process.env.VENERA_PLUGIN_ISOLATION ?? "vm",
   downloadConcurrency: Number(process.env.VENERA_DOWNLOAD_CONCURRENCY ?? 4),

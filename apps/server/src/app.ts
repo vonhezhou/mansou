@@ -43,23 +43,47 @@ export async function buildApp() {
   });
 
   app.addHook("onRequest", async (request, reply) => {
-    if (!config.accessToken || request.url === "/health" || request.url === "/api/v1/health" || request.url.startsWith("/assets/") || request.url === "/") return;
+    if (
+      !config.accessToken ||
+      request.url === "/health" ||
+      request.url === "/api/v1/health" ||
+      request.url.startsWith("/assets/") ||
+      request.url === "/"
+    )
+      return;
     const header = request.headers.authorization;
     const queryToken = (request.query as { access_token?: string } | undefined)?.access_token;
-    const token = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : request.headers["x-venera-token"] ?? queryToken;
+    const token = header?.startsWith("Bearer ")
+      ? header.slice("Bearer ".length)
+      : (request.headers["x-venera-token"] ?? queryToken);
     if (token !== config.accessToken) {
-      reply.code(401).send({ error: { code: "UNAUTHORIZED", message: "Access token required", requestId: request.id } });
+      reply.code(401).send({
+        error: { code: "UNAUTHORIZED", message: "Access token required", requestId: request.id },
+      });
     }
   });
 
   app.setErrorHandler((error, request, reply) => {
-    const statusCode = error instanceof ZodError ? 400 : ((error as { statusCode?: number }).statusCode ?? 500);
-    const code = error instanceof ZodError ? "VALIDATION_ERROR" : error instanceof PluginRuntimeError || error instanceof ApiError ? error.code : statusCode === 404 ? "NOT_FOUND" : "INTERNAL_ERROR";
+    const statusCode =
+      error instanceof ZodError ? 400 : ((error as { statusCode?: number }).statusCode ?? 500);
+    const code =
+      error instanceof ZodError
+        ? "VALIDATION_ERROR"
+        : error instanceof PluginRuntimeError || error instanceof ApiError
+          ? error.code
+          : statusCode === 404
+            ? "NOT_FOUND"
+            : "INTERNAL_ERROR";
     request.log.error({ error }, "request failed");
     reply.status(statusCode).send({
       error: {
         code,
-        message: statusCode >= 500 ? "Internal server error" : error instanceof Error ? error.message : String(error),
+        message:
+          statusCode >= 500
+            ? "Internal server error"
+            : error instanceof Error
+              ? error.message
+              : String(error),
         details: error instanceof ZodError ? error.flatten() : undefined,
         requestId: request.id,
       },
@@ -78,18 +102,21 @@ export async function buildApp() {
 
   await registerHealthRoutes(app);
   await registerStaticRoutes(app);
-  await app.register(async (api) => {
-    await registerSourceRepositoryRoutes(api, context);
-    await registerSourceRoutes(api, context);
-    await registerSearchRoutes(api, context);
-    await registerComicRoutes(api, context);
-    await registerImageRoutes(api, context);
-    await registerDownloadRoutes(api, context);
-    await registerLibraryRoutes(api, context);
-    await registerSettingRoutes(api, context);
-    await registerDebugRoutes(api, context);
-    await registerOpenApiRoutes(api);
-  }, { prefix: "/api/v1" });
+  await app.register(
+    async (api) => {
+      await registerSourceRepositoryRoutes(api, context);
+      await registerSourceRoutes(api, context);
+      await registerSearchRoutes(api, context);
+      await registerComicRoutes(api, context);
+      await registerImageRoutes(api, context);
+      await registerDownloadRoutes(api, context);
+      await registerLibraryRoutes(api, context);
+      await registerSettingRoutes(api, context);
+      await registerDebugRoutes(api, context);
+      await registerOpenApiRoutes(api);
+    },
+    { prefix: "/api/v1" },
+  );
 
   return { app, context };
 }

@@ -26,9 +26,12 @@ async function importJsonData() {
       for (const file of await readdir(paths.sourceData)) {
         if (!file.endsWith(".json")) continue;
         const sourceKey = path.basename(file, ".json");
-        const data = JSON.parse(await readFile(path.join(paths.sourceData, file), "utf8")) as Record<string, unknown>;
+        const data = JSON.parse(
+          await readFile(path.join(paths.sourceData, file), "utf8"),
+        ) as Record<string, unknown>;
         for (const [key, value] of Object.entries(data)) {
-          if (key === "settings") storage.setSourceSettings(sourceKey, value as Record<string, unknown>);
+          if (key === "settings")
+            storage.setSourceSettings(sourceKey, value as Record<string, unknown>);
           else storage.setPluginData(sourceKey, key, value);
         }
       }
@@ -37,11 +40,16 @@ async function importJsonData() {
       for (const file of await readdir(paths.cookies)) {
         if (!file.endsWith(".json")) continue;
         const sourceKey = path.basename(file, ".json");
-        storage.setCookieJar(sourceKey, JSON.parse(await readFile(path.join(paths.cookies, file), "utf8")));
+        storage.setCookieJar(
+          sourceKey,
+          JSON.parse(await readFile(path.join(paths.cookies, file), "utf8")),
+        );
       }
     }
     if (existsSync(paths.downloadTasks)) {
-      const tasks = JSON.parse(await readFile(paths.downloadTasks, "utf8")) as Array<Record<string, unknown>>;
+      const tasks = JSON.parse(await readFile(paths.downloadTasks, "utf8")) as Array<
+        Record<string, unknown>
+      >;
       storage.saveDownloads(tasks);
     }
   } finally {
@@ -49,7 +57,9 @@ async function importJsonData() {
   }
 }
 
-async function backup(file = path.join(config.dataDir, "backups", `venera_web-${Date.now()}.sqlite`)) {
+async function backup(
+  file = path.join(config.dataDir, "backups", `venera_web-${Date.now()}.sqlite`),
+) {
   await mkdir(path.dirname(file), { recursive: true });
   await copyFile(dbPath(), file);
   console.log(file);

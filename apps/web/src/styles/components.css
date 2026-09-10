@@ -15,7 +15,9 @@
   letter-spacing: 0.2em;
 }
 
-.muted { color: var(--color-muted); }
+.muted {
+  color: var(--color-muted);
+}
 
 .health {
   align-self: center;
@@ -71,7 +73,9 @@
   background: #020617;
 }
 
-.comic-card span { color: var(--color-muted); }
+.comic-card span {
+  color: var(--color-muted);
+}
 
 .card-actions {
   display: grid;
@@ -79,7 +83,9 @@
   gap: 8px;
 }
 
-.card-actions button { padding: 0.6rem 0.7rem; }
+.card-actions button {
+  padding: 0.6rem 0.7rem;
+}
 
 .check-list {
   display: flex;
@@ -108,10 +114,14 @@
 
 .result-toolbar button,
 .selection-actions button,
-.chips button { background: #1e293b; }
+.chips button {
+  background: #1e293b;
+}
 
 .result-toolbar button.active,
-.chips button.active { background: var(--color-info); }
+.chips button.active {
+  background: var(--color-info);
+}
 
 .chips,
 .actions {
@@ -122,14 +132,25 @@
 }
 
 .actions button:nth-last-child(-n + 2),
-.source-tools .settings-grid:last-child .actions button:last-child { background: var(--color-danger); }
+.source-tools .settings-grid:last-child .actions button:last-child {
+  background: var(--color-danger);
+}
 
 .actions button:nth-last-child(-n + 2):hover:not(:disabled),
-.source-tools .settings-grid:last-child .actions button:last-child:hover:not(:disabled) { background: #dc2626; }
+.source-tools .settings-grid:last-child .actions button:last-child:hover:not(:disabled) {
+  background: #dc2626;
+}
 
-button.danger { background: var(--color-danger); }
-button.danger:hover:not(:disabled) { background: #dc2626; }
-button.accent { background: var(--color-info); color: #031827; }
+button.danger {
+  background: var(--color-danger);
+}
+button.danger:hover:not(:disabled) {
+  background: #dc2626;
+}
+button.accent {
+  background: var(--color-info);
+  color: #031827;
+}
 
 .load-more {
   display: flex;
@@ -149,19 +170,36 @@ button.accent { background: var(--color-info); color: #031827; }
 }
 
 @media (max-width: 640px) {
-  .panel { padding: 16px; border-radius: var(--radius-lg); }
-  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .load-more { align-items: stretch; flex-direction: column; }
-  .card-actions { grid-template-columns: 1fr; }
+  .panel {
+    padding: 16px;
+    border-radius: var(--radius-lg);
+  }
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .load-more {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .card-actions {
+    grid-template-columns: 1fr;
+  }
   .actions,
   .result-toolbar,
   .selection-actions,
-  .download-filters { align-items: stretch; flex-direction: column; }
+  .download-filters {
+    align-items: stretch;
+    flex-direction: column;
+  }
   .actions button,
   .result-toolbar button,
-  .selection-actions button { width: 100%; }
+  .selection-actions button {
+    width: 100%;
+  }
 }
 
 @media (max-width: 420px) {
-  .cards { grid-template-columns: 1fr; }
+  .cards {
+    grid-template-columns: 1fr;
+  }
 }

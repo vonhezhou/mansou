@@ -28,10 +28,18 @@ export function classifyPluginError(error: unknown, sourceKey?: string, operatio
   if (message.includes("timed out")) {
     return new PluginRuntimeError("PLUGIN_TIMEOUT", message, sourceKey, operation, error);
   }
-  if (message.includes("fetch failed") || message.includes("aborted") || message.includes("ECONN")) {
+  if (
+    message.includes("fetch failed") ||
+    message.includes("aborted") ||
+    message.includes("ECONN")
+  ) {
     return new PluginRuntimeError("PLUGIN_NETWORK_ERROR", message, sourceKey, operation, error);
   }
-  if (message.includes("403") || message.includes("404") || message.includes("Unsupported image protocol")) {
+  if (
+    message.includes("403") ||
+    message.includes("404") ||
+    message.includes("Unsupported image protocol")
+  ) {
     return new PluginRuntimeError("IMAGE_REJECTED", message, sourceKey, operation, error);
   }
   return new PluginRuntimeError("PLUGIN_SOURCE_ERROR", message, sourceKey, operation, error);

@@ -3,7 +3,9 @@
   font-size: 0.85rem;
 }
 
-.source-picker { margin-top: 12px; }
+.source-picker {
+  margin-top: 12px;
+}
 
 .aggregate-results {
   display: grid;
@@ -69,17 +71,32 @@
 }
 
 .source-panel {
-  margin-top: 16px;
-  padding: 14px;
+  margin-top: 20px;
+  padding: 18px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: #0b1328;
+}
+
+.source-panel .source-panel {
+  margin-top: 0;
+  background: rgba(2, 6, 23, 0.28);
+}
+
+.source-panel h3 {
+  margin-top: 0;
 }
 
 .source-management-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
   gap: 16px;
+}
+
+.current-source-sections {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
 }
 
 .source-list article,
@@ -96,7 +113,9 @@
   background: #0b1328;
 }
 
-.source-list article { grid-template-columns: minmax(0, 1fr) auto auto; }
+.source-list article {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
 
 .history-item {
   width: 100%;
@@ -165,7 +184,9 @@
   background: #0b1328;
 }
 
-.downloads small { color: #fecaca; }
+.downloads small {
+  color: #fecaca;
+}
 
 .task-meta {
   grid-column: 1 / -1;
@@ -176,17 +197,25 @@
   font-size: 0.85rem;
 }
 
-.download-filters label { flex: 1 1 220px; }
+.download-filters label {
+  flex: 1 1 220px;
+}
 
 .download-items {
   grid-column: 1 / -1;
   margin-top: 8px;
 }
 
-.download-items div { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
-.download-items span { overflow-wrap: anywhere; }
+.download-items div {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+.download-items span {
+  overflow-wrap: anywhere;
+}
 
-.download-group { margin-top: 18px; }
+.download-group {
+  margin-top: 18px;
+}
 
 .download-group h3 {
   margin-bottom: 4px;
@@ -199,8 +228,14 @@
   .history article,
   .history-item,
   .download-items div,
-  .downloads article { grid-template-columns: 1fr; }
+  .downloads article {
+    grid-template-columns: 1fr;
+  }
 
-  .details { position: static; }
-  .status-badge { justify-self: start; }
+  .details {
+    position: static;
+  }
+  .status-badge {
+    justify-self: start;
+  }
 }

@@ -37,7 +37,13 @@ export async function registerSourceRoutes(app: FastifyInstance, context: RouteC
     const source = context.storage.setSourceEnabled(params.sourceKey, body.enabled);
     if (!source) {
       reply.code(404);
-      return { error: { code: "SOURCE_NOT_FOUND", message: "Source metadata not found", requestId: request.id } };
+      return {
+        error: {
+          code: "SOURCE_NOT_FOUND",
+          message: "Source metadata not found",
+          requestId: request.id,
+        },
+      };
     }
     await context.runtime.loadInstalled();
     return source;
@@ -56,9 +62,17 @@ export async function registerSourceRoutes(app: FastifyInstance, context: RouteC
   app.put("/sources/:sourceKey/cookies", async (request) => {
     const params = z.object({ sourceKey: z.string() }).parse(request.params);
     const body = z
-      .object({ url: z.string().url(), cookies: z.array(z.union([z.string(), z.record(z.unknown())])).optional(), text: z.string().optional() })
+      .object({
+        url: z.string().url(),
+        cookies: z.array(z.union([z.string(), z.record(z.unknown())])).optional(),
+        text: z.string().optional(),
+      })
       .parse(request.body);
-    return context.runtime.importCookies(params.sourceKey, body.url, body.text ?? body.cookies ?? []);
+    return context.runtime.importCookies(
+      params.sourceKey,
+      body.url,
+      body.text ?? body.cookies ?? [],
+    );
   });
 
   app.delete("/sources/:sourceKey/cookies", async (request) => {

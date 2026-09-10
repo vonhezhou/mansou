@@ -19,7 +19,9 @@ class ComicSourceBase {
   settings?: Record<string, { default?: unknown }>;
 
   loadSetting(key: string) {
-    const values = this.key ? (sourceDataStore.loadSync(this.key, "settings") as Record<string, unknown> | undefined) : undefined;
+    const values = this.key
+      ? (sourceDataStore.loadSync(this.key, "settings") as Record<string, unknown> | undefined)
+      : undefined;
     return values?.[key] ?? this.settings?.[key]?.default;
   }
 
@@ -75,9 +77,9 @@ const sandbox = {
   },
   UI: {
     showMessage: (...args: unknown[]) => console.info("[UI.showMessage]", ...args),
-      showDialog: (...args: unknown[]) => console.info("[UI.showDialog]", ...args),
-      toast: (...args: unknown[]) => console.info("[UI.toast]", ...args),
-    },
+    showDialog: (...args: unknown[]) => console.info("[UI.showDialog]", ...args),
+    toast: (...args: unknown[]) => console.info("[UI.toast]", ...args),
+  },
   ComicSource: ComicSourceBase,
   ...api,
 };
@@ -89,29 +91,52 @@ Object.assign(sandbox, {
 });
 
 const context = vm.createContext(sandbox);
-const source = vm.runInContext(`${script}\n;globalThis.__source = new ${className}();\n;globalThis.__source;`, context, {
-  filename: workerData.filePath,
-  timeout: 5000,
-}) as {
+const source = vm.runInContext(
+  `${script}\n;globalThis.__source = new ${className}();\n;globalThis.__source;`,
+  context,
+  {
+    filename: workerData.filePath,
+    timeout: 5000,
+  },
+) as {
   key: string;
   name: string;
   version?: string;
   url?: string;
   init?: () => Promise<void> | void;
-  search?: { load?: (keyword: string, options: string[], page: number) => unknown; loadNext?: (keyword: string, options: string[], next?: string | null) => unknown; optionList?: Array<{ default?: unknown; options?: string[] }> };
+  search?: {
+    load?: (keyword: string, options: string[], page: number) => unknown;
+    loadNext?: (keyword: string, options: string[], next?: string | null) => unknown;
+    optionList?: Array<{ default?: unknown; options?: string[] }>;
+  };
   comic?: {
     loadInfo?: (id: string) => unknown;
     loadEp?: (id: string, ep?: string | null) => unknown;
     getImageLoadingConfig?: (imageKey: string, comicId: string, epId: string | null) => unknown;
     onImageLoad?: (imageKey: string, comicId: string, epId: string | null) => unknown;
-    onLoadFailed?: (imageKey: string, comicId: string, epId: string | null, error: Error) => unknown;
-    onResponse?: (imageKey: string, comicId: string, epId: string | null, response: Record<string, unknown>) => unknown;
+    onLoadFailed?: (
+      imageKey: string,
+      comicId: string,
+      epId: string | null,
+      error: Error,
+    ) => unknown;
+    onResponse?: (
+      imageKey: string,
+      comicId: string,
+      epId: string | null,
+      response: Record<string, unknown>,
+    ) => unknown;
     modifyImage?: (imageKey: string, comicId: string, epId: string | null, data: Buffer) => unknown;
   };
   getImageLoadingConfig?: (imageKey: string, comicId: string, epId: string | null) => unknown;
   getThumbnailLoadingConfig?: (imageKey: string) => unknown;
   onLoadFailed?: (imageKey: string, comicId: string, epId: string | null, error: Error) => unknown;
-  onResponse?: (imageKey: string, comicId: string, epId: string | null, response: Record<string, unknown>) => unknown;
+  onResponse?: (
+    imageKey: string,
+    comicId: string,
+    epId: string | null,
+    response: Record<string, unknown>,
+  ) => unknown;
   modifyImage?: (imageKey: string, comicId: string, epId: string | null, data: Buffer) => unknown;
 };
 
@@ -123,7 +148,11 @@ parentPort?.on("message", async (message: Message) => {
     const result = await dispatch(message.method, message.args);
     parentPort?.postMessage({ id: message.id, ok: true, result });
   } catch (error) {
-    parentPort?.postMessage({ id: message.id, ok: false, error: error instanceof Error ? error.message : String(error) });
+    parentPort?.postMessage({
+      id: message.id,
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 });
 
@@ -145,29 +174,63 @@ async function dispatch(method: string, args: unknown[]) {
     };
   }
   if (method === "search") {
-    const [keyword, pageOrNext, options] = args as [string, string | undefined, string[] | undefined];
+    const [keyword, pageOrNext, options] = args as [
+      string,
+      string | undefined,
+      string[] | undefined,
+    ];
     const finalOptions = options ?? defaultSearchOptions();
-    if (source.search?.load) return normalizeSearchResult(await source.search.load(keyword, finalOptions, Number(pageOrNext ?? 1)));
-    if (source.search?.loadNext) return normalizeSearchResult(await source.search.loadNext(keyword, finalOptions, pageOrNext ?? null));
+    if (source.search?.load)
+      return normalizeSearchResult(
+        await source.search.load(keyword, finalOptions, Number(pageOrNext ?? 1)),
+      );
+    if (source.search?.loadNext)
+      return normalizeSearchResult(
+        await source.search.loadNext(keyword, finalOptions, pageOrNext ?? null),
+      );
   }
   if (method === "comicDetails") {
     const comicId = String(args[0]);
-    const normalized = normalizeValue(await source.comic?.loadInfo?.(comicId)) as Record<string, unknown>;
-    return { ...normalized, chapters: normalizeChapters(normalized.chapters), sourceKey: source.key, comicId };
+    const normalized = normalizeValue(await source.comic?.loadInfo?.(comicId)) as Record<
+      string,
+      unknown
+    >;
+    return {
+      ...normalized,
+      chapters: normalizeChapters(normalized.chapters),
+      sourceKey: source.key,
+      comicId,
+    };
   }
-  if (method === "comicPages") return normalizeValue(await source.comic?.loadEp?.(String(args[0]), args[1] == null || args[1] === "_default" ? null : String(args[1])));
+  if (method === "comicPages")
+    return normalizeValue(
+      await source.comic?.loadEp?.(
+        String(args[0]),
+        args[1] == null || args[1] === "_default" ? null : String(args[1]),
+      ),
+    );
   if (method === "imageLoadingConfig") {
     const [imageKey, comicId, episodeId] = args as [string, string, string | null];
-    const loader = source.comic?.getImageLoadingConfig ?? source.comic?.onImageLoad ?? source.getImageLoadingConfig;
+    const loader =
+      source.comic?.getImageLoadingConfig ??
+      source.comic?.onImageLoad ??
+      source.getImageLoadingConfig;
     return normalizeLoadingConfig(await loader?.(imageKey, comicId, episodeId));
   }
   if (method === "imageLoadFailed") {
     const [imageKey, comicId, episodeId, message] = args as [string, string, string | null, string];
     const handler = source.comic?.onLoadFailed ?? source.onLoadFailed;
-    return normalizeLoadingConfig(await handler?.(imageKey, comicId, episodeId, new Error(message)));
+    return normalizeLoadingConfig(
+      await handler?.(imageKey, comicId, episodeId, new Error(message)),
+    );
   }
   if (method === "imageResponse") {
-    const [imageKey, comicId, episodeId, response] = args as [string, string, string | null, Record<string, unknown>];
+    const [imageKey, comicId, episodeId, response] = args as [
+      string,
+      string,
+      string | null,
+      Record<string, unknown>,
+    ];
     const handler = source.comic?.onResponse ?? source.onResponse;
     return normalizeLoadingConfig(await handler?.(imageKey, comicId, episodeId, response));
   }
@@ -185,7 +248,11 @@ async function dispatch(method: string, args: unknown[]) {
 }
 
 function normalizeSearchResult(result: unknown) {
-  const raw = normalizeValue(result) as { comics?: Array<Record<string, unknown>>; maxPage?: number; next?: string | null };
+  const raw = normalizeValue(result) as {
+    comics?: Array<Record<string, unknown>>;
+    maxPage?: number;
+    next?: string | null;
+  };
   return { ...raw, comics: (raw.comics ?? []).map((comic) => normalizeComic(comic)) };
 }
 
@@ -194,7 +261,12 @@ function normalizeComic(raw: Record<string, unknown>) {
     id: String(raw.id),
     title: String(raw.title ?? ""),
     cover: String(raw.cover ?? ""),
-    subtitle: typeof raw.subtitle === "string" ? raw.subtitle : typeof raw.subTitle === "string" ? raw.subTitle : undefined,
+    subtitle:
+      typeof raw.subtitle === "string"
+        ? raw.subtitle
+        : typeof raw.subTitle === "string"
+          ? raw.subTitle
+          : undefined,
     tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
     description: typeof raw.description === "string" ? raw.description : "",
     sourceKey: source.key,
@@ -213,15 +285,16 @@ function normalizeValue(value: unknown): unknown {
       typeof (value as { size?: unknown }).size === "number")
   ) {
     return Object.fromEntries(
-      [...((value as { entries: () => Iterable<[unknown, unknown]> }).entries())].map(([key, item]) => [
-        String(key),
-        normalizeValue(item),
-      ]),
+      [...(value as { entries: () => Iterable<[unknown, unknown]> }).entries()].map(
+        ([key, item]) => [String(key), normalizeValue(item)],
+      ),
     );
   }
   if (Array.isArray(value)) return value.map(normalizeValue);
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, normalizeValue(item)]));
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, normalizeValue(item)]),
+    );
   }
   return value;
 }
@@ -244,16 +317,20 @@ function normalizeChapters(chapters: unknown): Record<string, string> | undefine
 function normalizeLoadingConfig(value: unknown) {
   const normalized = normalizeValue(value) as Record<string, unknown> | undefined;
   if (!normalized) return {};
-  return Object.fromEntries(Object.entries(normalized).filter((entry) => typeof entry[1] !== "function"));
+  return Object.fromEntries(
+    Object.entries(normalized).filter((entry) => typeof entry[1] !== "function"),
+  );
 }
 
 function normalizeImageBytes(value: unknown): Buffer | undefined {
   if (value == null) return undefined;
   if (Buffer.isBuffer(value)) return value;
   if (value instanceof ArrayBuffer) return Buffer.from(value);
-  if (ArrayBuffer.isView(value)) return Buffer.from(value.buffer, value.byteOffset, value.byteLength);
+  if (ArrayBuffer.isView(value))
+    return Buffer.from(value.buffer, value.byteOffset, value.byteLength);
   if (Array.isArray(value)) return Buffer.from(value);
-  if (value && typeof value === "object" && "data" in value) return normalizeImageBytes((value as { data?: unknown }).data);
+  if (value && typeof value === "object" && "data" in value)
+    return normalizeImageBytes((value as { data?: unknown }).data);
   return undefined;
 }
 

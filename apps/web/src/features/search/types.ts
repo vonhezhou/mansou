@@ -16,6 +16,7 @@ export type SearchViewProps = {
   episodeId: string | null;
   selectedEpisodeIds: string[];
   previewImages: string[];
+  episodePageCounts: Record<string, number>;
   hasSearched: boolean;
   searchPage: number;
   searchMaxPage?: number;
@@ -31,6 +32,7 @@ export type SearchViewProps = {
   onOpenComic: (comic: Comic, sourceKey?: string) => void;
   onDownloadComic: (comic: Comic, sourceKey?: string) => void;
   onPreviewEpisode: (episodeId?: string | null) => void;
+  onCountAllPages: () => void;
   onToggleSelectedEpisode: (episodeId: string) => void;
   onSelectEpisodes: (action: "all" | "clear" | "invert") => void;
   onCreateDownload: (mode: "first" | "selected" | "all") => void;

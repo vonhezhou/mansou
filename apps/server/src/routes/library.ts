@@ -12,7 +12,15 @@ export async function registerLibraryRoutes(app: FastifyInstance, context: Route
 
   app.put("/library/history/:sourceKey/:comicId", async (request) => {
     const params = z.object({ sourceKey: z.string(), comicId: z.string() }).parse(request.params);
-    const body = z.object({ title: z.string().optional(), cover: z.string().optional(), episodeId: z.string().optional(), page: z.number().optional(), progress: z.number().optional() }).parse(request.body);
+    const body = z
+      .object({
+        title: z.string().optional(),
+        cover: z.string().optional(),
+        episodeId: z.string().optional(),
+        page: z.number().optional(),
+        progress: z.number().optional(),
+      })
+      .parse(request.body);
     return context.storage.saveHistory({ ...params, ...body });
   });
 }

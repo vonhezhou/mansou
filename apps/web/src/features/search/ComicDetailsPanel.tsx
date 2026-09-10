@@ -8,23 +8,81 @@ type ComicDetailsPanelProps = {
   details: Details | null;
   episodeId: string | null;
   selectedEpisodeIds: string[];
+  episodePageCounts: Record<string, number>;
   downloadCreateStatus: string | null;
   onPreviewEpisode: (episodeId?: string | null) => void;
+  onCountAllPages: () => void;
   onToggleSelectedEpisode: (episodeId: string) => void;
   onSelectEpisodes: (action: "all" | "clear" | "invert") => void;
   onCreateDownload: (mode: "first" | "selected" | "all") => void;
 };
 
 export function ComicDetailsPanel(props: ComicDetailsPanelProps) {
-  return <aside className="panel details">
-    <h2>详情</h2>
-    {props.details ? <>
-      {props.details.cover && <img className="detail-cover" src={imageUrl(props.detailSourceKey, props.details.cover, props.details.comicId ?? props.details.id, undefined, true)} alt="" />}
-      <h3>{props.details.title}</h3>
-      <p>{props.details.description}</p>
-      <p className="muted">源：{props.detailSourceKey} / 漫画 ID：{props.details.comicId ?? props.details.id}</p>
-      <ChapterSelector chapters={props.details.chapters ?? {}} episodeId={props.episodeId} selectedEpisodeIds={props.selectedEpisodeIds} onPreviewEpisode={props.onPreviewEpisode} onToggleSelectedEpisode={props.onToggleSelectedEpisode} onSelectEpisodes={props.onSelectEpisodes} />
-      <DownloadActions selectedEpisodeIds={props.selectedEpisodeIds} downloadCreateStatus={props.downloadCreateStatus} onPreviewEpisode={() => props.onPreviewEpisode()} onCreateDownload={props.onCreateDownload} />
-    </> : <p className="muted">选择一本漫画查看章节并创建下载任务。</p>}
-  </aside>;
+  const chapterIds = Object.keys(props.details?.chapters ?? {});
+  const countedChapterCount = chapterIds.filter(
+    (id) => props.episodePageCounts[id] !== undefined,
+  ).length;
+  const countedPageCount = Object.values(props.episodePageCounts).reduce(
+    (total, count) => total + count,
+    0,
+  );
+  const allPagesCounted = chapterIds.length > 0 && countedChapterCount === chapterIds.length;
+
+  return (
+    <aside className="panel details">
+      <h2>详情</h2>
+      {props.details ? (
+        <>
+          {props.details.cover && (
+            <img
+              className="detail-cover"
+              src={imageUrl(
+                props.detailSourceKey,
+                props.details.cover,
+                props.details.comicId ?? props.details.id,
+                undefined,
+                true,
+              )}
+              alt=""
+            />
+          )}
+          <h3>{props.details.title}</h3>
+          <p>{props.details.description}</p>
+          <p className="muted">
+            源：{props.detailSourceKey} / 漫画 ID：{props.details.comicId ?? props.details.id}
+          </p>
+          <div className="comic-stats">
+            <span>共 {chapterIds.length} 章</span>
+            <span>
+              {allPagesCounted
+                ? `共 ${countedPageCount} 页`
+                : `已统计 ${countedChapterCount}/${chapterIds.length} 章，${countedPageCount} 页`}
+            </span>
+          </div>
+          {chapterIds.length > 0 && !allPagesCounted && (
+            <button className="secondary-action" onClick={props.onCountAllPages}>
+              统计全部章节页数
+            </button>
+          )}
+          <ChapterSelector
+            chapters={props.details.chapters ?? {}}
+            episodeId={props.episodeId}
+            selectedEpisodeIds={props.selectedEpisodeIds}
+            episodePageCounts={props.episodePageCounts}
+            onPreviewEpisode={props.onPreviewEpisode}
+            onToggleSelectedEpisode={props.onToggleSelectedEpisode}
+            onSelectEpisodes={props.onSelectEpisodes}
+          />
+          <DownloadActions
+            selectedEpisodeIds={props.selectedEpisodeIds}
+            downloadCreateStatus={props.downloadCreateStatus}
+            onPreviewEpisode={() => props.onPreviewEpisode()}
+            onCreateDownload={props.onCreateDownload}
+          />
+        </>
+      ) : (
+        <p className="muted">选择一本漫画查看章节并创建下载任务。</p>
+      )}
+    </aside>
+  );
 }

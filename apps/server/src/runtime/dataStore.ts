@@ -8,7 +8,10 @@ export class SourceDataStore {
   constructor(readonly storage?: StorageDatabase) {}
 
   loadSync(sourceKey: string, dataKey: string) {
-    if (dataKey === "settings") return this.storage?.getSourceSettings(sourceKey) ?? this.readSourceDataSync(sourceKey)[dataKey];
+    if (dataKey === "settings")
+      return (
+        this.storage?.getSourceSettings(sourceKey) ?? this.readSourceDataSync(sourceKey)[dataKey]
+      );
     if (this.storage) return this.storage.getPluginData(sourceKey, dataKey);
     const data = this.readSourceDataSync(sourceKey);
     return data[dataKey];

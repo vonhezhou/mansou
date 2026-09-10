@@ -4,7 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @venera/server dev",
+    "dev": "sh -c 'pnpm dev:server & server=$!; sleep 1; pnpm dev:web & web=$!; trap \"kill $server $web 2>/dev/null\" INT TERM EXIT; wait'",
+    "dev:server": "pnpm --filter @venera/server dev",
+    "dev:web": "pnpm --filter @venera/web dev",
+    "stop": "sh -c 'pids=$( (lsof -ti tcp:5173; lsof -ti tcp:3210) 2>/dev/null | sort -u); [ -z \"$pids\" ] || kill $pids'",
+    "stop:server": "sh -c 'pids=$(lsof -ti tcp:3210 2>/dev/null); [ -z \"$pids\" ] || kill $pids'",
+    "stop:web": "sh -c 'pids=$(lsof -ti tcp:5173 2>/dev/null); [ -z \"$pids\" ] || kill $pids'",
     "build": "pnpm -r build",
     "start": "pnpm --filter @venera/server start",
     "typecheck": "pnpm -r typecheck",

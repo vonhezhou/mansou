@@ -53,7 +53,9 @@ async function loadSources() {
 }
 
 function selectedSearchSources() {
-  return [...document.querySelectorAll('input[name="search-source"]:checked')].map((input) => input.value);
+  return [...document.querySelectorAll('input[name="search-source"]:checked')].map(
+    (input) => input.value,
+  );
 }
 
 function formatTime(value) {
@@ -86,7 +88,9 @@ function firstChapterId(chapters) {
 }
 
 function selectedChapterIds() {
-  return [...document.querySelectorAll('input[name="download-chapter"]:checked')].map((input) => input.value);
+  return [...document.querySelectorAll('input[name="download-chapter"]:checked')].map(
+    (input) => input.value,
+  );
 }
 
 function downloadChapterBody(sourceKey, comicId, episodeId) {
@@ -111,7 +115,15 @@ async function runAggregatedSearch(keyword, sourceKeys) {
   const params = new URLSearchParams({ keyword, sources: sourceKeys.join(",") });
   const groups = await api(`/api/v1/search?${params}`);
   return groups.flatMap((group) => {
-    if (group.error) return [{ type: "error", sourceKey: group.sourceKey, sourceName: group.sourceName, error: group.error }];
+    if (group.error)
+      return [
+        {
+          type: "error",
+          sourceKey: group.sourceKey,
+          sourceName: group.sourceName,
+          error: group.error,
+        },
+      ];
     return (group.result?.comics ?? []).map((comic) => ({
       ...comic,
       type: "comic",
@@ -122,8 +134,15 @@ async function runAggregatedSearch(keyword, sourceKeys) {
 }
 
 async function loadSingleSourceSearch(sourceKey, keyword) {
-  const result = await api(`/api/v1/search/${sourceKey}?keyword=${encodeURIComponent(keyword)}&page=1`);
-  return result.comics.map((comic) => ({ ...comic, type: "comic", sourceKey, sourceName: sourceName(sourceKey) }));
+  const result = await api(
+    `/api/v1/search/${sourceKey}?keyword=${encodeURIComponent(keyword)}&page=1`,
+  );
+  return result.comics.map((comic) => ({
+    ...comic,
+    type: "comic",
+    sourceKey,
+    sourceName: sourceName(sourceKey),
+  }));
 }
 
 function renderSearchResults(items) {
@@ -168,9 +187,10 @@ async function search(event) {
     return;
   }
   $("#results").innerHTML = "加载中...";
-  const items = sourceKeys.length === 1
-    ? await loadSingleSourceSearch(sourceKeys[0], keyword)
-    : await runAggregatedSearch(keyword, sourceKeys);
+  const items =
+    sourceKeys.length === 1
+      ? await loadSingleSourceSearch(sourceKeys[0], keyword)
+      : await runAggregatedSearch(keyword, sourceKeys);
   renderSearchResults(items);
 }
 
@@ -190,13 +210,15 @@ async function openDetail(sourceKey, comicId) {
       </div>
       <div class="chapters">
         ${Object.entries(chapters)
-          .map(([id, title]) => `
+          .map(
+            ([id, title]) => `
             <label class="chapter-option">
               <input type="checkbox" name="download-chapter" value="${id}" />
               <span>${title}</span>
             </label>
             <button data-episode-id="${id}">阅读</button>
-          `)
+          `,
+          )
           .join("")}
       </div>
     </div>
@@ -206,9 +228,14 @@ async function openDetail(sourceKey, comicId) {
 
 async function openReader(episodeId) {
   const { sourceKey, comicId } = state.currentDetail;
-  const pages = await api(`/api/v1/comics/${sourceKey}/${encodeURIComponent(comicId)}/episodes/${encodeURIComponent(episodeId)}/pages`);
+  const pages = await api(
+    `/api/v1/comics/${sourceKey}/${encodeURIComponent(comicId)}/episodes/${encodeURIComponent(episodeId)}/pages`,
+  );
   $("#reader").innerHTML = pages.images
-    .map((imageKey) => `<img src="${imageUrl(sourceKey, imageKey, comicId, episodeId)}" loading="lazy" />`)
+    .map(
+      (imageKey) =>
+        `<img src="${imageUrl(sourceKey, imageKey, comicId, episodeId)}" loading="lazy" />`,
+    )
     .join("");
   show("reader");
 }
@@ -270,7 +297,9 @@ $("#detail").addEventListener("click", (event) => {
   if (button) openReader(button.dataset.episodeId);
   if (event.target.closest("#download-first")) {
     const { sourceKey, comicId, chapters } = state.currentDetail;
-    void createDownloads([downloadChapterBody(sourceKey, comicId, firstChapterId(chapters || { _default: "默认章节" }))]);
+    void createDownloads([
+      downloadChapterBody(sourceKey, comicId, firstChapterId(chapters || { _default: "默认章节" })),
+    ]);
   }
   if (event.target.closest("#download-selected")) {
     const { sourceKey, comicId } = state.currentDetail;
@@ -279,7 +308,9 @@ $("#detail").addEventListener("click", (event) => {
       alert("请先选择章节");
       return;
     }
-    void createDownloads(episodeIds.map((episodeId) => downloadChapterBody(sourceKey, comicId, episodeId)));
+    void createDownloads(
+      episodeIds.map((episodeId) => downloadChapterBody(sourceKey, comicId, episodeId)),
+    );
   }
   if (event.target.closest("#download-all")) {
     const { sourceKey, comicId } = state.currentDetail;
@@ -298,7 +329,8 @@ $("#downloads").addEventListener("click", async (event) => {
     alert(`CBZ: ${result.path}`);
   }
   if (action === "delete") await fetch(`/api/v1/downloads/${id}`, { method: "DELETE" });
-  if (action === "delete-files") await fetch(`/api/v1/downloads/${id}?files=true`, { method: "DELETE" });
+  if (action === "delete-files")
+    await fetch(`/api/v1/downloads/${id}?files=true`, { method: "DELETE" });
   await loadDownloads();
 });
 $("#back-to-search").addEventListener("click", () => show("search"));

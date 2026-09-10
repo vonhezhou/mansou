@@ -52,17 +52,29 @@ export class ImageProxyService {
     try {
       response = await this.fetchImage(String(loadingConfig.url ?? input.imageKey), loadingConfig);
     } catch (error) {
-      const fallback = await this.runtime.imageLoadFailed(input.sourceKey, input.imageKey, input.comicId ?? "", input.episodeId ?? null, error instanceof Error ? error : new Error(String(error)));
+      const fallback = await this.runtime.imageLoadFailed(
+        input.sourceKey,
+        input.imageKey,
+        input.comicId ?? "",
+        input.episodeId ?? null,
+        error instanceof Error ? error : new Error(String(error)),
+      );
       if (!Object.keys(fallback).length) throw error;
       loadingConfig = { ...loadingConfig, ...fallback };
       response = await this.fetchImage(String(loadingConfig.url ?? input.imageKey), loadingConfig);
     }
 
-    const responseConfig = await this.runtime.imageResponse(input.sourceKey, input.imageKey, input.comicId ?? "", input.episodeId ?? null, {
-      status: response.status,
-      headers: normalizeHeaders(response.headers),
-      url: response.url,
-    });
+    const responseConfig = await this.runtime.imageResponse(
+      input.sourceKey,
+      input.imageKey,
+      input.comicId ?? "",
+      input.episodeId ?? null,
+      {
+        status: response.status,
+        headers: normalizeHeaders(response.headers),
+        url: response.url,
+      },
+    );
     if (!response.ok && Object.keys(responseConfig).length) {
       loadingConfig = { ...loadingConfig, ...responseConfig };
       response = await this.fetchImage(String(loadingConfig.url ?? input.imageKey), loadingConfig);
@@ -74,7 +86,13 @@ export class ImageProxyService {
     if (contentLength > config.maxImageBytes) throw new Error("Image response is too large");
 
     let data: Buffer = Buffer.from(await response.arrayBuffer());
-    data = await this.runtime.modifyImage(input.sourceKey, input.imageKey, input.comicId ?? "", input.episodeId ?? null, data);
+    data = await this.runtime.modifyImage(
+      input.sourceKey,
+      input.imageKey,
+      input.comicId ?? "",
+      input.episodeId ?? null,
+      data,
+    );
     if (data.length > config.maxImageBytes) throw new Error("Image response is too large");
     if (useCache) {
       await ensureDir(path.dirname(cachePath));
@@ -127,9 +145,11 @@ export class ImageProxyService {
 
   private detectContentType(data: Uint8Array) {
     if (data[0] === 0xff && data[1] === 0xd8) return "image/jpeg";
-    if (data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47) return "image/png";
+    if (data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47)
+      return "image/png";
     if (data[0] === 0x47 && data[1] === 0x49 && data[2] === 0x46) return "image/gif";
-    if (data[0] === 0x52 && data[1] === 0x49 && data[2] === 0x46 && data[3] === 0x46) return "image/webp";
+    if (data[0] === 0x52 && data[1] === 0x49 && data[2] === 0x46 && data[3] === 0x46)
+      return "image/webp";
     return "application/octet-stream";
   }
 
@@ -174,7 +194,10 @@ async function listFiles(dir: string): Promise<string[]> {
 }
 
 function mockSvg(label: string) {
-  const safeLabel = label.replace(/[<>&]/g, (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[char]!);
+  const safeLabel = label.replace(
+    /[<>&]/g,
+    (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[char]!,
+  );
   return `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200">
   <defs>
     <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">

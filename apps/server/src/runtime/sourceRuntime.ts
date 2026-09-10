@@ -18,7 +18,9 @@ function reportPluginAsyncError(sourceKey: string, error: unknown) {
 
 function guardPluginAsync<T>(sourceKey: string, value: T): T {
   if (value && typeof (value as { catch?: unknown }).catch === "function") {
-    (value as unknown as Promise<unknown>).catch((error) => reportPluginAsyncError(sourceKey, error));
+    (value as unknown as Promise<unknown>).catch((error) =>
+      reportPluginAsyncError(sourceKey, error),
+    );
   }
   return value;
 }
@@ -62,7 +64,9 @@ class ComicSourceBase {
   settings?: Record<string, { default?: unknown }>;
 
   loadSetting(key: string) {
-    const values = this.key ? (sourceDataStore.loadSync(this.key, "settings") as Record<string, unknown> | undefined) : undefined;
+    const values = this.key
+      ? (sourceDataStore.loadSync(this.key, "settings") as Record<string, unknown> | undefined)
+      : undefined;
     return values?.[key] ?? this.settings?.[key]?.default;
   }
 
@@ -93,7 +97,12 @@ function normalizeComic(raw: Record<string, unknown>, sourceKey: string): Comic 
     id: String(raw.id),
     title: String(raw.title ?? ""),
     cover: String(raw.cover ?? ""),
-    subtitle: typeof raw.subtitle === "string" ? raw.subtitle : typeof raw.subTitle === "string" ? raw.subTitle : undefined,
+    subtitle:
+      typeof raw.subtitle === "string"
+        ? raw.subtitle
+        : typeof raw.subTitle === "string"
+          ? raw.subTitle
+          : undefined,
     tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
     description: typeof raw.description === "string" ? raw.description : "",
     sourceKey,
@@ -112,15 +121,16 @@ function normalizeValue(value: unknown): unknown {
       typeof (value as { size?: unknown }).size === "number")
   ) {
     return Object.fromEntries(
-      [...((value as { entries: () => Iterable<[unknown, unknown]> }).entries())].map(([key, item]) => [
-        String(key),
-        normalizeValue(item),
-      ]),
+      [...(value as { entries: () => Iterable<[unknown, unknown]> }).entries()].map(
+        ([key, item]) => [String(key), normalizeValue(item)],
+      ),
     );
   }
   if (Array.isArray(value)) return value.map(normalizeValue);
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, normalizeValue(item)]));
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, normalizeValue(item)]),
+    );
   }
   return value;
 }
@@ -148,7 +158,14 @@ class PluginCallTimeoutError extends Error {
 }
 
 type SourceLimiter = { active: number; queue: Array<() => void> };
-type RuntimeDiagnostic = { time: string; sourceKey?: string; operation: string; code: string; message: string; stack?: string[] };
+type RuntimeDiagnostic = {
+  time: string;
+  sourceKey?: string;
+  operation: string;
+  code: string;
+  message: string;
+  stack?: string[];
+};
 
 export class SourceRuntime {
   private readonly sources = new Map<string, LoadedSource>();
@@ -182,11 +199,18 @@ export class SourceRuntime {
     for (const filePath of scripts) {
       try {
         const key = path.basename(filePath, ".js");
-        const metadata = this.dataStore.storage?.getSource?.(key) as { enabled?: number } | null | undefined;
+        const metadata = this.dataStore.storage?.getSource?.(key) as
+          | { enabled?: number }
+          | null
+          | undefined;
         if (metadata?.enabled === 0) continue;
         loaded.push(await this.loadScript(filePath));
       } catch (error) {
-        this.recordError({ sourceKey: path.basename(filePath, ".js"), operation: "source.load", error });
+        this.recordError({
+          sourceKey: path.basename(filePath, ".js"),
+          operation: "source.load",
+          error,
+        });
         console.error(`Failed to load source ${filePath}:`, error);
       }
     }
@@ -195,7 +219,9 @@ export class SourceRuntime {
 
   async loadScript(filePath: string) {
     if (config.pluginIsolation === "worker") {
-      const adapter = await WorkerSourceRuntimeAdapter.load(filePath, (sourceKey, error) => this.handleWorkerCrash(sourceKey, error));
+      const adapter = await WorkerSourceRuntimeAdapter.load(filePath, (sourceKey, error) =>
+        this.handleWorkerCrash(sourceKey, error),
+      );
       await this.workerSources.get(adapter.source.key)?.close();
       this.workerSources.set(adapter.source.key, adapter);
       this.sources.set(adapter.source.key, adapter.source);
@@ -213,7 +239,8 @@ export class SourceRuntime {
       clearTimeout,
       clearInterval,
       Promise: GuardedPromise,
-      fetch: (...args: Parameters<typeof fetchWithProxy>) => guardPluginAsync(preludeSourceKey, fetchWithProxy(...args)),
+      fetch: (...args: Parameters<typeof fetchWithProxy>) =>
+        guardPluginAsync(preludeSourceKey, fetchWithProxy(...args)),
       randomInt: (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min,
       URL,
       URLSearchParams,
@@ -281,14 +308,21 @@ export class SourceRuntime {
     return [...this.sources.values()].map(({ instance: _instance, ...source }) => ({
       ...source,
       enabled: true,
-      hasSearch: this.workerSources.has(source.key) || Boolean(_instance.search?.load || _instance.search?.loadNext),
+      hasSearch:
+        this.workerSources.has(source.key) ||
+        Boolean(_instance.search?.load || _instance.search?.loadNext),
       hasComic: this.workerSources.has(source.key) || Boolean(_instance.comic?.loadInfo),
     }));
   }
 
   find(sourceKey: string) {
     const source = this.sources.get(sourceKey);
-    if (!source) throw new PluginRuntimeError("SOURCE_NOT_LOADED", `Source not loaded: ${sourceKey}`, sourceKey);
+    if (!source)
+      throw new PluginRuntimeError(
+        "SOURCE_NOT_LOADED",
+        `Source not loaded: ${sourceKey}`,
+        sourceKey,
+      );
     return source;
   }
 
@@ -333,16 +367,24 @@ export class SourceRuntime {
     const finalOptions = options ?? this.defaultSearchOptions(sourceKey);
     if (search.load) {
       const page = Number(pageOrNext ?? 1);
-      const result = await this.runPluginCall(sourceKey, "search.load", () => search.load!(keyword, finalOptions, Number.isFinite(page) ? page : 1));
+      const result = await this.runPluginCall(sourceKey, "search.load", () =>
+        search.load!(keyword, finalOptions, Number.isFinite(page) ? page : 1),
+      );
       return {
-        comics: (result.comics ?? []).map((comic) => normalizeComic(comic as unknown as Record<string, unknown>, sourceKey)),
+        comics: (result.comics ?? []).map((comic) =>
+          normalizeComic(comic as unknown as Record<string, unknown>, sourceKey),
+        ),
         maxPage: result.maxPage,
       };
     }
     if (search.loadNext) {
-      const result = await this.runPluginCall(sourceKey, "search.loadNext", () => search.loadNext!(keyword, finalOptions, pageOrNext ?? null));
+      const result = await this.runPluginCall(sourceKey, "search.loadNext", () =>
+        search.loadNext!(keyword, finalOptions, pageOrNext ?? null),
+      );
       return {
-        comics: (result.comics ?? []).map((comic) => normalizeComic(comic as unknown as Record<string, unknown>, sourceKey)),
+        comics: (result.comics ?? []).map((comic) =>
+          normalizeComic(comic as unknown as Record<string, unknown>, sourceKey),
+        ),
         next: result.next ?? null,
       };
     }
@@ -350,15 +392,25 @@ export class SourceRuntime {
   }
 
   async aggregatedSearch(keyword: string, sourceKeys?: string[]) {
-    const sources = sourceKeys?.length ? sourceKeys.map((key) => this.find(key)) : [...this.sources.values()];
+    const sources = sourceKeys?.length
+      ? sourceKeys.map((key) => this.find(key))
+      : [...this.sources.values()];
     return Promise.all(
       sources
         .filter((source) => source.instance.search?.load || source.instance.search?.loadNext)
         .map(async (source) => {
           try {
-            return { sourceKey: source.key, sourceName: source.name, result: await this.search(source.key, keyword) };
+            return {
+              sourceKey: source.key,
+              sourceName: source.name,
+              result: await this.search(source.key, keyword),
+            };
           } catch (error) {
-            return { sourceKey: source.key, sourceName: source.name, error: error instanceof Error ? error.message : String(error) };
+            return {
+              sourceKey: source.key,
+              sourceName: source.name,
+              error: error instanceof Error ? error.message : String(error),
+            };
           }
         }),
     );
@@ -368,8 +420,11 @@ export class SourceRuntime {
     const source = this.find(sourceKey).instance;
     const worker = this.workerSources.get(sourceKey);
     if (worker) return worker.comicDetails(comicId);
-    if (!source.comic?.loadInfo) throw new Error(`Source does not support comic details: ${sourceKey}`);
-    const raw = await this.runPluginCall(sourceKey, "comic.loadInfo", () => source.comic!.loadInfo!(comicId));
+    if (!source.comic?.loadInfo)
+      throw new Error(`Source does not support comic details: ${sourceKey}`);
+    const raw = await this.runPluginCall(sourceKey, "comic.loadInfo", () =>
+      source.comic!.loadInfo!(comicId),
+    );
     const normalized = normalizeValue(raw) as ComicDetails;
     return { ...normalized, chapters: normalizeChapters(normalized.chapters), sourceKey, comicId };
   }
@@ -408,7 +463,9 @@ export class SourceRuntime {
     }
     if (!source.comic?.loadEp) throw new Error(`Source does not support comic pages: ${sourceKey}`);
     try {
-      const result = await this.runPluginCall(sourceKey, "comic.loadEp", () => source.comic!.loadEp!(comicId, episodeId === "_default" ? null : episodeId));
+      const result = await this.runPluginCall(sourceKey, "comic.loadEp", () =>
+        source.comic!.loadEp!(comicId, episodeId === "_default" ? null : episodeId),
+      );
       return { images: result.images ?? [] };
     } catch (error) {
       if (sourceKey === "baozi" && episodeId != null && episodeId !== "_default") {
@@ -423,7 +480,13 @@ export class SourceRuntime {
     }
   }
 
-  async imageLoadingConfig(sourceKey: string, imageKey: string, comicId: string, episodeId: string | null, thumbnail = false) {
+  async imageLoadingConfig(
+    sourceKey: string,
+    imageKey: string,
+    comicId: string,
+    episodeId: string | null,
+    thumbnail = false,
+  ) {
     const source = this.find(sourceKey).instance;
     const worker = this.workerSources.get(sourceKey);
     if (thumbnail) {
@@ -431,11 +494,20 @@ export class SourceRuntime {
       return source.getThumbnailLoadingConfig?.(imageKey) ?? {};
     }
     if (worker) return worker.imageLoadingConfig(imageKey, comicId, episodeId);
-    const loader = source.comic?.getImageLoadingConfig ?? source.comic?.onImageLoad ?? source.getImageLoadingConfig;
+    const loader =
+      source.comic?.getImageLoadingConfig ??
+      source.comic?.onImageLoad ??
+      source.getImageLoadingConfig;
     return normalizeLoadingConfig((await loader?.(imageKey, comicId, episodeId)) ?? {});
   }
 
-  async imageLoadFailed(sourceKey: string, imageKey: string, comicId: string, episodeId: string | null, error: Error) {
+  async imageLoadFailed(
+    sourceKey: string,
+    imageKey: string,
+    comicId: string,
+    episodeId: string | null,
+    error: Error,
+  ) {
     const source = this.find(sourceKey).instance;
     const worker = this.workerSources.get(sourceKey);
     if (worker) return worker.imageLoadFailed(imageKey, comicId, episodeId, error.message);
@@ -443,7 +515,13 @@ export class SourceRuntime {
     return normalizeLoadingConfig((await handler?.(imageKey, comicId, episodeId, error)) ?? {});
   }
 
-  async imageResponse(sourceKey: string, imageKey: string, comicId: string, episodeId: string | null, response: { status: number; headers: Record<string, string>; url: string }) {
+  async imageResponse(
+    sourceKey: string,
+    imageKey: string,
+    comicId: string,
+    episodeId: string | null,
+    response: { status: number; headers: Record<string, string>; url: string },
+  ) {
     const source = this.find(sourceKey).instance;
     const worker = this.workerSources.get(sourceKey);
     if (worker) return worker.imageResponse(imageKey, comicId, episodeId, response);
@@ -451,7 +529,13 @@ export class SourceRuntime {
     return normalizeLoadingConfig((await handler?.(imageKey, comicId, episodeId, response)) ?? {});
   }
 
-  async modifyImage(sourceKey: string, imageKey: string, comicId: string, episodeId: string | null, data: Buffer) {
+  async modifyImage(
+    sourceKey: string,
+    imageKey: string,
+    comicId: string,
+    episodeId: string | null,
+    data: Buffer,
+  ) {
     const source = this.find(sourceKey).instance;
     const worker = this.workerSources.get(sourceKey);
     if (worker) {
@@ -468,7 +552,11 @@ export class SourceRuntime {
     return this.cookieStore.list(sourceKey);
   }
 
-  async importCookies(sourceKey: string, url: string, cookies: Array<string | Record<string, unknown>> | string) {
+  async importCookies(
+    sourceKey: string,
+    url: string,
+    cookies: Array<string | Record<string, unknown>> | string,
+  ) {
     const source = this.find(sourceKey);
     const imported = await this.cookieStore.import(sourceKey, url, cookies);
     if (this.workerSources.has(sourceKey)) await this.loadScript(source.filePath);
@@ -485,13 +573,16 @@ export class SourceRuntime {
     const source = this.find(sourceKey).instance;
     return {
       schema: source.settings ?? {},
-      values: (this.dataStore.loadSync(sourceKey, "settings") as Record<string, unknown> | undefined) ?? {},
+      values:
+        (this.dataStore.loadSync(sourceKey, "settings") as Record<string, unknown> | undefined) ??
+        {},
     };
   }
 
   updateSourceSettings(sourceKey: string, values: Record<string, unknown>) {
     this.find(sourceKey);
-    const current = (this.dataStore.loadSync(sourceKey, "settings") as Record<string, unknown> | undefined) ?? {};
+    const current =
+      (this.dataStore.loadSync(sourceKey, "settings") as Record<string, unknown> | undefined) ?? {};
     const next = { ...current, ...values };
     this.dataStore.saveSync(sourceKey, "settings", next);
     return this.sourceSettings(sourceKey);
@@ -503,10 +594,19 @@ export class SourceRuntime {
     return this.sourceSettings(sourceKey);
   }
 
-  private async runPluginCall<T>(sourceKey: string, operation: string, task: () => Promise<T> | T): Promise<T> {
+  private async runPluginCall<T>(
+    sourceKey: string,
+    operation: string,
+    task: () => Promise<T> | T,
+  ): Promise<T> {
     await this.acquireSourceSlot(sourceKey);
     try {
-      return await withTimeout(Promise.resolve().then(task), config.pluginCallTimeoutMs, sourceKey, operation);
+      return await withTimeout(
+        Promise.resolve().then(task),
+        config.pluginCallTimeoutMs,
+        sourceKey,
+        operation,
+      );
     } catch (error) {
       this.recordError({ sourceKey, operation, error });
       throw classifyPluginError(error, sourceKey, operation);
@@ -567,13 +667,21 @@ export class SourceRuntime {
   }
 }
 
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, sourceKey: string, operation: string) {
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  sourceKey: string,
+  operation: string,
+) {
   let timer: NodeJS.Timeout | undefined;
   try {
     return await Promise.race([
       promise,
       new Promise<T>((_resolve, reject) => {
-        timer = setTimeout(() => reject(new PluginCallTimeoutError(sourceKey, operation, timeoutMs)), timeoutMs);
+        timer = setTimeout(
+          () => reject(new PluginCallTimeoutError(sourceKey, operation, timeoutMs)),
+          timeoutMs,
+        );
       }),
     ]);
   } finally {
@@ -589,16 +697,20 @@ function thumbnailToImageUrl(url: string) {
 function normalizeLoadingConfig(value: unknown) {
   const normalized = normalizeValue(value) as Record<string, unknown> | undefined;
   if (!normalized) return {};
-  return Object.fromEntries(Object.entries(normalized).filter((entry) => typeof entry[1] !== "function"));
+  return Object.fromEntries(
+    Object.entries(normalized).filter((entry) => typeof entry[1] !== "function"),
+  );
 }
 
 function normalizeImageBytes(value: unknown): Buffer | undefined {
   if (value == null) return undefined;
   if (Buffer.isBuffer(value)) return value;
   if (value instanceof ArrayBuffer) return Buffer.from(value);
-  if (ArrayBuffer.isView(value)) return Buffer.from(value.buffer, value.byteOffset, value.byteLength);
+  if (ArrayBuffer.isView(value))
+    return Buffer.from(value.buffer, value.byteOffset, value.byteLength);
   if (Array.isArray(value)) return Buffer.from(value);
-  if (value && typeof value === "object" && "data" in value) return normalizeImageBytes((value as { data?: unknown }).data);
+  if (value && typeof value === "object" && "data" in value)
+    return normalizeImageBytes((value as { data?: unknown }).data);
   return undefined;
 }
 
@@ -657,7 +769,9 @@ async function loadComickPages(comicId: string, episodeId: string) {
     if (!match) return [];
     const data = JSON.parse(match[1]);
     const images = data?.chapter?.images;
-    return Array.isArray(images) ? images.map((image) => String(image?.url ?? "")).filter(Boolean) : [];
+    return Array.isArray(images)
+      ? images.map((image) => String(image?.url ?? "")).filter(Boolean)
+      : [];
   } finally {
     clearTimeout(timeout);
   }

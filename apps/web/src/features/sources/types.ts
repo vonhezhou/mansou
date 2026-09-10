@@ -7,10 +7,12 @@ export type SourcesViewProps = {
   availableSources: RepositorySource[];
   sourceMetadata: SourceMetadata[];
   sourceSettings: SettingsResponse | null;
+  sourceSettingsKey: string;
   settingsJson: string;
   cookieUrl: string;
   cookieText: string;
   onInstallSourceChange: (value: string) => void;
+  onSourceChange: (value: string) => void;
   onSettingsJsonChange: (value: string) => void;
   onCookieUrlChange: (value: string) => void;
   onCookieTextChange: (value: string) => void;

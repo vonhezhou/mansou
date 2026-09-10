@@ -39,9 +39,14 @@ describe("api v1 mock source", () => {
   });
 
   it("returns runtime compatibility report", async () => {
-    const response = await app.inject({ method: "GET", url: "/api/v1/debug/runtime/compatibility" });
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/debug/runtime/compatibility",
+    });
     expect(response.statusCode).toBe(200);
-    expect(response.json().items).toContainEqual(expect.objectContaining({ area: "Network", api: "fetchBytes" }));
+    expect(response.json().items).toContainEqual(
+      expect.objectContaining({ area: "Network", api: "fetchBytes" }),
+    );
   });
 
   it("returns runtime diagnostics and classified plugin errors", async () => {
@@ -49,7 +54,10 @@ describe("api v1 mock source", () => {
     expect(missing.statusCode).toBe(500);
     expect(missing.json().error.code).toBe("SOURCE_NOT_LOADED");
 
-    const diagnostics = await app.inject({ method: "GET", url: "/api/v1/debug/runtime/diagnostics" });
+    const diagnostics = await app.inject({
+      method: "GET",
+      url: "/api/v1/debug/runtime/diagnostics",
+    });
     expect(diagnostics.statusCode).toBe(200);
     expect(diagnostics.json().loadedSources).toEqual(expect.any(Array));
     expect(diagnostics.json().sourceConcurrency).toEqual(expect.any(Array));
@@ -59,18 +67,33 @@ describe("api v1 mock source", () => {
     const response = await app.inject({ method: "GET", url: "/api/v1/openapi.json" });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ openapi: "3.1.0" });
-    expect(response.json().paths["/api/v1/search/{sourceKey}"].get.operationId).toBe("searchSource");
-    expect(response.json().paths["/api/v1/comics/{sourceKey}/detail"].get.operationId).toBe("getComicDetailsByQuery");
-    expect(response.json().paths["/api/v1/debug/runtime/diagnostics"].get.operationId).toBe("getRuntimeDiagnostics");
-    expect(response.json().paths["/api/v1/downloads/{taskId}/items/retry-failed"].post.operationId).toBe("retryFailedDownloadImages");
-    expect(response.json().paths["/api/v1/downloads/{taskId}/pause"].post.operationId).toBe("pauseDownload");
-    expect(response.json().paths["/api/v1/downloads/{taskId}/resume"].post.operationId).toBe("resumeDownload");
+    expect(response.json().paths["/api/v1/search/{sourceKey}"].get.operationId).toBe(
+      "searchSource",
+    );
+    expect(response.json().paths["/api/v1/comics/{sourceKey}/detail"].get.operationId).toBe(
+      "getComicDetailsByQuery",
+    );
+    expect(response.json().paths["/api/v1/debug/runtime/diagnostics"].get.operationId).toBe(
+      "getRuntimeDiagnostics",
+    );
+    expect(
+      response.json().paths["/api/v1/downloads/{taskId}/items/retry-failed"].post.operationId,
+    ).toBe("retryFailedDownloadImages");
+    expect(response.json().paths["/api/v1/downloads/{taskId}/pause"].post.operationId).toBe(
+      "pauseDownload",
+    );
+    expect(response.json().paths["/api/v1/downloads/{taskId}/resume"].post.operationId).toBe(
+      "resumeDownload",
+    );
     expect(response.json().components.schemas.DownloadTask).toBeTruthy();
     expect(response.json().components.schemas.RetryFailedDownloadImagesResult).toBeTruthy();
   });
 
   it("searches, loads details, pages, and image bytes", async () => {
-    const search = await app.inject({ method: "GET", url: "/api/v1/search/mock?keyword=test&page=1" });
+    const search = await app.inject({
+      method: "GET",
+      url: "/api/v1/search/mock?keyword=test&page=1",
+    });
     expect(search.statusCode).toBe(200);
     const searchBody = search.json();
     expect(searchBody.comics[0]).toMatchObject({ id: "mock-comic-1", title: "Mock test 1" });
@@ -79,7 +102,10 @@ describe("api v1 mock source", () => {
     expect(details.statusCode).toBe(200);
     expect(details.json()).toMatchObject({ title: "Mock Comic mock-comic-1" });
 
-    const pages = await app.inject({ method: "GET", url: "/api/v1/comics/mock/mock-comic-1/episodes/chapter-1/pages" });
+    const pages = await app.inject({
+      method: "GET",
+      url: "/api/v1/comics/mock/mock-comic-1/episodes/chapter-1/pages",
+    });
     expect(pages.statusCode).toBe(200);
     expect(pages.json().images).toHaveLength(5);
 
@@ -118,19 +144,35 @@ describe("api v1 mock source", () => {
   });
 
   it("stores source metadata and supports enable toggles", async () => {
-    context.storage.upsertSource({ key: "mock", name: "Mock", version: "1.0.0", scriptPath: "mock.js", enabled: true });
+    context.storage.upsertSource({
+      key: "mock",
+      name: "Mock",
+      version: "1.0.0",
+      scriptPath: "mock.js",
+      enabled: true,
+    });
     const metadataBefore = await app.inject({ method: "GET", url: "/api/v1/sources/metadata" });
     expect(metadataBefore.statusCode).toBe(200);
-    expect(metadataBefore.json()).toContainEqual(expect.objectContaining({ key: "mock", enabled: 1 }));
+    expect(metadataBefore.json()).toContainEqual(
+      expect.objectContaining({ key: "mock", enabled: 1 }),
+    );
 
-    const disable = await app.inject({ method: "PUT", url: "/api/v1/sources/mock/enabled", payload: { enabled: false } });
+    const disable = await app.inject({
+      method: "PUT",
+      url: "/api/v1/sources/mock/enabled",
+      payload: { enabled: false },
+    });
     expect(disable.statusCode).toBe(200);
     expect(disable.json()).toMatchObject({ key: "mock", enabled: 0 });
 
     const sources = await app.inject({ method: "GET", url: "/api/v1/sources" });
     expect(sources.json().some((source: { key: string }) => source.key === "mock")).toBe(false);
 
-    const enable = await app.inject({ method: "PUT", url: "/api/v1/sources/mock/enabled", payload: { enabled: true } });
+    const enable = await app.inject({
+      method: "PUT",
+      url: "/api/v1/sources/mock/enabled",
+      payload: { enabled: true },
+    });
     expect(enable.statusCode).toBe(200);
   });
 
@@ -141,17 +183,35 @@ describe("api v1 mock source", () => {
       payload: { url: "https://example.test/", text: "Cookie: a=1; b=two" },
     });
     expect(imported.statusCode).toBe(200);
-    expect(imported.json()).toEqual(expect.arrayContaining([expect.objectContaining({ key: "a", value: "1" }), expect.objectContaining({ key: "b", value: "two" })]));
+    expect(imported.json()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: "a", value: "1" }),
+        expect.objectContaining({ key: "b", value: "two" }),
+      ]),
+    );
   });
 
   it("stores reading history and reports cache stats", async () => {
     const history = await app.inject({
       method: "PUT",
       url: "/api/v1/library/history/mock/mock-comic-1",
-      payload: { title: "History Title", cover: "mock://cover/history", episodeId: "chapter-1", page: 2, progress: 0.4 },
+      payload: {
+        title: "History Title",
+        cover: "mock://cover/history",
+        episodeId: "chapter-1",
+        page: 2,
+        progress: 0.4,
+      },
     });
     expect(history.statusCode).toBe(200);
-    expect(history.json()).toMatchObject({ source_key: "mock", comic_id: "mock-comic-1", title: "History Title", cover: "mock://cover/history", episode_id: "chapter-1", page: 2 });
+    expect(history.json()).toMatchObject({
+      source_key: "mock",
+      comic_id: "mock-comic-1",
+      title: "History Title",
+      cover: "mock://cover/history",
+      episode_id: "chapter-1",
+      page: 2,
+    });
 
     const cache = await app.inject({ method: "GET", url: "/api/v1/settings/cache" });
     expect(cache.statusCode).toBe(200);
@@ -211,7 +271,9 @@ describe("api v1 mock source", () => {
         payload: { sourceKey: "mock", comicId: "mock-comic-events", episodeId: "chapter-1" },
       });
       expect(events.length).toBeGreaterThan(1);
-      expect(events.at(-1)).toEqual(expect.arrayContaining([expect.objectContaining({ comicId: "mock-comic-events" })]));
+      expect(events.at(-1)).toEqual(
+        expect.arrayContaining([expect.objectContaining({ comicId: "mock-comic-events" })]),
+      );
     } finally {
       unsubscribe();
     }
@@ -236,7 +298,10 @@ describe("api v1 mock source", () => {
       expect(paused.statusCode).toBe(200);
       expect(paused.json().status).toBe("paused");
 
-      const resumed = await app.inject({ method: "POST", url: `/api/v1/downloads/${taskId}/resume` });
+      const resumed = await app.inject({
+        method: "POST",
+        url: `/api/v1/downloads/${taskId}/resume`,
+      });
       expect(resumed.statusCode).toBe(200);
       expect(resumed.json().status).toBe("queued");
     } finally {
@@ -276,13 +341,25 @@ describe("api v1 mock source", () => {
 
       const items = await app.inject({ method: "GET", url: `/api/v1/downloads/${taskId}/items` });
       expect(items.statusCode).toBe(200);
-      expect(items.json()).toContainEqual(expect.objectContaining({ image_key: "mock://image/mock-comic-failing-image/chapter-1/3", status: "failed", error_code: "HTTP_403" }));
+      expect(items.json()).toContainEqual(
+        expect.objectContaining({
+          image_key: "mock://image/mock-comic-failing-image/chapter-1/3",
+          status: "failed",
+          error_code: "HTTP_403",
+        }),
+      );
 
       context.imageProxy.loadBytes = originalLoadBytes;
-      const retryFailed = await app.inject({ method: "POST", url: `/api/v1/downloads/${taskId}/items/retry-failed` });
+      const retryFailed = await app.inject({
+        method: "POST",
+        url: `/api/v1/downloads/${taskId}/items/retry-failed`,
+      });
       expect(retryFailed.statusCode).toBe(200);
       expect(retryFailed.json()).toMatchObject({ retried: 1 });
-      expect(retryFailed.json().results[0]).toMatchObject({ ok: true, imageKey: "mock://image/mock-comic-failing-image/chapter-1/3" });
+      expect(retryFailed.json().results[0]).toMatchObject({
+        ok: true,
+        imageKey: "mock://image/mock-comic-failing-image/chapter-1/3",
+      });
     } finally {
       context.imageProxy.loadBytes = originalLoadBytes;
       config.downloadRetries = originalRetries;
@@ -297,7 +374,12 @@ describe("api v1 mock source", () => {
       return originalComicPages(sourceKey, comicId, episodeId);
     };
     context.imageProxy.loadBytes = async (input, useCache) => {
-      if (input.imageKey === "relative/image-key") return { data: Buffer.from("plain"), contentType: "application/octet-stream", cached: false };
+      if (input.imageKey === "relative/image-key")
+        return {
+          data: Buffer.from("plain"),
+          contentType: "application/octet-stream",
+          cached: false,
+        };
       return originalLoadBytes(input, useCache);
     };
 

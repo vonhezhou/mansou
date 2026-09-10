@@ -22,11 +22,18 @@ export function withAccessToken(url: string) {
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAccessToken();
   const response = await fetch(`${apiBase}${path}`, {
-    headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}), ...(init?.headers ?? {}) },
+    headers: {
+      "content-type": "application/json",
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...(init?.headers ?? {}),
+    },
     ...init,
   });
   const contentType = response.headers.get("content-type") ?? "";
-  const body = contentType.includes("application/json") ? await response.json() : await response.text();
-  if (!response.ok) throw new Error((body as ApiErrorBody)?.error?.message ?? `HTTP ${response.status}`);
+  const body = contentType.includes("application/json")
+    ? await response.json()
+    : await response.text();
+  if (!response.ok)
+    throw new Error((body as ApiErrorBody)?.error?.message ?? `HTTP ${response.status}`);
   return body as T;
 }

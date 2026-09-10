@@ -31,14 +31,23 @@ export function useSearch(options: UseSearchOptions) {
   const [episodeId, setEpisodeId] = useState<string | null>(null);
   const [selectedEpisodeIds, setSelectedEpisodeIds] = useState<string[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [episodePageCounts, setEpisodePageCounts] = useState<Record<string, number>>({});
   const [downloadCreateStatus, setDownloadCreateStatus] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [previewingChapter, setPreviewingChapter] = useState(false);
+  const [countingPages, setCountingPages] = useState(false);
   const [creatingDownload, setCreatingDownload] = useState(false);
 
   function syncAggregateSources(sources: Source[]) {
-    setAggregateSourceKeys((current) => current.length ? current.filter((key) => sources.some((source) => source.key === key)) : sources.filter((source) => source.hasSearch).slice(0, 1).map((source) => source.key));
+    setAggregateSourceKeys((current) =>
+      current.length
+        ? current.filter((key) => sources.some((source) => source.key === key))
+        : sources
+            .filter((source) => source.hasSearch)
+            .slice(0, 1)
+            .map((source) => source.key),
+    );
   }
 
   async function search() {
@@ -81,7 +90,11 @@ export function useSearch(options: UseSearchOptions) {
   async function loadMoreResults() {
     await options.runWith(setSearching, async () => {
       const nextPage = searchPage + 1;
-      const data = await veneraApi.search(options.sourceKey, keyword, searchNext ? { next: searchNext } : { page: nextPage });
+      const data = await veneraApi.search(
+        options.sourceKey,
+        keyword,
+        searchNext ? { next: searchNext } : { page: nextPage },
+      );
       startTransition(() => {
         setResults((current) => [...current, ...(data.comics ?? [])]);
         setSearchPage(nextPage);
@@ -100,19 +113,71 @@ export function useSearch(options: UseSearchOptions) {
       setDetails(data);
       setEpisodeId(firstEpisode);
       setSelectedEpisodeIds([]);
+      setEpisodePageCounts({});
       setPreviewImages([]);
+      try {
+        const pages = await veneraApi.episodePages(
+          nextSourceKey,
+          data.comicId ?? data.id,
+          firstEpisode,
+        );
+        setPreviewImages(pages.images ?? []);
+        setEpisodePageCounts({ [firstEpisode]: pages.images?.length ?? 0 });
+      } catch {
+        // 详情仍然可用；部分源只能在用户完成登录或设置后返回章节图片。
+      }
     });
   }
 
   async function previewEpisode(nextEpisodeId = episodeId, initialPage = 0) {
     if (!details || !nextEpisodeId) return;
     await options.runWith(setPreviewingChapter, async () => {
-      const data = await veneraApi.episodePages(options.detailSourceKey, details.comicId ?? details.id, nextEpisodeId);
+      const data = await veneraApi.episodePages(
+        options.detailSourceKey,
+        details.comicId ?? details.id,
+        nextEpisodeId,
+      );
       setEpisodeId(nextEpisodeId);
       setPreviewImages(data.images ?? []);
-      await veneraApi.saveHistory(options.detailSourceKey, details.comicId ?? details.id, { episodeId: nextEpisodeId, page: initialPage, progress: data.images.length > 0 ? initialPage / data.images.length : 0 });
+      setEpisodePageCounts((current) => ({
+        ...current,
+        [nextEpisodeId]: data.images?.length ?? 0,
+      }));
+      await veneraApi.saveHistory(options.detailSourceKey, details.comicId ?? details.id, {
+        episodeId: nextEpisodeId,
+        page: initialPage,
+        progress: data.images.length > 0 ? initialPage / data.images.length : 0,
+      });
       options.setHistory(await veneraApi.listHistory());
-      if (initialPage > 0) window.setTimeout(() => document.getElementById(`page-${initialPage + 1}`)?.scrollIntoView({ block: "start" }), 100);
+      if (initialPage > 0)
+        window.setTimeout(
+          () =>
+            document.getElementById(`page-${initialPage + 1}`)?.scrollIntoView({ block: "start" }),
+          100,
+        );
+    });
+  }
+
+  async function countAllPages() {
+    if (!details) return;
+    const chapterIds = Object.keys(details.chapters ?? {});
+    if (chapterIds.length === 0) return;
+    await options.runWith(setCountingPages, async () => {
+      const nextCounts = { ...episodePageCounts };
+      for (const chapterId of chapterIds) {
+        if (nextCounts[chapterId] !== undefined) continue;
+        try {
+          const pages = await veneraApi.episodePages(
+            options.detailSourceKey,
+            details.comicId ?? details.id,
+            chapterId,
+          );
+          nextCounts[chapterId] = pages.images?.length ?? 0;
+          setEpisodePageCounts({ ...nextCounts });
+        } catch {
+          // 单章失败不应阻断已可统计的章节，也不把不完整结果伪装成总页数。
+        }
+      }
     });
   }
 
@@ -122,9 +187,14 @@ export function useSearch(options: UseSearchOptions) {
       const comicId = details.comicId ?? details.id;
       const firstEpisode = Object.keys(details.chapters ?? {})[0] ?? "_default";
       const episodeIds = mode === "selected" ? selectedEpisodeIds : [firstEpisode];
-      const requests = mode === "all"
-        ? [{ sourceKey: options.detailSourceKey, comicId, all: true }]
-        : episodeIds.map((id) => ({ sourceKey: options.detailSourceKey, comicId, episodeId: id }));
+      const requests =
+        mode === "all"
+          ? [{ sourceKey: options.detailSourceKey, comicId, all: true }]
+          : episodeIds.map((id) => ({
+              sourceKey: options.detailSourceKey,
+              comicId,
+              episodeId: id,
+            }));
       let success = 0;
       let failed = 0;
       setDownloadCreateStatus(`创建中：0/${requests.length}`);
@@ -135,7 +205,9 @@ export function useSearch(options: UseSearchOptions) {
         } catch {
           failed += 1;
         }
-        setDownloadCreateStatus(`创建中：${success + failed}/${requests.length}，成功 ${success}，失败 ${failed}`);
+        setDownloadCreateStatus(
+          `创建中：${success + failed}/${requests.length}，成功 ${success}，失败 ${failed}`,
+        );
       }
       setDownloadCreateStatus(`创建完成：成功 ${success}，失败 ${failed}`);
       options.setActiveTab("downloads");
@@ -152,22 +224,29 @@ export function useSearch(options: UseSearchOptions) {
   }
 
   function toggleAggregateSource(source: string) {
-    setAggregateSourceKeys((current) => current.includes(source) ? current.filter((key) => key !== source) : [...current, source]);
+    setAggregateSourceKeys((current) =>
+      current.includes(source) ? current.filter((key) => key !== source) : [...current, source],
+    );
   }
 
   function toggleSelectedEpisode(id: string) {
-    setSelectedEpisodeIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+    setSelectedEpisodeIds((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+    );
   }
 
   function selectEpisodes(action: "all" | "clear" | "invert") {
     const ids = Object.keys(details?.chapters ?? {});
     if (action === "all") setSelectedEpisodeIds(ids);
     if (action === "clear") setSelectedEpisodeIds([]);
-    if (action === "invert") setSelectedEpisodeIds((current) => ids.filter((id) => !current.includes(id)));
+    if (action === "invert")
+      setSelectedEpisodeIds((current) => ids.filter((id) => !current.includes(id)));
   }
 
-  const canLoadMore = Boolean(searchNext) || (searchMaxPage !== undefined && searchPage < searchMaxPage);
-  const searchBusy = searching || loadingDetails || previewingChapter || creatingDownload;
+  const canLoadMore =
+    Boolean(searchNext) || (searchMaxPage !== undefined && searchPage < searchMaxPage);
+  const searchBusy =
+    searching || loadingDetails || previewingChapter || countingPages || creatingDownload;
 
   return {
     aggregateResultLayout,
@@ -176,6 +255,7 @@ export function useSearch(options: UseSearchOptions) {
     canLoadMore,
     details,
     downloadCreateStatus,
+    episodePageCounts,
     episodeId,
     hasSearched,
     keyword,
@@ -195,6 +275,7 @@ export function useSearch(options: UseSearchOptions) {
     openComic,
     previewEpisode,
     createDownload,
+    countAllPages,
     downloadComic,
     toggleAggregateSource,
     toggleSelectedEpisode,

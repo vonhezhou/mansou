@@ -5,16 +5,25 @@ import path from "node:path";
 import type { ComicDetails, LoadedSource, SearchResult } from "../types/source.js";
 import { config } from "../config/config.js";
 
-type WorkerResponse = { id: number; ok: true; result: unknown } | { id: number; ok: false; error: string };
+type WorkerResponse =
+  | { id: number; ok: true; result: unknown }
+  | { id: number; ok: false; error: string };
 type WorkerStatus = "starting" | "running" | "crashed" | "closed";
 
 export class WorkerSourceRuntimeAdapter {
   private nextId = 1;
-  private readonly pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: NodeJS.Timeout }>();
+  private readonly pending = new Map<
+    number,
+    { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: NodeJS.Timeout }
+  >();
   private status: WorkerStatus = "running";
   private lastError?: string;
 
-  constructor(private readonly worker: Worker, readonly source: LoadedSource, private readonly onCrash?: (sourceKey: string, error: Error) => void) {
+  constructor(
+    private readonly worker: Worker,
+    readonly source: LoadedSource,
+    private readonly onCrash?: (sourceKey: string, error: Error) => void,
+  ) {
     worker.unref();
     worker.on("message", (message: WorkerResponse) => this.handleMessage(message));
     worker.on("error", (error) => this.markCrashed(error));
@@ -28,10 +37,18 @@ export class WorkerSourceRuntimeAdapter {
   static async load(filePath: string, onCrash?: (sourceKey: string, error: Error) => void) {
     const workerUrl = resolveWorkerUrl();
     const worker = new Worker(workerUrl, {
-      execArgv: workerUrl.pathname.endsWith(".ts") ? ["--import", "tsx"] : process.execArgv.filter((arg) => arg !== "--input-type=module" && !arg.startsWith("--input-type=")),
+      execArgv: workerUrl.pathname.endsWith(".ts")
+        ? ["--import", "tsx"]
+        : process.execArgv.filter(
+            (arg) => arg !== "--input-type=module" && !arg.startsWith("--input-type="),
+          ),
       workerData: { filePath, dataDir: config.dataDir },
     });
-    const adapter = new WorkerSourceRuntimeAdapter(worker, await callWorker<LoadedSource>(worker, "metadata", []), onCrash);
+    const adapter = new WorkerSourceRuntimeAdapter(
+      worker,
+      await callWorker<LoadedSource>(worker, "metadata", []),
+      onCrash,
+    );
     return adapter;
   }
 
@@ -52,15 +69,35 @@ export class WorkerSourceRuntimeAdapter {
   }
 
   imageLoadFailed(imageKey: string, comicId: string, episodeId: string | null, message: string) {
-    return this.call<Record<string, unknown>>("imageLoadFailed", [imageKey, comicId, episodeId, message]);
+    return this.call<Record<string, unknown>>("imageLoadFailed", [
+      imageKey,
+      comicId,
+      episodeId,
+      message,
+    ]);
   }
 
-  imageResponse(imageKey: string, comicId: string, episodeId: string | null, response: { status: number; headers: Record<string, string>; url: string }) {
-    return this.call<Record<string, unknown>>("imageResponse", [imageKey, comicId, episodeId, response]);
+  imageResponse(
+    imageKey: string,
+    comicId: string,
+    episodeId: string | null,
+    response: { status: number; headers: Record<string, string>; url: string },
+  ) {
+    return this.call<Record<string, unknown>>("imageResponse", [
+      imageKey,
+      comicId,
+      episodeId,
+      response,
+    ]);
   }
 
   modifyImage(imageKey: string, comicId: string, episodeId: string | null, data: number[]) {
-    return this.call<{ data?: number[] } | undefined>("modifyImage", [imageKey, comicId, episodeId, data]);
+    return this.call<{ data?: number[] } | undefined>("modifyImage", [
+      imageKey,
+      comicId,
+      episodeId,
+      data,
+    ]);
   }
 
   thumbnailLoadingConfig(imageKey: string) {
@@ -85,7 +122,8 @@ export class WorkerSourceRuntimeAdapter {
   }
 
   private call<T>(method: string, args: unknown[]) {
-    if (this.status !== "running") return Promise.reject(new Error(`Plugin worker is ${this.status}: ${this.source.key}`));
+    if (this.status !== "running")
+      return Promise.reject(new Error(`Plugin worker is ${this.status}: ${this.source.key}`));
     const id = this.nextId;
     this.nextId += 1;
     const timeoutMs = config.pluginCallTimeoutMs;
@@ -136,7 +174,9 @@ function callWorker<T>(worker: Worker, method: string, args: unknown[]) {
     const id = 0;
     const timer = setTimeout(() => {
       cleanup();
-      reject(new Error(`Plugin worker call timed out: ${method} after ${config.pluginCallTimeoutMs}ms`));
+      reject(
+        new Error(`Plugin worker call timed out: ${method} after ${config.pluginCallTimeoutMs}ms`),
+      );
     }, config.pluginCallTimeoutMs);
     const cleanup = () => {
       clearTimeout(timer);
@@ -168,9 +208,12 @@ function callWorker<T>(worker: Worker, method: string, args: unknown[]) {
 
 function resolveWorkerUrl() {
   const sourcePath = fileURLToPath(import.meta.url);
-  if (sourcePath.endsWith(".ts")) return pathToFileURL(path.join(path.dirname(sourcePath), "workerSourceRuntimeWorker.ts"));
+  if (sourcePath.endsWith(".ts"))
+    return pathToFileURL(path.join(path.dirname(sourcePath), "workerSourceRuntimeWorker.ts"));
   const sibling = new URL("./workerSourceRuntimeWorker.js", import.meta.url);
   if (existsSync(fileURLToPath(sibling))) return sibling;
-  const distPath = sourcePath.replace(`${path.sep}src${path.sep}`, `${path.sep}dist${path.sep}`).replace(/\.ts$/, ".js");
+  const distPath = sourcePath
+    .replace(`${path.sep}src${path.sep}`, `${path.sep}dist${path.sep}`)
+    .replace(/\.ts$/, ".js");
   return pathToFileURL(path.join(path.dirname(distPath), "workerSourceRuntimeWorker.js"));
 }

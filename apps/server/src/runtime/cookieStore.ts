@@ -13,7 +13,9 @@ export class SourceCookieStore {
     const cached = this.jars.get(sourceKey);
     if (cached) return cached;
 
-    const serialized = this.storage?.getCookieJar(sourceKey) ?? (await readJson<SerializedCookieJar | null>(this.filePath(sourceKey), null));
+    const serialized =
+      this.storage?.getCookieJar(sourceKey) ??
+      (await readJson<SerializedCookieJar | null>(this.filePath(sourceKey), null));
     const jar = serialized ? CookieJar.deserializeSync(serialized) : new CookieJar();
     this.jars.set(sourceKey, jar);
     return jar;
@@ -34,7 +36,11 @@ export class SourceCookieStore {
     return serialized?.cookies ?? [];
   }
 
-  async import(sourceKey: string, url: string, cookies: Array<string | Record<string, unknown>> | string) {
+  async import(
+    sourceKey: string,
+    url: string,
+    cookies: Array<string | Record<string, unknown>> | string,
+  ) {
     const jar = await this.getJar(sourceKey);
     for (const item of normalizeCookieInput(cookies)) {
       if (typeof item === "string") {
@@ -64,13 +70,16 @@ export class SourceCookieStore {
   }
 }
 
-function normalizeCookieInput(cookies: Array<string | Record<string, unknown>> | string): Array<string | Record<string, unknown>> {
+function normalizeCookieInput(
+  cookies: Array<string | Record<string, unknown>> | string,
+): Array<string | Record<string, unknown>> {
   if (Array.isArray(cookies)) return flattenCookieItems(cookies);
   const trimmed = cookies.trim();
   if (!trimmed) return [];
   try {
     const parsed = JSON.parse(trimmed) as unknown;
-    if (Array.isArray(parsed)) return flattenCookieItems(parsed as Array<string | Record<string, unknown>>);
+    if (Array.isArray(parsed))
+      return flattenCookieItems(parsed as Array<string | Record<string, unknown>>);
   } catch {
     // Plain cookie text.
   }
@@ -87,9 +96,14 @@ function flattenCookieItems(cookies: Array<string | Record<string, unknown>>) {
 }
 
 function parseCookieText(text: string) {
-  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  if (lines.length === 1 && /^cookie:/i.test(lines[0])) return splitCookieHeader(lines[0].replace(/^cookie:\s*/i, ""));
-  if (lines.length === 1 && lines[0].includes(";") && !/expires=/i.test(lines[0])) return splitCookieHeader(lines[0]);
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length === 1 && /^cookie:/i.test(lines[0]))
+    return splitCookieHeader(lines[0].replace(/^cookie:\s*/i, ""));
+  if (lines.length === 1 && lines[0].includes(";") && !/expires=/i.test(lines[0]))
+    return splitCookieHeader(lines[0]);
   return lines.flatMap((line) => {
     if (line.startsWith("#")) return [];
     const netscape = parseNetscapeCookie(line);
@@ -99,7 +113,11 @@ function parseCookieText(text: string) {
 }
 
 function splitCookieHeader(value: string) {
-  return value.split(";").map((part) => part.trim()).filter(Boolean).filter((part) => part.includes("="));
+  return value
+    .split(";")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part) => part.includes("="));
 }
 
 function parseNetscapeCookie(line: string) {

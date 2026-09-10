@@ -29,7 +29,9 @@ class AppStorage {
 
   setPluginData(sourceKey: string, key: string, value: unknown) {
     this.db
-      .prepare("insert into plugin_data(source_key, key, value_json, updated_at) values (?, ?, ?, ?) on conflict(source_key, key) do update set value_json = excluded.value_json, updated_at = excluded.updated_at")
+      .prepare(
+        "insert into plugin_data(source_key, key, value_json, updated_at) values (?, ?, ?, ?) on conflict(source_key, key) do update set value_json = excluded.value_json, updated_at = excluded.updated_at",
+      )
       .run(sourceKey, key, JSON.stringify(value), new Date().toISOString());
   }
 
@@ -45,16 +47,38 @@ class AppStorage {
     return this.db.prepare("select * from sources where key = ?").get(key) ?? null;
   }
 
-  upsertSource(input: { key: string; name: string; version?: string; scriptPath?: string; scriptUrl?: string; hash?: string; enabled?: boolean }) {
+  upsertSource(input: {
+    key: string;
+    name: string;
+    version?: string;
+    scriptPath?: string;
+    scriptUrl?: string;
+    hash?: string;
+    enabled?: boolean;
+  }) {
     const now = new Date().toISOString();
     this.db
-      .prepare("insert into sources(key, name, version, enabled, script_path, script_url, hash, installed_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?) on conflict(key) do update set name = excluded.name, version = excluded.version, script_path = excluded.script_path, script_url = excluded.script_url, hash = excluded.hash, updated_at = excluded.updated_at")
-      .run(input.key, input.name, input.version ?? null, input.enabled === false ? 0 : 1, input.scriptPath ?? null, input.scriptUrl ?? null, input.hash ?? null, now, now);
+      .prepare(
+        "insert into sources(key, name, version, enabled, script_path, script_url, hash, installed_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?) on conflict(key) do update set name = excluded.name, version = excluded.version, script_path = excluded.script_path, script_url = excluded.script_url, hash = excluded.hash, updated_at = excluded.updated_at",
+      )
+      .run(
+        input.key,
+        input.name,
+        input.version ?? null,
+        input.enabled === false ? 0 : 1,
+        input.scriptPath ?? null,
+        input.scriptUrl ?? null,
+        input.hash ?? null,
+        now,
+        now,
+      );
     return this.getSource(input.key);
   }
 
   setSourceEnabled(key: string, enabled: boolean) {
-    this.db.prepare("update sources set enabled = ?, updated_at = ? where key = ?").run(enabled ? 1 : 0, new Date().toISOString(), key);
+    this.db
+      .prepare("update sources set enabled = ?, updated_at = ? where key = ?")
+      .run(enabled ? 1 : 0, new Date().toISOString(), key);
     return this.getSource(key);
   }
 
@@ -67,10 +91,13 @@ class AppStorage {
 
   setSourceSettings(sourceKey: string, values: Record<string, unknown>) {
     const now = new Date().toISOString();
-    const insert = this.db.prepare("insert into source_settings(source_key, key, value_json, updated_at) values (?, ?, ?, ?) on conflict(source_key, key) do update set value_json = excluded.value_json, updated_at = excluded.updated_at");
+    const insert = this.db.prepare(
+      "insert into source_settings(source_key, key, value_json, updated_at) values (?, ?, ?, ?) on conflict(source_key, key) do update set value_json = excluded.value_json, updated_at = excluded.updated_at",
+    );
     const tx = this.db.transaction(() => {
       this.db.prepare("delete from source_settings where source_key = ?").run(sourceKey);
-      for (const [key, value] of Object.entries(values)) insert.run(sourceKey, key, JSON.stringify(value), now);
+      for (const [key, value] of Object.entries(values))
+        insert.run(sourceKey, key, JSON.stringify(value), now);
     });
     tx();
   }
@@ -80,24 +107,32 @@ class AppStorage {
   }
 
   getCookieJar(sourceKey: string) {
-    const row = this.db.prepare("select jar_json from source_cookies where source_key = ?").get(sourceKey) as { jar_json: string } | undefined;
+    const row = this.db
+      .prepare("select jar_json from source_cookies where source_key = ?")
+      .get(sourceKey) as { jar_json: string } | undefined;
     return row ? JSON.parse(row.jar_json) : null;
   }
 
   setCookieJar(sourceKey: string, jar: unknown) {
     this.db
-      .prepare("insert into source_cookies(source_key, jar_json, updated_at) values (?, ?, ?) on conflict(source_key) do update set jar_json = excluded.jar_json, updated_at = excluded.updated_at")
+      .prepare(
+        "insert into source_cookies(source_key, jar_json, updated_at) values (?, ?, ?) on conflict(source_key) do update set jar_json = excluded.jar_json, updated_at = excluded.updated_at",
+      )
       .run(sourceKey, JSON.stringify(jar), new Date().toISOString());
   }
 
   listDownloads() {
-    const rows = this.db.prepare("select task_json from downloads order by created_at asc").all() as Array<{ task_json: string }>;
+    const rows = this.db
+      .prepare("select task_json from downloads order by created_at asc")
+      .all() as Array<{ task_json: string }>;
     return rows.map((row) => JSON.parse(row.task_json));
   }
 
   saveDownload(task: Record<string, unknown>) {
     this.db
-      .prepare("insert into downloads(id, source_key, comic_id, episode_id, status, task_json, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set source_key = excluded.source_key, comic_id = excluded.comic_id, episode_id = excluded.episode_id, status = excluded.status, task_json = excluded.task_json, updated_at = excluded.updated_at")
+      .prepare(
+        "insert into downloads(id, source_key, comic_id, episode_id, status, task_json, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set source_key = excluded.source_key, comic_id = excluded.comic_id, episode_id = excluded.episode_id, status = excluded.status, task_json = excluded.task_json, updated_at = excluded.updated_at",
+      )
       .run(
         String(task.id),
         String(task.sourceKey),
@@ -115,10 +150,14 @@ class AppStorage {
   }
 
   saveDownloads(tasks: Array<Record<string, unknown>>) {
-    const insert = this.db.prepare("insert into downloads(id, source_key, comic_id, episode_id, status, task_json, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set source_key = excluded.source_key, comic_id = excluded.comic_id, episode_id = excluded.episode_id, status = excluded.status, task_json = excluded.task_json, updated_at = excluded.updated_at");
+    const insert = this.db.prepare(
+      "insert into downloads(id, source_key, comic_id, episode_id, status, task_json, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set source_key = excluded.source_key, comic_id = excluded.comic_id, episode_id = excluded.episode_id, status = excluded.status, task_json = excluded.task_json, updated_at = excluded.updated_at",
+    );
     const tx = this.db.transaction(() => {
       const ids = new Set(tasks.map((task) => String(task.id)));
-      for (const row of this.db.prepare("select id from downloads").all() as Array<{ id: string }>) {
+      for (const row of this.db.prepare("select id from downloads").all() as Array<{
+        id: string;
+      }>) {
         if (!ids.has(row.id)) this.db.prepare("delete from downloads where id = ?").run(row.id);
       }
       for (const task of tasks) {
@@ -137,19 +176,45 @@ class AppStorage {
     tx();
   }
 
-  saveDownloadItem(input: { taskId: string; imageKey: string; filePath?: string; status: string; retryCount?: number; error?: string; errorCode?: string }) {
+  saveDownloadItem(input: {
+    taskId: string;
+    imageKey: string;
+    filePath?: string;
+    status: string;
+    retryCount?: number;
+    error?: string;
+    errorCode?: string;
+  }) {
     const id = `${input.taskId}:${input.imageKey}`;
     this.db
-      .prepare("insert into download_items(id, task_id, image_key, file_path, status, retry_count, error, error_code, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set file_path = excluded.file_path, status = excluded.status, retry_count = excluded.retry_count, error = excluded.error, error_code = excluded.error_code, updated_at = excluded.updated_at")
-      .run(id, input.taskId, input.imageKey, input.filePath ?? null, input.status, input.retryCount ?? 0, input.error ?? null, input.errorCode ?? null, new Date().toISOString());
+      .prepare(
+        "insert into download_items(id, task_id, image_key, file_path, status, retry_count, error, error_code, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set file_path = excluded.file_path, status = excluded.status, retry_count = excluded.retry_count, error = excluded.error, error_code = excluded.error_code, updated_at = excluded.updated_at",
+      )
+      .run(
+        id,
+        input.taskId,
+        input.imageKey,
+        input.filePath ?? null,
+        input.status,
+        input.retryCount ?? 0,
+        input.error ?? null,
+        input.errorCode ?? null,
+        new Date().toISOString(),
+      );
   }
 
   getDownloadItem(taskId: string, imageKey: string) {
-    return this.db.prepare("select * from download_items where task_id = ? and image_key = ?").get(taskId, imageKey) ?? null;
+    return (
+      this.db
+        .prepare("select * from download_items where task_id = ? and image_key = ?")
+        .get(taskId, imageKey) ?? null
+    );
   }
 
   listDownloadItems(taskId: string) {
-    return this.db.prepare("select * from download_items where task_id = ? order by id asc").all(taskId);
+    return this.db
+      .prepare("select * from download_items where task_id = ? order by id asc")
+      .all(taskId);
   }
 
   deleteDownloadItems(taskId: string) {
@@ -161,15 +226,39 @@ class AppStorage {
   }
 
   getHistory(sourceKey: string, comicId: string) {
-    return this.db.prepare("select * from history where source_key = ? and comic_id = ?").get(sourceKey, comicId) ?? null;
+    return (
+      this.db
+        .prepare("select * from history where source_key = ? and comic_id = ?")
+        .get(sourceKey, comicId) ?? null
+    );
   }
 
-  saveHistory(input: { sourceKey: string; comicId: string; title?: string; cover?: string; episodeId?: string; page?: number; progress?: number }) {
+  saveHistory(input: {
+    sourceKey: string;
+    comicId: string;
+    title?: string;
+    cover?: string;
+    episodeId?: string;
+    page?: number;
+    progress?: number;
+  }) {
     const id = `${input.sourceKey}:${input.comicId}`;
     const now = new Date().toISOString();
     this.db
-      .prepare("insert into history(id, source_key, comic_id, title, cover, episode_id, page, progress, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set title = coalesce(excluded.title, history.title), cover = coalesce(excluded.cover, history.cover), episode_id = excluded.episode_id, page = excluded.page, progress = excluded.progress, updated_at = excluded.updated_at")
-      .run(id, input.sourceKey, input.comicId, input.title ?? null, input.cover ?? null, input.episodeId ?? null, input.page ?? 0, input.progress ?? 0, now);
+      .prepare(
+        "insert into history(id, source_key, comic_id, title, cover, episode_id, page, progress, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set title = coalesce(excluded.title, history.title), cover = coalesce(excluded.cover, history.cover), episode_id = excluded.episode_id, page = excluded.page, progress = excluded.progress, updated_at = excluded.updated_at",
+      )
+      .run(
+        id,
+        input.sourceKey,
+        input.comicId,
+        input.title ?? null,
+        input.cover ?? null,
+        input.episodeId ?? null,
+        input.page ?? 0,
+        input.progress ?? 0,
+        now,
+      );
     return this.getHistory(input.sourceKey, input.comicId);
   }
 }
@@ -181,7 +270,9 @@ function migrate(db: Database.Database) {
       applied_at text not null
     );
   `);
-  const current = db.prepare("select max(version) as version from schema_migrations").get() as { version: number | null };
+  const current = db.prepare("select max(version) as version from schema_migrations").get() as {
+    version: number | null;
+  };
   const version = current.version ?? 0;
   if (version < 1) {
     db.exec(`
@@ -281,7 +372,9 @@ function migrate(db: Database.Database) {
     db.exec("insert into schema_migrations(version, applied_at) values (2, datetime('now'))");
   }
   if (version < 3) {
-    const columns = db.prepare("pragma table_info(download_items)").all() as Array<{ name: string }>;
+    const columns = db.prepare("pragma table_info(download_items)").all() as Array<{
+      name: string;
+    }>;
     const names = new Set(columns.map((column) => column.name));
     if (!names.has("error_code")) db.exec("alter table download_items add column error_code text");
     db.exec("insert into schema_migrations(version, applied_at) values (3, datetime('now'))");

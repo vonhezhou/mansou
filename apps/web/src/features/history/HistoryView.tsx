@@ -7,8 +7,20 @@ type HistoryViewProps = {
 };
 
 export function HistoryView({ history, onOpenHistoryItem }: HistoryViewProps) {
-  return <section className="panel history">
-    <h2>最近记录</h2>
-    {history.length === 0 ? <p className="muted">暂无历史记录，可以先去搜索漫画。</p> : history.map((item) => <HistoryItemCard item={item} key={`${item.sourceKey ?? item.source_key}:${item.comicId ?? item.comic_id}:${item.episodeId ?? item.episode_id}`} onOpenHistoryItem={onOpenHistoryItem} />)}
-  </section>;
+  return (
+    <section className="panel history">
+      <h2>最近记录</h2>
+      {history.length === 0 ? (
+        <p className="muted">暂无历史记录，可以先去搜索漫画。</p>
+      ) : (
+        history.map((item) => (
+          <HistoryItemCard
+            item={item}
+            key={`${item.sourceKey ?? item.source_key}:${item.comicId ?? item.comic_id}:${item.episodeId ?? item.episode_id}`}
+            onOpenHistoryItem={onOpenHistoryItem}
+          />
+        ))
+      )}
+    </section>
+  );
 }

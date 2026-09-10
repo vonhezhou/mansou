@@ -21,7 +21,9 @@ export async function registerComicRoutes(app: FastifyInstance, context: RouteCo
   });
 
   app.get("/comics/:sourceKey/:comicId/episodes/:episodeId/pages", async (request) => {
-    const params = z.object({ sourceKey: z.string(), comicId: z.string(), episodeId: z.string() }).parse(request.params);
+    const params = z
+      .object({ sourceKey: z.string(), comicId: z.string(), episodeId: z.string() })
+      .parse(request.params);
     return context.runtime.comicPages(params.sourceKey, params.comicId, params.episodeId);
   });
 }

@@ -17,9 +17,29 @@ export function getDownloadImageKey(item: DownloadItem) {
 
 export function groupDownloads(downloads: DownloadTask[]): DownloadGroup[] {
   return [
-    { key: "active", title: "进行中", tasks: downloads.filter((task) => ["queued", "running"].includes(task.status)) },
-    { key: "failed", title: "失败", tasks: downloads.filter((task) => task.status === "failed" || Boolean(task.error)) },
-    { key: "done", title: "完成", tasks: downloads.filter((task) => task.status === "done" || task.status === "completed") },
-    { key: "other", title: "其他", tasks: downloads.filter((task) => !["queued", "running", "failed", "done", "completed"].includes(task.status) && !task.error) },
+    {
+      key: "active",
+      title: "进行中",
+      tasks: downloads.filter((task) => ["queued", "running"].includes(task.status)),
+    },
+    {
+      key: "failed",
+      title: "失败",
+      tasks: downloads.filter((task) => task.status === "failed" || Boolean(task.error)),
+    },
+    {
+      key: "done",
+      title: "完成",
+      tasks: downloads.filter((task) => task.status === "done" || task.status === "completed"),
+    },
+    {
+      key: "other",
+      title: "其他",
+      tasks: downloads.filter(
+        (task) =>
+          !["queued", "running", "failed", "done", "completed"].includes(task.status) &&
+          !task.error,
+      ),
+    },
   ].filter((group) => group.tasks.length > 0);
 }

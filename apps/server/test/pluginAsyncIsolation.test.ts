@@ -31,7 +31,10 @@ describe("plugin async task isolation", () => {
       await runtime.loadScript(sourceFile);
       await new Promise((resolve) => setTimeout(resolve, 50));
       expect(unhandled).not.toHaveBeenCalled();
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining("[async_bad] plugin async task failed"), expect.anything());
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining("[async_bad] plugin async task failed"),
+        expect.anything(),
+      );
     } finally {
       process.off("unhandledRejection", unhandled);
       warn.mockRestore();

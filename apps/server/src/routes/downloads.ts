@@ -21,7 +21,14 @@ export async function registerDownloadRoutes(app: FastifyInstance, context: Rout
   });
 
   app.post("/downloads", async (request) => {
-    const body = z.object({ sourceKey: z.string(), comicId: z.string(), episodeId: z.string().optional(), all: z.boolean().optional() }).parse(request.body);
+    const body = z
+      .object({
+        sourceKey: z.string(),
+        comicId: z.string(),
+        episodeId: z.string().optional(),
+        all: z.boolean().optional(),
+      })
+      .parse(request.body);
     return context.downloads.create(body);
   });
 
@@ -36,7 +43,8 @@ export async function registerDownloadRoutes(app: FastifyInstance, context: Rout
 
   app.get("/downloads/:taskId/items", async (request) => {
     const params = z.object({ taskId: z.string() }).parse(request.params);
-    if (!context.downloads.find(params.taskId)) throw notFound("DOWNLOAD_NOT_FOUND", "Download task not found");
+    if (!context.downloads.find(params.taskId))
+      throw notFound("DOWNLOAD_NOT_FOUND", "Download task not found");
     return context.storage.listDownloadItems(params.taskId);
   });
 
@@ -90,7 +98,7 @@ export async function registerDownloadRoutes(app: FastifyInstance, context: Rout
     return result;
   });
 
-  app.delete("/downloads/:taskId", async (request, reply) => {
+  app.delete("/downloads/:taskId", async (request) => {
     const params = z.object({ taskId: z.string() }).parse(request.params);
     const query = z.object({ files: z.coerce.boolean().optional() }).parse(request.query);
     const task = await context.downloads.delete(params.taskId, query.files ?? false);

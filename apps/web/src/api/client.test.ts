@@ -32,19 +32,35 @@ describe("api client", () => {
 
   it("appends token to resource urls", () => {
     saveAccessTokenValue("secret");
-    expect(withAccessToken("/api/v1/image?imageKey=a")).toBe("/api/v1/image?imageKey=a&access_token=secret");
+    expect(withAccessToken("/api/v1/image?imageKey=a")).toBe(
+      "/api/v1/image?imageKey=a&access_token=secret",
+    );
   });
 
   it("sends bearer token and parses json", async () => {
     saveAccessTokenValue("secret");
-    const fetchMock = vi.spyOn(window, "fetch").mockResolvedValue(new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json" } }));
+    const fetchMock = vi.spyOn(window, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        headers: { "content-type": "application/json" },
+      }),
+    );
 
     await expect(api<{ ok: boolean }>("/health")).resolves.toEqual({ ok: true });
-    expect(fetchMock).toHaveBeenCalledWith("/api/v1/health", expect.objectContaining({ headers: expect.objectContaining({ authorization: "Bearer secret" }) }));
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/health",
+      expect.objectContaining({
+        headers: expect.objectContaining({ authorization: "Bearer secret" }),
+      }),
+    );
   });
 
   it("uses server error message", async () => {
-    vi.spyOn(window, "fetch").mockResolvedValue(new Response(JSON.stringify({ error: { message: "bad request" } }), { status: 400, headers: { "content-type": "application/json" } }));
+    vi.spyOn(window, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ error: { message: "bad request" } }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      }),
+    );
 
     await expect(api("/broken")).rejects.toThrow("bad request");
   });

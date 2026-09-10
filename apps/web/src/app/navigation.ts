@@ -5,7 +5,7 @@ export const navigationItems = [
   { key: "sources", label: "源管理" },
 ] as const;
 
-export type TabKey = typeof navigationItems[number]["key"];
+export type TabKey = (typeof navigationItems)[number]["key"];
 
 export function isTabKey(value: string): value is TabKey {
   return navigationItems.some((item) => item.key === value);

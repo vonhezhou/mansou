@@ -21,7 +21,9 @@ describe("venera url helpers", () => {
   afterEach(() => window.localStorage.clear());
 
   it("builds image urls with context", () => {
-    expect(imageUrl("mock", "cover", "comic", "ep", true)).toBe("/api/v1/image?sourceKey=mock&imageKey=cover&thumbnail=true&comicId=comic&episodeId=ep");
+    expect(imageUrl("mock", "cover", "comic", "ep", true)).toBe(
+      "/api/v1/image?sourceKey=mock&imageKey=cover&thumbnail=true&comicId=comic&episodeId=ep",
+    );
   });
 
   it("adds access token to event stream url", () => {

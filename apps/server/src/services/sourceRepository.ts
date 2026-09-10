@@ -47,7 +47,9 @@ export class SourceRepositoryService {
       headers: { "user-agent": "venera-web-poc", "accept-encoding": "identity" },
     });
     if (!response.ok) {
-      throw new Error(`Failed to download source script: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `Failed to download source script: ${response.status} ${response.statusText}`,
+      );
     }
 
     const script = await response.text();
@@ -58,14 +60,24 @@ export class SourceRepositoryService {
     const fileName = this.resolveScriptFileName(item);
     const filePath = path.join(paths.scripts, fileName);
     await writeFile(filePath, script, "utf8");
-    return { ...item, scriptUrl, filePath, hash: crypto.createHash("sha256").update(script).digest("hex") };
+    return {
+      ...item,
+      scriptUrl,
+      filePath,
+      hash: crypto.createHash("sha256").update(script).digest("hex"),
+    };
   }
 
   async listInstalledScripts() {
     await ensureDir(paths.scripts);
     const files = await readdir(paths.scripts);
-    const installed = files.filter((file) => file.endsWith(".js")).map((file) => path.join(paths.scripts, file));
-    if (!installed.some((file) => path.basename(file) === "mock.js") && existsSync(paths.bundledMockSource)) {
+    const installed = files
+      .filter((file) => file.endsWith(".js"))
+      .map((file) => path.join(paths.scripts, file));
+    if (
+      !installed.some((file) => path.basename(file) === "mock.js") &&
+      existsSync(paths.bundledMockSource)
+    ) {
       installed.push(paths.bundledMockSource);
     }
     return installed;

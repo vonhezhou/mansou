@@ -34,7 +34,9 @@ function appendQuery(url: string, query?: RequestOptions["query"]) {
   return parsed.toString();
 }
 
-function normalizeRequestOptions(options: RequestOptions | Record<string, string> = {}): RequestOptions {
+function normalizeRequestOptions(
+  options: RequestOptions | Record<string, string> = {},
+): RequestOptions {
   const knownKeys = new Set(["headers", "method", "body", "data", "query", "timeout", "bytes"]);
   if (Object.keys(options).some((key) => knownKeys.has(key))) return options as RequestOptions;
   return { headers: options as Record<string, string> };
@@ -48,7 +50,8 @@ function toBuffer(value: BytesInput) {
 
 function normalizeBody(body: unknown) {
   if (body == null || typeof body === "string") return body;
-  if (body instanceof ArrayBuffer || ArrayBuffer.isView(body) || Array.isArray(body)) return toBuffer(body as BytesInput);
+  if (body instanceof ArrayBuffer || ArrayBuffer.isView(body) || Array.isArray(body))
+    return toBuffer(body as BytesInput);
   return JSON.stringify(body);
 }
 
@@ -58,12 +61,25 @@ function aesAlgorithm(key: BytesInput, mode: "ecb" | "cbc" | "cfb" | "ofb") {
   return `aes-${size}-${mode}`;
 }
 
-function decryptAes(mode: "ecb" | "cbc" | "cfb" | "ofb", value: BytesInput, key: BytesInput, iv?: BytesInput) {
-  const decipher = crypto.createDecipheriv(aesAlgorithm(key, mode), toBuffer(key), mode === "ecb" ? null : toBuffer(iv ?? []));
+function decryptAes(
+  mode: "ecb" | "cbc" | "cfb" | "ofb",
+  value: BytesInput,
+  key: BytesInput,
+  iv?: BytesInput,
+) {
+  const decipher = crypto.createDecipheriv(
+    aesAlgorithm(key, mode),
+    toBuffer(key),
+    mode === "ecb" ? null : toBuffer(iv ?? []),
+  );
   return Buffer.concat([decipher.update(toBuffer(value)), decipher.final()]);
 }
 
-export async function createRuntimeApi(sourceKey: string, dataStore: SourceDataStore, cookieStore: SourceCookieStore) {
+export async function createRuntimeApi(
+  sourceKey: string,
+  dataStore: SourceDataStore,
+  cookieStore: SourceCookieStore,
+) {
   const jar = await cookieStore.getJar(sourceKey);
 
   async function request(url: string, options: RequestOptions = {}) {
@@ -81,7 +97,10 @@ export async function createRuntimeApi(sourceKey: string, dataStore: SourceDataS
     if (cookie) headers.set("cookie", cookie);
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), options.timeout ?? config.requestTimeoutMs);
+    const timeout = setTimeout(
+      () => controller.abort(),
+      options.timeout ?? config.requestTimeoutMs,
+    );
     try {
       const body = options.body ?? options.data;
       const response = await fetchWithProxy(requestUrl, {
@@ -93,7 +112,8 @@ export async function createRuntimeApi(sourceKey: string, dataStore: SourceDataS
       });
 
       const setCookies =
-        typeof (response.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie === "function"
+        typeof (response.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie ===
+        "function"
           ? (response.headers as unknown as { getSetCookie: () => string[] }).getSetCookie()
           : response.headers.get("set-cookie")
             ? [response.headers.get("set-cookie") as string]
@@ -125,25 +145,49 @@ export async function createRuntimeApi(sourceKey: string, dataStore: SourceDataS
   const Network = {
     request,
     fetch: request,
-    fetchBytes: async (method: string, url: string, headers: Record<string, string> = {}, data?: BytesInput) => {
+    fetchBytes: async (
+      method: string,
+      url: string,
+      headers: Record<string, string> = {},
+      data?: BytesInput,
+    ) => {
       const result = await request(url, { method, headers, data, bytes: true });
       return { ...result, body: Buffer.from(result.bytes), data: Buffer.from(result.bytes) };
     },
-    sendRequest: (method: string, url: string, headers: Record<string, string> = {}, data?: BytesInput) =>
-      request(url, { method, headers, data }),
-    get: (url: string, options?: RequestOptions | Record<string, string>) => request(url, { ...normalizeRequestOptions(options), method: "GET" }),
+    sendRequest: (
+      method: string,
+      url: string,
+      headers: Record<string, string> = {},
+      data?: BytesInput,
+    ) => request(url, { method, headers, data }),
+    get: (url: string, options?: RequestOptions | Record<string, string>) =>
+      request(url, { ...normalizeRequestOptions(options), method: "GET" }),
     post: (url: string, options?: RequestOptions | Record<string, string>, data?: BytesInput) =>
-      request(url, { ...normalizeRequestOptions(options), method: "POST", data: data ?? normalizeRequestOptions(options).data }),
+      request(url, {
+        ...normalizeRequestOptions(options),
+        method: "POST",
+        data: data ?? normalizeRequestOptions(options).data,
+      }),
     put: (url: string, options?: RequestOptions | Record<string, string>, data?: BytesInput) =>
-      request(url, { ...normalizeRequestOptions(options), method: "PUT", data: data ?? normalizeRequestOptions(options).data }),
-    delete: (url: string, options?: RequestOptions | Record<string, string>) => request(url, { ...normalizeRequestOptions(options), method: "DELETE" }),
+      request(url, {
+        ...normalizeRequestOptions(options),
+        method: "PUT",
+        data: data ?? normalizeRequestOptions(options).data,
+      }),
+    delete: (url: string, options?: RequestOptions | Record<string, string>) =>
+      request(url, { ...normalizeRequestOptions(options), method: "DELETE" }),
     patch: (url: string, options?: RequestOptions | Record<string, string>, data?: BytesInput) =>
-      request(url, { ...normalizeRequestOptions(options), method: "PATCH", data: data ?? normalizeRequestOptions(options).data }),
+      request(url, {
+        ...normalizeRequestOptions(options),
+        method: "PATCH",
+        data: data ?? normalizeRequestOptions(options).data,
+      }),
     setCookies: async (url: string, cookies: string[] | Record<string, string>) => {
       if (Array.isArray(cookies)) {
         for (const cookie of cookies) await jar.setCookie(cookie, url);
       } else {
-        for (const [key, value] of Object.entries(cookies)) await jar.setCookie(`${key}=${value}`, url);
+        for (const [key, value] of Object.entries(cookies))
+          await jar.setCookie(`${key}=${value}`, url);
       }
       await cookieStore.save(sourceKey);
     },
@@ -175,26 +219,35 @@ export async function createRuntimeApi(sourceKey: string, dataStore: SourceDataS
           toArray: () => unknown[];
         };
         return {
-        text: () => anySelection.text(),
-        html: () => anySelection.html(),
-        attr: (name: string) => anySelection.attr(name),
-        length: anySelection.length,
-        eq: (index: number) => wrap(anySelection.eq(index)),
-        find: (selector: string) => wrap(anySelection.find(selector)),
-        map: (fn: (node: WrappedNode, index: number) => unknown) =>
-          anySelection.toArray().map((node, index) => fn(wrap($(node as string)), index)),
-        toArray: () => anySelection.toArray().map((node) => wrap($(node as string))),
-      };
+          text: () => anySelection.text(),
+          html: () => anySelection.html(),
+          attr: (name: string) => anySelection.attr(name),
+          length: anySelection.length,
+          eq: (index: number) => wrap(anySelection.eq(index)),
+          find: (selector: string) => wrap(anySelection.find(selector)),
+          map: (fn: (node: WrappedNode, index: number) => unknown) =>
+            anySelection.toArray().map((node, index) => fn(wrap($(node as string)), index)),
+          toArray: () => anySelection.toArray().map((node) => wrap($(node as string))),
+        };
       };
       return Object.assign((selector: string) => wrap($(selector)), { $ });
     },
   };
 
   class HtmlElement {
-    constructor(private readonly $: cheerio.CheerioAPI, private readonly selection: cheerio.Cheerio<unknown>) {}
+    constructor(
+      private readonly $: cheerio.CheerioAPI,
+      private readonly selection: cheerio.Cheerio<unknown>,
+    ) {}
 
     querySelector(selector: string) {
-      const found = (this.selection as unknown as { find: (selector: string) => { first: () => cheerio.Cheerio<unknown>; length: number } }).find(selector).first();
+      const found = (
+        this.selection as unknown as {
+          find: (selector: string) => { first: () => cheerio.Cheerio<unknown>; length: number };
+        }
+      )
+        .find(selector)
+        .first();
       return found.length === 0 ? null : new HtmlElement(this.$, found);
     }
 
@@ -202,8 +255,13 @@ export async function createRuntimeApi(sourceKey: string, dataStore: SourceDataS
       const self = (this.selection as unknown as { is: (selector: string) => boolean }).is(selector)
         ? [new HtmlElement(this.$, this.selection)]
         : [];
-      const found = (this.selection as unknown as { find: (selector: string) => cheerio.Cheerio<unknown> }).find(selector);
-      return [...self, ...found.toArray().map((node) => new HtmlElement(this.$, this.$(node as never)))];
+      const found = (
+        this.selection as unknown as { find: (selector: string) => cheerio.Cheerio<unknown> }
+      ).find(selector);
+      return [
+        ...self,
+        ...found.toArray().map((node) => new HtmlElement(this.$, this.$(node as never))),
+      ];
     }
 
     getElementById(id: string) {
@@ -220,7 +278,9 @@ export async function createRuntimeApi(sourceKey: string, dataStore: SourceDataS
     }
 
     get children() {
-      const children = (this.selection as unknown as { children: () => cheerio.Cheerio<unknown> }).children();
+      const children = (
+        this.selection as unknown as { children: () => cheerio.Cheerio<unknown> }
+      ).children();
       return children.toArray().map((node) => new HtmlElement(this.$, this.$(node as never)));
     }
 
@@ -230,7 +290,9 @@ export async function createRuntimeApi(sourceKey: string, dataStore: SourceDataS
     }
 
     get parent(): HtmlElement | null {
-      const parent = (this.selection as unknown as { parent: () => cheerio.Cheerio<unknown> }).parent();
+      const parent = (
+        this.selection as unknown as { parent: () => cheerio.Cheerio<unknown> }
+      ).parent();
       return parent.length === 0 ? null : new HtmlElement(this.$, parent);
     }
 
@@ -252,18 +314,25 @@ export async function createRuntimeApi(sourceKey: string, dataStore: SourceDataS
     }
 
     get previousSibling(): HtmlElement | null {
-      const sibling = (this.selection as unknown as { prev: () => cheerio.Cheerio<unknown> }).prev();
+      const sibling = (
+        this.selection as unknown as { prev: () => cheerio.Cheerio<unknown> }
+      ).prev();
       return sibling.length === 0 ? null : new HtmlElement(this.$, sibling);
     }
 
     get nextSibling(): HtmlElement | null {
-      const sibling = (this.selection as unknown as { next: () => cheerio.Cheerio<unknown> }).next();
+      const sibling = (
+        this.selection as unknown as { next: () => cheerio.Cheerio<unknown> }
+      ).next();
       return sibling.length === 0 ? null : new HtmlElement(this.$, sibling);
     }
   }
 
   class HtmlNode {
-    constructor(private readonly $: cheerio.CheerioAPI, private readonly node: unknown) {}
+    constructor(
+      private readonly $: cheerio.CheerioAPI,
+      private readonly node: unknown,
+    ) {}
 
     get type() {
       const node = this.node as { type?: string };
@@ -331,8 +400,10 @@ export async function createRuntimeApi(sourceKey: string, dataStore: SourceDataS
 
   const Convert = {
     encodeUtf8: (value: string) => Buffer.from(value, "utf8"),
-    decodeUtf8: (value: Uint8Array | number[] | string) => Buffer.from(value as string | Uint8Array).toString("utf8"),
-    encodeBase64: (value: Uint8Array | number[] | string) => Buffer.from(value as string | Uint8Array).toString("base64"),
+    decodeUtf8: (value: Uint8Array | number[] | string) =>
+      Buffer.from(value as string | Uint8Array).toString("utf8"),
+    encodeBase64: (value: Uint8Array | number[] | string) =>
+      Buffer.from(value as string | Uint8Array).toString("base64"),
     decodeBase64: (value: string) => Buffer.from(value, "base64"),
     md5: (value: BytesInput) => crypto.createHash("md5").update(toBuffer(value)).digest(),
     sha1: (value: BytesInput) => crypto.createHash("sha1").update(toBuffer(value)).digest(),
@@ -342,13 +413,18 @@ export async function createRuntimeApi(sourceKey: string, dataStore: SourceDataS
       crypto.createHmac(algorithm, toBuffer(key)).update(toBuffer(value)).digest(),
     hmacString: (key: BytesInput, value: BytesInput, algorithm = "sha256") =>
       crypto.createHmac(algorithm, toBuffer(key)).update(toBuffer(value)).digest("hex"),
-    hexEncode: (value: Uint8Array | number[] | string) => Buffer.from(value as string | Uint8Array).toString("hex"),
+    hexEncode: (value: Uint8Array | number[] | string) =>
+      Buffer.from(value as string | Uint8Array).toString("hex"),
     hexDecode: (value: string) => Buffer.from(value, "hex"),
     decryptAesEcb: (value: BytesInput, key: BytesInput) => decryptAes("ecb", value, key),
-    decryptAesCbc: (value: BytesInput, key: BytesInput, iv: BytesInput) => decryptAes("cbc", value, key, iv),
-    decryptAesCfb: (value: BytesInput, key: BytesInput, iv: BytesInput) => decryptAes("cfb", value, key, iv),
-    decryptAesOfb: (value: BytesInput, key: BytesInput, iv: BytesInput) => decryptAes("ofb", value, key, iv),
-    decryptRsa: (value: BytesInput, key: BytesInput) => crypto.privateDecrypt(toBuffer(key), toBuffer(value)),
+    decryptAesCbc: (value: BytesInput, key: BytesInput, iv: BytesInput) =>
+      decryptAes("cbc", value, key, iv),
+    decryptAesCfb: (value: BytesInput, key: BytesInput, iv: BytesInput) =>
+      decryptAes("cfb", value, key, iv),
+    decryptAesOfb: (value: BytesInput, key: BytesInput, iv: BytesInput) =>
+      decryptAes("ofb", value, key, iv),
+    decryptRsa: (value: BytesInput, key: BytesInput) =>
+      crypto.privateDecrypt(toBuffer(key), toBuffer(value)),
   };
 
   return {

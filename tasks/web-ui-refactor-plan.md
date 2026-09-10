@@ -476,8 +476,8 @@ features/history/
 如果保留现有打开历史逻辑：
 
 ```ts
-openHistoryItem(item, "details")
-openHistoryItem(item, "read")
+openHistoryItem(item, "details");
+openHistoryItem(item, "read");
 ```
 
 UI 文案改成：
@@ -576,8 +576,10 @@ hooks/
 断点建议：
 
 ```css
-@media (max-width: 960px) {}
-@media (max-width: 640px) {}
+@media (max-width: 960px) {
+}
+@media (max-width: 640px) {
+}
 ```
 
 验收标准：

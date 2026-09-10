@@ -56,7 +56,9 @@ export class DownloadService {
   ) {}
 
   async init() {
-    const tasks = (this.storage?.listDownloads() as DownloadTask[] | undefined) ?? (await readJson<DownloadTask[]>(paths.downloadTasks, []));
+    const tasks =
+      (this.storage?.listDownloads() as DownloadTask[] | undefined) ??
+      (await readJson<DownloadTask[]>(paths.downloadTasks, []));
     for (const task of tasks) {
       const shouldResume = task.status === "running" || task.status === "queued";
       this.tasks.set(task.id, {
@@ -64,7 +66,14 @@ export class DownloadService {
         status: shouldResume ? "queued" : task.status,
         phase: shouldResume ? "queued" : (task.phase ?? task.status),
         logs: shouldResume
-          ? [...(task.logs ?? []), { time: new Date().toISOString(), phase: "queued", message: "Task recovered after service restart" }]
+          ? [
+              ...(task.logs ?? []),
+              {
+                time: new Date().toISOString(),
+                phase: "queued",
+                message: "Task recovered after service restart",
+              },
+            ]
           : (task.logs ?? []),
         error: shouldResume ? undefined : task.error,
         errorCode: shouldResume ? undefined : task.errorCode,
@@ -79,12 +88,16 @@ export class DownloadService {
 
   create(input: { sourceKey: string; comicId: string; episodeId?: string; all?: boolean }) {
     const episodeId = input.episodeId ?? "_default";
-    const existing = this.all().find((task) =>
-      task.sourceKey === input.sourceKey &&
-      task.comicId === input.comicId &&
-      Boolean(task.all) === Boolean(input.all) &&
-      (input.all || task.episodeId === episodeId || task.episodeId === "__all__") &&
-      (task.status === "queued" || task.status === "running" || task.status === "paused" || task.status === "completed"),
+    const existing = this.all().find(
+      (task) =>
+        task.sourceKey === input.sourceKey &&
+        task.comicId === input.comicId &&
+        Boolean(task.all) === Boolean(input.all) &&
+        (input.all || task.episodeId === episodeId || task.episodeId === "__all__") &&
+        (task.status === "queued" ||
+          task.status === "running" ||
+          task.status === "paused" ||
+          task.status === "completed"),
     );
     if (existing) return existing;
 
@@ -135,7 +148,12 @@ export class DownloadService {
       return task;
     }
     this.cancelledTasks.add(id);
-    this.update(task, { status: "cancelled", phase: "cancelled", error: "Cancelled by user", current: undefined });
+    this.update(task, {
+      status: "cancelled",
+      phase: "cancelled",
+      error: "Cancelled by user",
+      current: undefined,
+    });
     this.addLog(task, "cancelled", "Task cancelled by user");
     this.reloadTasksFromStorage();
     this.emitChange();
@@ -148,7 +166,13 @@ export class DownloadService {
     if (!task) return null;
     if (task.status !== "queued" && task.status !== "running") return task;
     this.cancelledTasks.add(id);
-    this.update(task, { status: "paused", phase: "paused", error: undefined, errorCode: undefined, current: undefined });
+    this.update(task, {
+      status: "paused",
+      phase: "paused",
+      error: undefined,
+      errorCode: undefined,
+      current: undefined,
+    });
     this.addLog(task, "paused", "Task paused by user");
     this.reloadTasksFromStorage();
     this.emitChange();
@@ -161,7 +185,13 @@ export class DownloadService {
     if (!task) return null;
     if (task.status !== "paused" && task.status !== "failed") return task;
     this.cancelledTasks.delete(id);
-    this.update(task, { status: "queued", phase: "queued", error: undefined, errorCode: undefined, current: undefined });
+    this.update(task, {
+      status: "queued",
+      phase: "queued",
+      error: undefined,
+      errorCode: undefined,
+      current: undefined,
+    });
     this.addLog(task, "queued", "Task resumed by user");
     this.reloadTasksFromStorage();
     this.emitChange();
@@ -203,8 +233,11 @@ export class DownloadService {
   async retryFailedImages(id: string) {
     const task = this.tasks.get(id);
     if (!task) return null;
-    const failedItems = (this.storage?.listDownloadItems(id) as Array<{ image_key?: string; imageKey?: string; status?: string }> | undefined ?? [])
-      .filter((item) => item.status === "failed");
+    const failedItems = (
+      (this.storage?.listDownloadItems(id) as
+        | Array<{ image_key?: string; imageKey?: string; status?: string }>
+        | undefined) ?? []
+    ).filter((item) => item.status === "failed");
     const results = [];
     for (const item of failedItems) {
       const imageKey = item.image_key ?? item.imageKey;
@@ -212,7 +245,11 @@ export class DownloadService {
       try {
         results.push({ imageKey, ok: true, result: await this.retryImage(id, imageKey) });
       } catch (error) {
-        results.push({ imageKey, ok: false, error: error instanceof Error ? error.message : String(error) });
+        results.push({
+          imageKey,
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
     this.reloadTasksFromStorage();
@@ -225,30 +262,72 @@ export class DownloadService {
     if (!task) return null;
     const completedFile = await this.completedFilePath(task.id, imageKey);
     if (completedFile) {
-      this.storage?.saveDownloadItem({ taskId: task.id, imageKey, filePath: completedFile, status: "completed" });
-      return { task, item: this.storage?.getDownloadItem(task.id, imageKey) ?? { task_id: task.id, image_key: imageKey, file_path: completedFile, status: "completed" } };
+      this.storage?.saveDownloadItem({
+        taskId: task.id,
+        imageKey,
+        filePath: completedFile,
+        status: "completed",
+      });
+      return {
+        task,
+        item: this.storage?.getDownloadItem(task.id, imageKey) ?? {
+          task_id: task.id,
+          image_key: imageKey,
+          file_path: completedFile,
+          status: "completed",
+        },
+      };
     }
 
     const details = await this.runtime.comicDetails(task.sourceKey, task.comicId);
     const title = details.title || task.comicId;
     const chapters = details.chapters as Record<string, string> | undefined;
-    const episodeIds = task.all || task.episodeId === "__all__"
-      ? Object.keys(chapters ?? { _default: "默认章节" })
-      : [task.episodeId === "_default" ? Object.keys(chapters ?? {})[0] ?? "_default" : task.episodeId];
-    const comicDir = path.join(paths.downloads, safeFilename(task.sourceKey), safeFilename(`${title}_${task.comicId}`));
-    const baseOutputDir = task.all || task.episodeId === "__all__" ? comicDir : path.join(comicDir, safeFilename(chapters?.[episodeIds[0]] ?? episodeIds[0]));
+    const episodeIds =
+      task.all || task.episodeId === "__all__"
+        ? Object.keys(chapters ?? { _default: "默认章节" })
+        : [
+            task.episodeId === "_default"
+              ? (Object.keys(chapters ?? {})[0] ?? "_default")
+              : task.episodeId,
+          ];
+    const comicDir = path.join(
+      paths.downloads,
+      safeFilename(task.sourceKey),
+      safeFilename(`${title}_${task.comicId}`),
+    );
+    const baseOutputDir =
+      task.all || task.episodeId === "__all__"
+        ? comicDir
+        : path.join(comicDir, safeFilename(chapters?.[episodeIds[0]] ?? episodeIds[0]));
 
     for (const episodeId of episodeIds) {
       const pages = await this.runtime.comicPages(task.sourceKey, task.comicId, episodeId);
       const index = pages.images.indexOf(imageKey);
       if (index < 0) continue;
-      const chapterDir = task.all || task.episodeId === "__all__" ? path.join(comicDir, safeFilename(chapters?.[episodeId] ?? episodeId)) : baseOutputDir;
+      const chapterDir =
+        task.all || task.episodeId === "__all__"
+          ? path.join(comicDir, safeFilename(chapters?.[episodeId] ?? episodeId))
+          : baseOutputDir;
       await ensureDir(chapterDir);
       this.addLog(task, "downloading_images", `Retrying image ${imageKey}`);
-      const filePath = await this.downloadImageWithRetry(task, imageKey, episodeId, chapterDir, index);
+      const filePath = await this.downloadImageWithRetry(
+        task,
+        imageKey,
+        episodeId,
+        chapterDir,
+        index,
+      );
       this.storage?.saveDownloadItem({ taskId: task.id, imageKey, filePath, status: "completed" });
       if (task.completed < task.total) this.update(task, { completed: task.completed + 1 });
-      return { task, item: this.storage?.getDownloadItem(task.id, imageKey) ?? { task_id: task.id, image_key: imageKey, file_path: filePath, status: "completed" } };
+      return {
+        task,
+        item: this.storage?.getDownloadItem(task.id, imageKey) ?? {
+          task_id: task.id,
+          image_key: imageKey,
+          file_path: filePath,
+          status: "completed",
+        },
+      };
     }
 
     throw new Error(`Image not found in task episodes: ${imageKey}`);
@@ -257,7 +336,9 @@ export class DownloadService {
   private processQueue() {
     const limit = Math.max(1, config.downloadTaskConcurrency);
     while (this.activeTasks.size < limit) {
-      const task = this.all().find((item) => item.status === "queued" && !this.activeTasks.has(item.id));
+      const task = this.all().find(
+        (item) => item.status === "queued" && !this.activeTasks.has(item.id),
+      );
       if (!task) return;
       this.activeTasks.add(task.id);
       void this.run(task.id).finally(() => {
@@ -296,27 +377,49 @@ export class DownloadService {
       );
       const episodeIds = task.all
         ? Object.keys(chapters ?? { _default: "默认章节" })
-        : [task.episodeId === "_default" ? Object.keys(chapters ?? {})[0] ?? "_default" : task.episodeId];
-      const outputDir = task.all ? comicDir : path.join(comicDir, safeFilename(chapters?.[episodeIds[0]] ?? episodeIds[0]));
+        : [
+            task.episodeId === "_default"
+              ? (Object.keys(chapters ?? {})[0] ?? "_default")
+              : task.episodeId,
+          ];
+      const outputDir = task.all
+        ? comicDir
+        : path.join(comicDir, safeFilename(chapters?.[episodeIds[0]] ?? episodeIds[0]));
       await ensureDir(outputDir);
 
       const chapterPages = [];
       for (const episodeId of episodeIds) {
         this.update(task, { phase: "loading_pages", current: episodeId });
         this.addLog(task, "loading_pages", `Loading pages for ${episodeId}`);
-        chapterPages.push({ episodeId, pages: await this.runtime.comicPages(task.sourceKey, task.comicId, episodeId) });
+        chapterPages.push({
+          episodeId,
+          pages: await this.runtime.comicPages(task.sourceKey, task.comicId, episodeId),
+        });
       }
       const total = chapterPages.reduce((sum, item) => sum + item.pages.images.length, 0);
-      const completed = await this.completedImageCount(task.id, chapterPages.flatMap((item) => item.pages.images));
+      const completed = await this.completedImageCount(
+        task.id,
+        chapterPages.flatMap((item) => item.pages.images),
+      );
       this.throwIfCancelled(task);
-      this.update(task, { title, episodeId: task.all ? "__all__" : episodeIds[0], total, completed, outputDir });
+      this.update(task, {
+        title,
+        episodeId: task.all ? "__all__" : episodeIds[0],
+        total,
+        completed,
+        outputDir,
+      });
 
       for (const item of chapterPages) {
         const chapterTitle = chapters?.[item.episodeId] ?? item.episodeId;
         const chapterDir = task.all ? path.join(comicDir, safeFilename(chapterTitle)) : outputDir;
         await ensureDir(chapterDir);
         this.update(task, { phase: "downloading_images" });
-        this.addLog(task, "downloading_images", `Downloading ${item.pages.images.length} images for ${item.episodeId}`);
+        this.addLog(
+          task,
+          "downloading_images",
+          `Downloading ${item.pages.images.length} images for ${item.episodeId}`,
+        );
         await this.downloadImages(task, item.pages.images, item.episodeId, chapterDir);
       }
 
@@ -339,7 +442,13 @@ export class DownloadService {
           this.update(task, { status: "paused", phase: "paused", current: undefined });
           this.addLog(task, "paused", "Task paused by user");
         } else {
-          this.update(task, { status: "cancelled", phase: "cancelled", error: "Cancelled by user", errorCode: "CANCELLED", current: undefined });
+          this.update(task, {
+            status: "cancelled",
+            phase: "cancelled",
+            error: "Cancelled by user",
+            errorCode: "CANCELLED",
+            current: undefined,
+          });
           this.addLog(task, "cancelled", "Task cancelled by user");
         }
         this.cancelledTasks.delete(task.id);
@@ -392,7 +501,12 @@ export class DownloadService {
     for (const listener of this.listeners) listener(tasks);
   }
 
-  private async downloadImages(task: DownloadTask, images: string[], episodeId: string, outputDir: string) {
+  private async downloadImages(
+    task: DownloadTask,
+    images: string[],
+    episodeId: string,
+    outputDir: string,
+  ) {
     let nextIndex = 0;
     let firstError: unknown;
     const workerCount = Math.max(1, Math.min(config.downloadConcurrency, images.length));
@@ -406,13 +520,29 @@ export class DownloadService {
         const imageKey = images[index];
         const completedFile = await this.completedFilePath(task.id, imageKey);
         if (completedFile) {
-        this.storage?.saveDownloadItem({ taskId: task.id, imageKey, filePath: completedFile, status: "completed" });
+          this.storage?.saveDownloadItem({
+            taskId: task.id,
+            imageKey,
+            filePath: completedFile,
+            status: "completed",
+          });
           continue;
         }
         this.update(task, { current: imageKey });
         try {
-          const filePath = await this.downloadImageWithRetry(task, imageKey, episodeId, outputDir, index);
-          this.storage?.saveDownloadItem({ taskId: task.id, imageKey, filePath, status: "completed" });
+          const filePath = await this.downloadImageWithRetry(
+            task,
+            imageKey,
+            episodeId,
+            outputDir,
+            index,
+          );
+          this.storage?.saveDownloadItem({
+            taskId: task.id,
+            imageKey,
+            filePath,
+            status: "completed",
+          });
           this.throwIfCancelled(task);
           this.update(task, { completed: task.completed + 1 });
         } catch (error) {
@@ -448,7 +578,14 @@ export class DownloadService {
       } catch (error) {
         lastError = error;
         const classified = classifyDownloadError(error);
-        this.storage?.saveDownloadItem({ taskId: task.id, imageKey, status: "failed", retryCount: attempt, error: classified.message, errorCode: classified.code });
+        this.storage?.saveDownloadItem({
+          taskId: task.id,
+          imageKey,
+          status: "failed",
+          retryCount: attempt,
+          error: classified.message,
+          errorCode: classified.code,
+        });
         if (attempt < Math.max(1, config.downloadRetries)) {
           await new Promise((resolve) => setTimeout(resolve, retryDelayMs(attempt)));
         }
@@ -458,7 +595,10 @@ export class DownloadService {
   }
 
   private async completedFilePath(taskId: string, imageKey: string) {
-    const item = this.storage?.getDownloadItem(taskId, imageKey) as { status?: string; file_path?: string } | null | undefined;
+    const item = this.storage?.getDownloadItem(taskId, imageKey) as
+      | { status?: string; file_path?: string }
+      | null
+      | undefined;
     if (item?.status !== "completed" || !item.file_path) return null;
     try {
       await access(item.file_path);
@@ -499,10 +639,10 @@ function classifyDownloadError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   const statusMatch = message.match(/\b(4\d\d|5\d\d)\b/);
   if (statusMatch) return { code: `HTTP_${statusMatch[1]}`, message };
-    if (/timeout|timed out|abort/i.test(message)) return { code: "TIMEOUT", message };
-    if (/cancelled/i.test(message)) return { code: "CANCELLED", message };
-    if (/too large/i.test(message)) return { code: "IMAGE_TOO_LARGE", message };
-    return { code: "DOWNLOAD_ERROR", message };
+  if (/timeout|timed out|abort/i.test(message)) return { code: "TIMEOUT", message };
+  if (/cancelled/i.test(message)) return { code: "CANCELLED", message };
+  if (/too large/i.test(message)) return { code: "IMAGE_TOO_LARGE", message };
+  return { code: "DOWNLOAD_ERROR", message };
 }
 
 function extensionFromContentType(contentType: string, imageKey: string) {

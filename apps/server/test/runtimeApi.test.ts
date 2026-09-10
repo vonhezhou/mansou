@@ -25,12 +25,18 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  await new Promise<void>((resolve, reject) =>
+    server.close((error) => (error ? reject(error) : resolve())),
+  );
 });
 
 describe("runtime api compatibility", () => {
   it("supports documented Network request helpers", async () => {
-    const { Network } = await createRuntimeApi("mock", new SourceDataStore(), new SourceCookieStore());
+    const { Network } = await createRuntimeApi(
+      "mock",
+      new SourceDataStore(),
+      new SourceCookieStore(),
+    );
     const text = await Network.sendRequest("PATCH", `${baseUrl}/text`, {}, Buffer.from("ok"));
     expect(text.body).toBe("PATCH:/text:6f6b");
 
@@ -39,12 +45,18 @@ describe("runtime api compatibility", () => {
   });
 
   it("supports documented Convert hash, hmac and aes helpers", async () => {
-    const { Convert } = await createRuntimeApi("mock", new SourceDataStore(), new SourceCookieStore());
+    const { Convert } = await createRuntimeApi(
+      "mock",
+      new SourceDataStore(),
+      new SourceCookieStore(),
+    );
     expect(Convert.hexEncode(Convert.sha512("abc"))).toBe(
       "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a" +
         "2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f",
     );
-    expect(Convert.hmacString("key", "value", "sha256")).toBe("90fbfcf15e74a36b89dbdb2a721d9aecffdfdddc5c83e27f7592594f71932481");
+    expect(Convert.hmacString("key", "value", "sha256")).toBe(
+      "90fbfcf15e74a36b89dbdb2a721d9aecffdfdddc5c83e27f7592594f71932481",
+    );
 
     const key = Buffer.from("1234567890abcdef");
     const iv = Buffer.from("abcdef1234567890");
@@ -54,7 +66,11 @@ describe("runtime api compatibility", () => {
   });
 
   it("supports HtmlElement nodes, parent and sibling helpers", async () => {
-    const { HtmlDocument } = await createRuntimeApi("mock", new SourceDataStore(), new SourceCookieStore());
+    const { HtmlDocument } = await createRuntimeApi(
+      "mock",
+      new SourceDataStore(),
+      new SourceCookieStore(),
+    );
     const doc = new HtmlDocument("<main><p id='a'>one</p>text<p id='b'>two</p></main>");
     const first = doc.getElementById("a");
     expect(first.parent.localName).toBe("main");
@@ -64,7 +80,8 @@ describe("runtime api compatibility", () => {
   });
 
   it("exposes APP as an App compatibility alias", async () => {
-    const { App, APP, app, Http, Network, Storage, Data, HTML, Html, Console, Log } = await createRuntimeApi("mock", new SourceDataStore(), new SourceCookieStore());
+    const { App, APP, app, Http, Network, Storage, Data, HTML, Html, Console, Log } =
+      await createRuntimeApi("mock", new SourceDataStore(), new SourceCookieStore());
     expect(APP).toBe(App);
     expect(app).toBe(App);
     expect(Http).toBe(Network);
