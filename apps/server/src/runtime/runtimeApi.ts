@@ -1,5 +1,7 @@
 import * as cheerio from "cheerio";
 import crypto from "node:crypto";
+import { types } from "node:util";
+import { compute } from "./compute.js";
 import { config } from "../config/config.js";
 import { SourceDataStore } from "./dataStore.js";
 import { fetchWithProxy } from "../utils/fetch.js";
@@ -42,9 +44,11 @@ function normalizeRequestOptions(
   return { headers: options as Record<string, string> };
 }
 
-function toBuffer(value: BytesInput) {
+function toBuffer(value: BytesInput): Buffer<ArrayBuffer> {
   if (typeof value === "string") return Buffer.from(value);
-  if (value instanceof ArrayBuffer) return Buffer.from(value);
+  if (types.isAnyArrayBuffer(value)) return Buffer.from(new Uint8Array(value));
+  if (ArrayBuffer.isView(value))
+    return Buffer.from(new Uint8Array(value.buffer, value.byteOffset, value.byteLength));
   return Buffer.from(value);
 }
 
@@ -61,18 +65,44 @@ function aesAlgorithm(key: BytesInput, mode: "ecb" | "cbc" | "cfb" | "ofb") {
   return `aes-${size}-${mode}`;
 }
 
-function decryptAes(
+function cryptAes(
+  encrypt: boolean,
   mode: "ecb" | "cbc" | "cfb" | "ofb",
   value: BytesInput,
   key: BytesInput,
   iv?: BytesInput,
+  blockSize = 16,
 ) {
-  const decipher = crypto.createDecipheriv(
-    aesAlgorithm(key, mode),
-    toBuffer(key),
-    mode === "ecb" ? null : toBuffer(iv ?? []),
-  );
-  return Buffer.concat([decipher.update(toBuffer(value)), decipher.final()]);
+  const input = toBuffer(value);
+  if (mode === "ecb" || mode === "cbc") {
+    const cipher = (encrypt ? crypto.createCipheriv : crypto.createDecipheriv)(
+      aesAlgorithm(key, mode),
+      toBuffer(key),
+      mode === "ecb" ? null : toBuffer(iv ?? []),
+    );
+    // Dart's BlockCipher does not apply PKCS#7 padding.
+    cipher.setAutoPadding(false);
+    return Buffer.concat([cipher.update(input), cipher.final()]);
+  }
+  if (!Number.isInteger(blockSize) || blockSize < 1 || blockSize > 16 || input.length % blockSize) {
+    throw new Error("Invalid AES feedback block size or input length");
+  }
+  let feedback: Buffer = mode === "ofb" ? Buffer.alloc(16) : Buffer.from(toBuffer(iv ?? []));
+  if (feedback.length !== 16) throw new Error("Invalid AES IV length");
+  const cipher = crypto.createCipheriv(aesAlgorithm(key, "ecb"), toBuffer(key), null);
+  cipher.setAutoPadding(false);
+  const result = Buffer.alloc(input.length);
+  for (let offset = 0; offset < input.length; offset += blockSize) {
+    const stream = cipher.update(feedback);
+    for (let i = 0; i < blockSize; i++) result[offset + i] = input[offset + i] ^ stream[i];
+    const next =
+      mode === "ofb"
+        ? stream.subarray(0, blockSize)
+        : (encrypt ? result : input).subarray(offset, offset + blockSize);
+    feedback = Buffer.concat([feedback.subarray(blockSize), next]);
+  }
+  cipher.final();
+  return result;
 }
 
 export async function createRuntimeApi(
@@ -416,18 +446,26 @@ export async function createRuntimeApi(
     hexEncode: (value: Uint8Array | number[] | string) =>
       Buffer.from(value as string | Uint8Array).toString("hex"),
     hexDecode: (value: string) => Buffer.from(value, "hex"),
-    decryptAesEcb: (value: BytesInput, key: BytesInput) => decryptAes("ecb", value, key),
+    encryptAesEcb: (value: BytesInput, key: BytesInput) => cryptAes(true, "ecb", value, key),
+    decryptAesEcb: (value: BytesInput, key: BytesInput) => cryptAes(false, "ecb", value, key),
+    encryptAesCbc: (value: BytesInput, key: BytesInput, iv: BytesInput) =>
+      cryptAes(true, "cbc", value, key, iv),
     decryptAesCbc: (value: BytesInput, key: BytesInput, iv: BytesInput) =>
-      decryptAes("cbc", value, key, iv),
-    decryptAesCfb: (value: BytesInput, key: BytesInput, iv: BytesInput) =>
-      decryptAes("cfb", value, key, iv),
-    decryptAesOfb: (value: BytesInput, key: BytesInput, iv: BytesInput) =>
-      decryptAes("ofb", value, key, iv),
+      cryptAes(false, "cbc", value, key, iv),
+    encryptAesCfb: (value: BytesInput, key: BytesInput, iv: BytesInput, blockSize = 16) =>
+      cryptAes(true, "cfb", value, key, iv, blockSize),
+    decryptAesCfb: (value: BytesInput, key: BytesInput, iv: BytesInput, blockSize = 16) =>
+      cryptAes(false, "cfb", value, key, iv, blockSize),
+    encryptAesOfb: (value: BytesInput, key: BytesInput, blockSize = 16) =>
+      cryptAes(true, "ofb", value, key, undefined, blockSize),
+    decryptAesOfb: (value: BytesInput, key: BytesInput, blockSize = 16) =>
+      cryptAes(false, "ofb", value, key, undefined, blockSize),
     decryptRsa: (value: BytesInput, key: BytesInput) =>
       crypto.privateDecrypt(toBuffer(key), toBuffer(value)),
   };
 
   return {
+    compute: (func: string, ...args: unknown[]) => compute(sourceKey, func, args),
     Network,
     Http: Network,
     HTML: Html,

@@ -61,6 +61,7 @@ export type VeneraComicSource = {
   version: string;
   url?: string;
   minAppVersion?: string;
+  settings?: Record<string, unknown>;
   search?: {
     optionList?: Array<{
       label: string;

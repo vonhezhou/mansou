@@ -3,6 +3,7 @@ import type { SourceMetadata } from "../../types.js";
 type InstalledSourcesListProps = {
   busy: boolean;
   sourceMetadata: SourceMetadata[];
+  onUpdateSource: (key: string) => void;
   onSetSourceEnabled: (source: SourceMetadata, enabled: boolean) => void;
 };
 
@@ -26,6 +27,11 @@ export function InstalledSourcesList(props: InstalledSourcesListProps) {
                 <span className={enabled ? "status-badge online" : "status-badge"}>
                   {enabled ? "已启用" : "已禁用"}
                 </span>
+                {source.availableVersion && (
+                  <button disabled={props.busy} onClick={() => props.onUpdateSource(source.key)}>
+                    更新至 {source.availableVersion}
+                  </button>
+                )}
                 <button
                   onClick={() => props.onSetSourceEnabled(source, !enabled)}
                   disabled={props.busy}

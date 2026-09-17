@@ -27,6 +27,7 @@ export function SourcesView(props: SourcesViewProps) {
         busy={props.busy}
         sourceMetadata={props.sourceMetadata}
         onSetSourceEnabled={props.onSetSourceEnabled}
+        onUpdateSource={props.onUpdateSource}
       />
       <CurrentSourcePanel
         busy={props.busy}

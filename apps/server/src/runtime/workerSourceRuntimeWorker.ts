@@ -1,3 +1,5 @@
+import { loadSourceImage, type SourceImageInput } from "./sourceImage.js";
+import type { VeneraComicSource } from "../types/source.js";
 import { parentPort, workerData } from "node:worker_threads";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -9,41 +11,20 @@ import { SourceCookieStore } from "./cookieStore.js";
 import { SourceDataStore } from "./dataStore.js";
 import { createRuntimeApi } from "./runtimeApi.js";
 
+import { createComicSourceBase, captureSettings, sourceSettingsSchema } from "./comicSourceBase.js";
+import { checkSourceVersion } from "./version.js";
+
 type Message = { id: number; method: string; args: unknown[] };
 
-class ComicSourceBase {
-  static sources: Record<string, unknown> = {};
-
-  key = "";
-
-  settings?: Record<string, { default?: unknown }>;
-
-  loadSetting(key: string) {
-    const values = this.key
-      ? (sourceDataStore.loadSync(this.key, "settings") as Record<string, unknown> | undefined)
-      : undefined;
-    return values?.[key] ?? this.settings?.[key]?.default;
-  }
-
-  loadData(key: string) {
-    if (!this.key) return undefined;
-    return sourceDataStore.loadSync(this.key, key);
-  }
-
-  saveData(key: string, value: unknown) {
-    if (!this.key) return undefined;
-    return sourceDataStore.saveSync(this.key, key, value);
-  }
-
-  deleteData(key: string) {
-    if (!this.key) return undefined;
-    return sourceDataStore.deleteSync(this.key, key);
-  }
-}
+config.appVersion = workerData.appVersion ?? config.appVersion;
+config.locale = workerData.locale ?? config.locale;
+config.pluginCallTimeoutMs = workerData.timeout ?? config.pluginCallTimeoutMs;
+config.maxImageBytes = workerData.maxImageBytes ?? config.maxImageBytes;
 
 const preludeSourceKey = path.basename(workerData.filePath, ".js");
 const storage = createStorage(String(workerData.dataDir ?? config.dataDir));
 const sourceDataStore = new SourceDataStore(storage);
+const ComicSourceBase = createComicSourceBase(sourceDataStore);
 const cookieStore = new SourceCookieStore(storage);
 const api = await createRuntimeApi(preludeSourceKey, sourceDataStore, cookieStore);
 
@@ -98,48 +79,11 @@ const source = vm.runInContext(
     filename: workerData.filePath,
     timeout: 5000,
   },
-) as {
-  key: string;
-  name: string;
-  version?: string;
-  url?: string;
-  init?: () => Promise<void> | void;
-  search?: {
-    load?: (keyword: string, options: string[], page: number) => unknown;
-    loadNext?: (keyword: string, options: string[], next?: string | null) => unknown;
-    optionList?: Array<{ default?: unknown; options?: string[] }>;
-  };
-  comic?: {
-    loadInfo?: (id: string) => unknown;
-    loadEp?: (id: string, ep?: string | null) => unknown;
-    getImageLoadingConfig?: (imageKey: string, comicId: string, epId: string | null) => unknown;
-    onImageLoad?: (imageKey: string, comicId: string, epId: string | null) => unknown;
-    onLoadFailed?: (
-      imageKey: string,
-      comicId: string,
-      epId: string | null,
-      error: Error,
-    ) => unknown;
-    onResponse?: (
-      imageKey: string,
-      comicId: string,
-      epId: string | null,
-      response: Record<string, unknown>,
-    ) => unknown;
-    modifyImage?: (imageKey: string, comicId: string, epId: string | null, data: Buffer) => unknown;
-  };
-  getImageLoadingConfig?: (imageKey: string, comicId: string, epId: string | null) => unknown;
-  getThumbnailLoadingConfig?: (imageKey: string) => unknown;
-  onLoadFailed?: (imageKey: string, comicId: string, epId: string | null, error: Error) => unknown;
-  onResponse?: (
-    imageKey: string,
-    comicId: string,
-    epId: string | null,
-    response: Record<string, unknown>,
-  ) => unknown;
-  modifyImage?: (imageKey: string, comicId: string, epId: string | null, data: Buffer) => unknown;
-};
+) as VeneraComicSource;
 
+if (!source.key || !source.name) throw new Error("Invalid comic source: key/name is required");
+checkSourceVersion(source.minAppVersion, config.appVersion);
+captureSettings(source);
 await source.init?.();
 ComicSourceBase.sources[source.key] = source;
 
@@ -157,6 +101,7 @@ parentPort?.on("message", async (message: Message) => {
 });
 
 async function dispatch(method: string, args: unknown[]) {
+  if (method === "loadImageBytes") return loadSourceImage(source, args[0] as SourceImageInput, api);
   if (method === "metadata") {
     return {
       key: source.key,
@@ -168,6 +113,7 @@ async function dispatch(method: string, args: unknown[]) {
         key: source.key,
         name: source.name,
         version: source.version ?? "0.0.0",
+        settings: sourceSettingsSchema(source),
         search: source.search ? {} : undefined,
         comic: source.comic ? {} : undefined,
       },

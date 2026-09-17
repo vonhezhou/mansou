@@ -1,5 +1,6 @@
 import path from "node:path";
-import { readdir, readFile, writeFile } from "node:fs/promises";
+import { isNewerVersion } from "../runtime/version.js";
+import { readdir, readFile, writeFile, rename, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import crypto from "node:crypto";
 import { config } from "../config/config.js";
@@ -16,7 +17,19 @@ export class SourceRepositoryService {
     if (!response.ok) {
       throw new Error(`Failed to fetch source index: ${response.status} ${response.statusText}`);
     }
-    const list = (await response.json()) as RepositorySource[];
+    const payload: unknown = await response.json();
+    if (!Array.isArray(payload)) throw new Error("Invalid source index: expected an array");
+    const list = payload.filter(
+      (item): item is RepositorySource =>
+        item &&
+        typeof item === "object" &&
+        typeof item.name === "string" &&
+        typeof item.version === "string" &&
+        (item.key == null || typeof item.key === "string") &&
+        (item.url == null || typeof item.url === "string") &&
+        (item.filename == null || typeof item.filename === "string") &&
+        (item.fileName == null || typeof item.fileName === "string"),
+    );
     await writeJson(paths.repositoryIndex, list);
     return list;
   }
@@ -25,11 +38,24 @@ export class SourceRepositoryService {
     return readJson<RepositorySource[]>(paths.repositoryIndex, []);
   }
 
-  async installSource(sourceKeyOrName: string) {
-    let list = await this.getAvailableSources();
-    if (list.length === 0) {
-      list = await this.refreshRepository();
-    }
+  async withAvailableUpdates<T extends { key: string; version?: string }>(installed: T[]) {
+    const list = await this.getAvailableSources();
+    return installed.map((source) => {
+      const candidate = list.find((item) => item.key === source.key);
+      let availableVersion: string | undefined;
+      try {
+        if (candidate && isNewerVersion(candidate.version, source.version ?? "0.0.0")) {
+          availableVersion = candidate.version;
+        }
+      } catch {
+        /* A malformed version must not hide other installed sources. */
+      }
+      return { ...source, availableVersion };
+    });
+  }
+
+  async installSource(sourceKeyOrName: string, activate?: (filePath: string) => Promise<void>) {
+    const list = await this.refreshRepository();
 
     const item = list.find(
       (source) =>
@@ -59,7 +85,23 @@ export class SourceRepositoryService {
     await ensureDir(paths.scripts);
     const fileName = this.resolveScriptFileName(item);
     const filePath = path.join(paths.scripts, fileName);
-    await writeFile(filePath, script, "utf8");
+    const previous = existsSync(filePath) ? await readFile(filePath) : undefined;
+    const stagedPath = `${filePath}.${crypto.randomUUID()}.tmp`;
+    try {
+      await writeFile(stagedPath, script, "utf8");
+      await rename(stagedPath, filePath);
+      try {
+        await activate?.(filePath);
+      } catch (error) {
+        if (previous) {
+          await writeFile(stagedPath, previous);
+          await rename(stagedPath, filePath);
+        } else await rm(filePath, { force: true });
+        throw error;
+      }
+    } finally {
+      await rm(stagedPath, { force: true });
+    }
     return {
       ...item,
       scriptUrl,
@@ -88,12 +130,12 @@ export class SourceRepositoryService {
   }
 
   private resolveScriptUrl(item: RepositorySource) {
-    if (item.url) return item.url;
+    if (item.url) return new URL(item.url, config.sourceListUrl).toString();
     const filename = item.filename ?? item.fileName;
     if (!filename) {
       throw new Error(`Source has neither url nor filename: ${item.name}`);
     }
-    return new URL(filename, config.sourceCdnBaseUrl).toString();
+    return new URL(filename, config.sourceCdnBaseUrl || config.sourceListUrl).toString();
   }
 
   private resolveScriptFileName(item: RepositorySource) {

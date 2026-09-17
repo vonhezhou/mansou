@@ -1,3 +1,4 @@
+import { loadSourceImage, type SourceImageInput } from "./sourceImage.js";
 import vm from "node:vm";
 import path from "node:path";
 import { SourceRepositoryService } from "../services/sourceRepository.js";
@@ -9,8 +10,8 @@ import { SourceCookieStore } from "./cookieStore.js";
 import { config } from "../config/config.js";
 import { classifyPluginError, PluginRuntimeError } from "./errors.js";
 import { WorkerSourceRuntimeAdapter } from "./workerSourceRuntime.js";
-
-let sourceDataStore = new SourceDataStore();
+import { createComicSourceBase, captureSettings, sourceSettingsSchema } from "./comicSourceBase.js";
+import { checkSourceVersion } from "./version.js";
 
 function reportPluginAsyncError(sourceKey: string, error: unknown) {
   console.warn(`[${sourceKey}] plugin async task failed`, error);
@@ -54,36 +55,6 @@ function createGuardedPromise(sourceKey: string) {
   Object.setPrototypeOf(GuardedPromise, Promise);
   GuardedPromise.prototype = Promise.prototype;
   return GuardedPromise;
-}
-
-class ComicSourceBase {
-  static sources: Record<string, VeneraComicSource> = {};
-
-  key = "";
-
-  settings?: Record<string, { default?: unknown }>;
-
-  loadSetting(key: string) {
-    const values = this.key
-      ? (sourceDataStore.loadSync(this.key, "settings") as Record<string, unknown> | undefined)
-      : undefined;
-    return values?.[key] ?? this.settings?.[key]?.default;
-  }
-
-  loadData(key: string) {
-    if (!this.key) return undefined;
-    return sourceDataStore.loadSync(this.key, key);
-  }
-
-  saveData(key: string, value: unknown) {
-    if (!this.key) return undefined;
-    return sourceDataStore.saveSync(this.key, key, value);
-  }
-
-  deleteData(key: string) {
-    if (!this.key) return undefined;
-    return sourceDataStore.deleteSync(this.key, key);
-  }
 }
 
 function findClassName(script: string) {
@@ -168,6 +139,7 @@ type RuntimeDiagnostic = {
 };
 
 export class SourceRuntime {
+  private readonly imageGlobals = new WeakMap<object, Record<string, unknown>>();
   private readonly sources = new Map<string, LoadedSource>();
   private readonly workerSources = new Map<string, WorkerSourceRuntimeAdapter>();
   private readonly sourceLimiters = new Map<string, SourceLimiter>();
@@ -175,12 +147,14 @@ export class SourceRuntime {
   private readonly failedLoads: RuntimeDiagnostic[] = [];
   private reloadPromise?: Promise<LoadedSource[]>;
 
+  private readonly ComicSourceBase;
+
   constructor(
     private readonly repository = new SourceRepositoryService(),
     private readonly dataStore = new SourceDataStore(),
     private readonly cookieStore = new SourceCookieStore(),
   ) {
-    sourceDataStore = dataStore;
+    this.ComicSourceBase = createComicSourceBase(dataStore);
   }
 
   async loadInstalled() {
@@ -227,6 +201,7 @@ export class SourceRuntime {
       this.sources.set(adapter.source.key, adapter.source);
       return adapter.source;
     }
+    const ComicSourceBase = this.ComicSourceBase;
     const script = await this.repository.readScript(filePath);
     const className = findClassName(script);
     const preludeSourceKey = path.basename(filePath, ".js");
@@ -284,6 +259,9 @@ export class SourceRuntime {
     if (!instance.key || !instance.name) {
       throw new Error("Invalid comic source: key/name is required");
     }
+    checkSourceVersion(instance.minAppVersion, config.appVersion);
+    captureSettings(instance);
+    this.imageGlobals.set(instance, api);
     if (typeof instance.init === "function") {
       try {
         await instance.init();
@@ -480,6 +458,17 @@ export class SourceRuntime {
     }
   }
 
+  async loadImageBytes(sourceKey: string, input: SourceImageInput) {
+    const source = this.find(sourceKey).instance;
+    return this.runPluginCall(sourceKey, "image", async () => {
+      const worker = this.workerSources.get(sourceKey);
+      const result = worker
+        ? await worker.loadImageBytes(input)
+        : await loadSourceImage(source, input, this.imageGlobals.get(source) ?? {});
+      return { ...result, data: Buffer.from(result.data) };
+    });
+  }
+
   async imageLoadingConfig(
     sourceKey: string,
     imageKey: string,
@@ -572,7 +561,9 @@ export class SourceRuntime {
   sourceSettings(sourceKey: string) {
     const source = this.find(sourceKey).instance;
     return {
-      schema: source.settings ?? {},
+      schema: this.workerSources.has(sourceKey)
+        ? (source.settings ?? {})
+        : sourceSettingsSchema(source),
       values:
         (this.dataStore.loadSync(sourceKey, "settings") as Record<string, unknown> | undefined) ??
         {},

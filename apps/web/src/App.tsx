@@ -204,6 +204,7 @@ export function App() {
           onCookieUrlChange={sourcesState.setCookieUrl}
           onCookieTextChange={sourcesState.setCookieText}
           onInstallSelectedSource={() => void sourcesState.installSelectedSource(refresh)}
+          onUpdateSource={(key) => void sourcesState.updateSource(key, refresh)}
           onRefreshRepository={() => void sourcesState.refreshRepository()}
           onReloadSources={() => void sourcesState.reloadSources(refresh)}
           onLoadSourceSettings={() => void sourcesState.loadSourceSettings()}

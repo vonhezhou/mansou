@@ -39,7 +39,7 @@ export function SourceRepositoryPanel(props: SourceRepositoryPanelProps) {
           安装/更新
         </button>
         <button onClick={props.onRefreshRepository} disabled={props.busy}>
-          刷新仓库
+          刷新仓库 / 检查更新
         </button>
         <button onClick={props.onReloadSources} disabled={props.busy}>
           重载已安装源

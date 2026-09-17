@@ -9,10 +9,8 @@ export const config = {
   sourceListUrl:
     process.env.VENERA_SOURCE_LIST_URL ??
     "https://cdn.jsdelivr.net/gh/venera-app/venera-configs@main/index.json",
-  sourceCdnBaseUrl:
-    process.env.VENERA_SOURCE_CDN_BASE_URL ??
-    "https://cdn.jsdelivr.net/gh/venera-app/venera-configs@main/",
-  appVersion: process.env.VENERA_APP_VERSION ?? "1.0.0",
+  sourceCdnBaseUrl: process.env.VENERA_SOURCE_CDN_BASE_URL ?? "",
+  appVersion: process.env.VENERA_APP_VERSION ?? "1.15.0",
   locale: process.env.VENERA_LOCALE ?? "zh_CN",
   requestTimeoutMs: Number(process.env.VENERA_REQUEST_TIMEOUT_MS ?? 60000),
   pluginCallTimeoutMs: Number(

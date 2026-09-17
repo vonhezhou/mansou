@@ -66,6 +66,7 @@ export type SettingsResponse = {
   values: Record<string, unknown>;
 };
 export type SourceMetadata = {
+  availableVersion?: string;
   key: string;
   name: string;
   version?: string;

@@ -1,3 +1,4 @@
+import type { SourceImageInput } from "./sourceImage.js";
 import { Worker } from "node:worker_threads";
 import { existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -42,14 +43,29 @@ export class WorkerSourceRuntimeAdapter {
         : process.execArgv.filter(
             (arg) => arg !== "--input-type=module" && !arg.startsWith("--input-type="),
           ),
-      workerData: { filePath, dataDir: config.dataDir },
+      workerData: {
+        filePath,
+        dataDir: config.dataDir,
+        appVersion: config.appVersion,
+        locale: config.locale,
+        timeout: config.pluginCallTimeoutMs,
+        maxImageBytes: config.maxImageBytes,
+      },
     });
-    const adapter = new WorkerSourceRuntimeAdapter(
-      worker,
-      await callWorker<LoadedSource>(worker, "metadata", []),
-      onCrash,
-    );
-    return adapter;
+    try {
+      return new WorkerSourceRuntimeAdapter(
+        worker,
+        await callWorker<LoadedSource>(worker, "metadata", []),
+        onCrash,
+      );
+    } catch (error) {
+      await worker.terminate();
+      throw error;
+    }
+  }
+
+  loadImageBytes(input: SourceImageInput) {
+    return this.call<{ data: Uint8Array; contentType: string }>("loadImageBytes", [input]);
   }
 
   search(keyword: string, pageOrNext?: string, options?: string[]) {

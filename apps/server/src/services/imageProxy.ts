@@ -5,7 +5,6 @@ import { paths } from "../storage/paths.js";
 import { config } from "../config/config.js";
 import { ensureDir } from "../utils/fs.js";
 import { SourceRuntime } from "../runtime/sourceRuntime.js";
-import { fetchWithProxy } from "../utils/fetch.js";
 
 type ImageProxyInput = {
   sourceKey: string;
@@ -40,60 +39,7 @@ export class ImageProxyService {
       }
     }
 
-    let loadingConfig = await this.runtime.imageLoadingConfig(
-      input.sourceKey,
-      input.imageKey,
-      input.comicId ?? "",
-      input.episodeId ?? null,
-      input.thumbnail,
-    );
-
-    let response: Response;
-    try {
-      response = await this.fetchImage(String(loadingConfig.url ?? input.imageKey), loadingConfig);
-    } catch (error) {
-      const fallback = await this.runtime.imageLoadFailed(
-        input.sourceKey,
-        input.imageKey,
-        input.comicId ?? "",
-        input.episodeId ?? null,
-        error instanceof Error ? error : new Error(String(error)),
-      );
-      if (!Object.keys(fallback).length) throw error;
-      loadingConfig = { ...loadingConfig, ...fallback };
-      response = await this.fetchImage(String(loadingConfig.url ?? input.imageKey), loadingConfig);
-    }
-
-    const responseConfig = await this.runtime.imageResponse(
-      input.sourceKey,
-      input.imageKey,
-      input.comicId ?? "",
-      input.episodeId ?? null,
-      {
-        status: response.status,
-        headers: normalizeHeaders(response.headers),
-        url: response.url,
-      },
-    );
-    if (!response.ok && Object.keys(responseConfig).length) {
-      loadingConfig = { ...loadingConfig, ...responseConfig };
-      response = await this.fetchImage(String(loadingConfig.url ?? input.imageKey), loadingConfig);
-    }
-    if (!response.ok) {
-      throw new Error(`Failed to load image: ${response.status} ${response.statusText}`);
-    }
-    const contentLength = Number(response.headers.get("content-length") ?? 0);
-    if (contentLength > config.maxImageBytes) throw new Error("Image response is too large");
-
-    let data: Buffer = Buffer.from(await response.arrayBuffer());
-    data = await this.runtime.modifyImage(
-      input.sourceKey,
-      input.imageKey,
-      input.comicId ?? "",
-      input.episodeId ?? null,
-      data,
-    );
-    if (data.length > config.maxImageBytes) throw new Error("Image response is too large");
+    const { data, contentType } = await this.runtime.loadImageBytes(input.sourceKey, input);
     if (useCache) {
       await ensureDir(path.dirname(cachePath));
       await writeFile(cachePath, data);
@@ -101,7 +47,10 @@ export class ImageProxyService {
     }
     return {
       data,
-      contentType: response.headers.get("content-type") ?? this.detectContentType(data),
+      contentType:
+        this.detectContentType(data) === "application/octet-stream"
+          ? contentType
+          : this.detectContentType(data),
       cached: false,
     };
   }
@@ -152,30 +101,6 @@ export class ImageProxyService {
       return "image/webp";
     return "application/octet-stream";
   }
-
-  private async fetchImage(requestUrl: string, loadingConfig: Record<string, unknown>) {
-    const normalizedUrl = requestUrl.startsWith("//") ? `https:${requestUrl}` : requestUrl;
-    const parsedUrl = new URL(normalizedUrl);
-    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
-      throw new Error(`Unsupported image protocol: ${parsedUrl.protocol}`);
-    }
-    return fetchWithProxy(normalizedUrl, {
-      method: String(loadingConfig.method ?? "GET"),
-      headers: (loadingConfig.headers as Record<string, string> | undefined) ?? {
-        "user-agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-      },
-      body: loadingConfig.data == null ? undefined : String(loadingConfig.data),
-    });
-  }
-}
-
-function normalizeHeaders(headers: Headers) {
-  const result: Record<string, string> = {};
-  headers.forEach((value, key) => {
-    result[key] = value;
-  });
-  return result;
 }
 
 async function listFiles(dir: string): Promise<string[]> {

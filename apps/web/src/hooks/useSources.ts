@@ -101,10 +101,18 @@ export function useSources(
     });
   }
 
+  async function updateSource(key: string, afterUpdate: () => Promise<void>) {
+    await runWith(setManagingSources, async () => {
+      await veneraApi.installSource(key);
+      await afterUpdate();
+    });
+  }
+
   async function refreshRepository() {
     await runWith(setManagingSources, async () => {
       const data = await veneraApi.refreshRepository();
       setAvailableSources(data.sources ?? []);
+      setSourceMetadata(await veneraApi.listSourceMetadata());
     });
   }
 
@@ -150,6 +158,7 @@ export function useSources(
     clearCookies,
     installSelectedSource,
     refreshRepository,
+    updateSource,
     reloadSources,
     setSourceEnabled,
   };

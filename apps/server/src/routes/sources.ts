@@ -1,17 +1,24 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import type { LoadedSource } from "../types/source.js";
 import type { RouteContext } from "./types.js";
 
 export async function registerSourceRoutes(app: FastifyInstance, context: RouteContext) {
   app.get("/sources/available", async () => context.repository.getAvailableSources());
-  app.get("/sources/metadata", async () => context.storage.listSources());
+  app.get("/sources/metadata", async () =>
+    context.repository.withAvailableUpdates(
+      context.storage.listSources() as Array<{ key: string; version?: string }>,
+    ),
+  );
   app.get("/sources/installed", async () => context.runtime.all());
   app.get("/sources", async () => context.runtime.all());
 
   app.post("/sources/install", async (request) => {
     const body = z.object({ source: z.string().min(1) }).parse(request.body);
-    const installed = await context.repository.installSource(body.source);
-    const loaded = await context.runtime.loadScript(installed.filePath);
+    let loaded!: LoadedSource;
+    const installed = await context.repository.installSource(body.source, async (filePath) => {
+      loaded = await context.runtime.loadScript(filePath);
+    });
     context.storage.upsertSource({
       key: loaded.key,
       name: loaded.name,
@@ -21,6 +28,8 @@ export async function registerSourceRoutes(app: FastifyInstance, context: RouteC
       hash: installed.hash,
       enabled: true,
     });
+    const metadata = context.storage.getSource(loaded.key) as { enabled?: number } | null;
+    if (metadata?.enabled === 0) await context.runtime.loadInstalled();
     return { installed, loaded: { key: loaded.key, name: loaded.name, version: loaded.version } };
   });
 
