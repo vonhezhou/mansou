@@ -131,6 +131,8 @@ export const veneraApi = {
     api(`/downloads/${encodeURIComponent(taskId)}/rerun`, { method: "POST" }),
   exportDownloadCbz: (taskId: string) =>
     api<{ path: string }>(`/downloads/${encodeURIComponent(taskId)}/cbz`, { method: "POST" }),
+  downloadDownloadCbzUrl: (taskId: string) =>
+    withAccessToken(`${apiBase}/downloads/${encodeURIComponent(taskId)}/cbz`),
   deleteDownload: (taskId: string, files = false) =>
     api(`/downloads/${encodeURIComponent(taskId)}${files ? "?files=true" : ""}`, {
       method: "DELETE",

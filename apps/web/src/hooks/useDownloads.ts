@@ -46,14 +46,17 @@ export function useDownloads(runWith: RunWith) {
 
   async function downloadAction(
     task: DownloadTask,
-    action: "cancel" | "rerun" | "cbz" | "delete" | "delete-files",
+    action: "cancel" | "rerun" | "download-local" | "delete" | "delete-files",
   ) {
     await runWith(setLoadingDownloads, async () => {
       if (action === "cancel") await veneraApi.cancelDownload(task.id);
       if (action === "rerun") await veneraApi.rerunDownload(task.id);
-      if (action === "cbz") {
-        const result = await veneraApi.exportDownloadCbz(task.id);
-        window.alert(`CBZ: ${result.path}`);
+      if (action === "download-local") {
+        const link = document.createElement("a");
+        link.href = veneraApi.downloadDownloadCbzUrl(task.id);
+        link.target = "_blank";
+        link.rel = "noreferrer";
+        link.click();
       }
       if (action === "delete") {
         if (!window.confirm(`删除下载任务「${task.title ?? task.comicId}」？`)) return;

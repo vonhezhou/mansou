@@ -1,7 +1,7 @@
 import path from "node:path";
 import { access, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { createWriteStream } from "node:fs";
+import { createReadStream, createWriteStream } from "node:fs";
 import yazl from "yazl";
 import type { StorageDatabase } from "@venera/storage";
 import { paths } from "../storage/paths.js";
@@ -208,6 +208,12 @@ export class DownloadService {
     const cbzPath = `${task.outputDir}.cbz`;
     await zipDirectory(task.outputDir, cbzPath);
     return { taskId: task.id, path: cbzPath };
+  }
+
+  async openCbz(id: string) {
+    const result = await this.exportCbz(id);
+    if (!result) return null;
+    return { ...result, stream: createReadStream(result.path) };
   }
 
   async delete(id: string, deleteFiles = false) {

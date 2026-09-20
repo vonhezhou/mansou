@@ -1,6 +1,6 @@
 import type { CacheStats, DownloadItem, DownloadTask } from "../../types.js";
 
-export type DownloadAction = "cancel" | "rerun" | "cbz" | "delete" | "delete-files";
+export type DownloadAction = "cancel" | "rerun" | "download-local" | "delete" | "delete-files";
 
 export type DownloadsViewProps = {
   busy: boolean;

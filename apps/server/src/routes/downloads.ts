@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import path from "node:path";
 import { z } from "zod";
 import { notFound } from "./errors.js";
 import type { RouteContext } from "./types.js";
@@ -81,6 +82,19 @@ export async function registerDownloadRoutes(app: FastifyInstance, context: Rout
     const result = await context.downloads.exportCbz(params.taskId);
     if (!result) throw notFound("DOWNLOAD_NOT_FOUND", "Download task not found");
     return result;
+  });
+
+  app.get("/downloads/:taskId/cbz", async (request, reply) => {
+    const params = z.object({ taskId: z.string() }).parse(request.params);
+    const result = await context.downloads.openCbz(params.taskId);
+    if (!result) throw notFound("DOWNLOAD_NOT_FOUND", "Download task not found");
+    reply
+      .type("application/zip")
+      .header(
+        "content-disposition",
+        `attachment; filename*=UTF-8''${encodeURIComponent(path.basename(result.path))}`,
+      );
+    return reply.send(result.stream);
   });
 
   app.post("/downloads/:taskId/items/retry", async (request) => {

@@ -19,6 +19,11 @@
   color: var(--color-muted);
 }
 
+.download-destination-note {
+  max-width: 72ch;
+  line-height: 1.6;
+}
+
 .health {
   align-self: center;
   border-radius: 999px;

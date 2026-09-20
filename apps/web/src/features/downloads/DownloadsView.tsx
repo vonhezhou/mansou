@@ -21,7 +21,11 @@ export function DownloadsView(props: DownloadsViewProps) {
 
   return (
     <section className="panel downloads">
-      <h2>下载任务</h2>
+      <h2>服务器下载中心</h2>
+      <p className="muted download-destination-note">
+        这里管理保存到 NAS 的下载任务。任务在服务器后台运行，关闭浏览器也不会中断；完成后可将 CBZ
+        下载到本机。
+      </p>
       <DownloadSummary downloads={props.downloads} />
       <CachePanel
         cache={props.cache}

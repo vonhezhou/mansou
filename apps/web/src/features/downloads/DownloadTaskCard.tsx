@@ -36,8 +36,12 @@ export function DownloadTaskCard(props: DownloadTaskCardProps) {
         <button onClick={() => props.onLoadDownloadItems(props.task)}>明细</button>
         <button onClick={() => props.onDownloadAction(props.task, "cancel")}>取消</button>
         <button onClick={() => props.onDownloadAction(props.task, "rerun")}>重跑</button>
-        <button className="accent" onClick={() => props.onDownloadAction(props.task, "cbz")}>
-          导出 CBZ
+        <button
+          className="accent"
+          disabled={props.task.status !== "completed"}
+          onClick={() => props.onDownloadAction(props.task, "download-local")}
+        >
+          下载到本机
         </button>
         <button className="danger" onClick={() => props.onDownloadAction(props.task, "delete")}>
           删除

@@ -28,7 +28,7 @@ export function ComicCard(props: ComicCardProps) {
       <div className="card-actions">
         <button onClick={() => props.onOpenComic(props.comic, props.sourceKey)}>详情</button>
         <button onClick={() => props.onDownloadComic(props.comic, props.sourceKey)}>
-          下载全本
+          保存全本到服务器
         </button>
       </div>
     </article>
