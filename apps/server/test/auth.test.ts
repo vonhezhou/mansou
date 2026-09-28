@@ -255,4 +255,32 @@ describe("session authentication", () => {
       ).statusCode,
     ).toBe(401);
   });
+  it("validates auth request bodies using the YAML schema without coercion", async () => {
+    built.context.storage.auth.createAdmin("admin", digest);
+    for (const payload of [
+      { username: "admin" },
+      { username: 123, password },
+      { username: "admin", password, extra: "unexpected" },
+    ]) {
+      const result = await built.app.inject({
+        method: "POST",
+        url: "/api/v1/auth/login",
+        headers: { origin },
+        payload,
+      });
+      expect(result.statusCode).toBe(400);
+      expect(result.json().error.code).toBe("VALIDATION_ERROR");
+    }
+    const headers = await login();
+    expect(
+      (await built.app.inject({ url: "/api/v1/auth/session", headers })).json(),
+    ).not.toHaveProperty("passwordHash");
+    const result = await built.app.inject({
+      method: "POST",
+      url: "/api/v1/auth/tokens",
+      headers,
+      payload: { name: "client", expiresAt: "123" },
+    });
+    expect(result.statusCode).toBe(400);
+  });
 });

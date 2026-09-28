@@ -32,6 +32,7 @@ import type { RouteContext } from "./routes/types.js";
 
 export async function buildApp(authConfig: AuthConfig = readAuthConfig()) {
   const app = Fastify({
+    ajv: { customOptions: { coerceTypes: false, removeAdditional: false } },
     logger: {
       redact: ["req.headers.authorization", "req.headers.cookie", 'res.headers["set-cookie"]'],
       serializers: {
@@ -64,7 +65,7 @@ export async function buildApp(authConfig: AuthConfig = readAuthConfig()) {
     const statusCode =
       error instanceof ZodError ? 400 : ((error as { statusCode?: number }).statusCode ?? 500);
     const code =
-      error instanceof ZodError
+      error instanceof ZodError || (error as { validation?: unknown }).validation
         ? "VALIDATION_ERROR"
         : error instanceof PluginRuntimeError || error instanceof ApiError
           ? error.code

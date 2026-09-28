@@ -1,3 +1,4 @@
+import { registerAuthContract } from "../auth/contract.js";
 import { randomUUID } from "node:crypto";
 import { randomSecret, secretHash } from "../auth/password.js";
 import type { FastifyInstance } from "fastify";
@@ -7,6 +8,7 @@ import { requireOrigin, requireSession, setSessionCookie } from "../auth/http.js
 import { ApiError } from "./errors.js";
 
 export async function registerAuthRoutes(app: FastifyInstance, auth: AuthService) {
+  registerAuthContract(app);
   const enabled = () => {
     if (auth.config.mode !== "required") throw new ApiError(404, "AUTH_DISABLED", "当前未启用鉴权");
   };
