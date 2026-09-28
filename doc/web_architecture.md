@@ -1,120 +1,54 @@
-# apps/web 前端架构说明
+# apps/web 前端架构
 
-本文档记录 `apps/web` 当前前端结构和后续迭代约定。目标是让后续改动优先沿现有边界扩展，避免重新把业务逻辑堆回单个组件。
+## 定位与结构
 
-## 当前定位
+React/Vite 客户端提供源管理、搜索、详情和章节预览、历史、下载管理，以及可选的管理员登录。章节图片用于预览，本次不扩展阅读器能力。
 
-`apps/web` 是 `apps/server` 的产品化 Web 客户端，负责漫画源管理、搜索、详情、阅读、历史、下载和基础服务状态展示。
+- `src/main.tsx`：挂载 App 和加载样式。
+- `src/App.tsx`：AuthGate 包裹业务 Workspace，协调页面状态与 SSE。
+- `src/app/AppShell.tsx`：页面布局和 hash tab 导航。
+- `src/features/*`：搜索、源、下载、历史及鉴权界面。
+- `src/hooks/*`：各业务功能状态与异步操作。
+- `src/api/client.ts`：同源 HTTP 请求、CSRF 请求头和结构化错误。
+- `src/api/auth.ts`：鉴权 API，类型来自 OpenAPI YAML 生成产物。
+- `src/api/venera.ts`：业务请求封装与资源 URL。
+- `src/types.ts`：尚未迁移到生成契约的业务类型及 UI 类型。
+- `src/styles/*`：基础、布局、组件和页面样式。
 
-当前仍是轻量 React/Vite 应用，未引入路由库和全局状态库。新增复杂能力前，应优先确认现有 hash tab、组件状态和 API client 是否足够。
+当前使用 hash tab，无额外路由库或全局状态库。新增页面先沿现有功能边界拆分，不将业务逻辑堆回 App。
 
-## 目录职责
+## 登录与会话
 
-- `src/main.tsx`：React 挂载入口，只负责渲染 `App` 和加载全局样式。
-- `src/App.tsx`：当前主应用组件，包含页面状态、tab 分区和主要交互。后续功能继续增多时，应从这里拆出页面组件。
-- `src/types.ts`：Web 侧使用的接口类型和 UI 类型。
-- `src/api/client.ts`：底层 HTTP client，负责 API base、access token、请求头、错误解析和带 token 的资源 URL。
-- `src/api/venera.ts`：业务 API 封装，组件层不应直接拼 `/api/v1` 路径。
-- `src/api/*.test.ts`：API client 和 URL helper 的单元测试。
-- `src/styles.css`：当前全局样式。若样式继续膨胀，再按组件拆分 CSS。
-- `vite.config.ts`：Vite 构建和开发代理配置。
-- `vitest.config.ts`：Vitest 测试环境配置。
+AuthGate 先请求 `/auth/session`。none 模式直接挂载业务 Workspace；required 模式只有登录成功后才挂载，避免未登录时启动业务请求和 SSE。
 
-## API 访问约定
+Cookie 由服务端设置，浏览器 JavaScript 不读取会话 ID。CSRF Token 存在内存中，每次启动从会话接口取得；HTTP client 为写操作自动附加它。不要将 Session 或 API Token 保存到 localStorage，也不要拼到 URL。
 
-所有 server 接口调用应优先经过 `src/api/venera.ts`。
+业务请求返回 401 时通知 AuthGate 重新检查登录状态；SSE 的 auth-expired 事件同样触发该流程。Workspace 卸载时关闭 EventSource。网络断开时通过会话检查和 EventSource 原生重连恢复，不把所有网络错误当作密码错误。
 
-新增接口时遵循：
+账号设置提供改密和退出；TokenPanel 创建、查看元数据和撤销外部客户端 Token。新 Token 仅保存在当前组件内存并展示一次，关闭或卸载后不再显示。
 
-- 在 `src/types.ts` 增加必要类型。
-- 在 `src/api/venera.ts` 增加业务方法。
-- 路径参数必须使用 `encodeURIComponent`。
-- 查询参数优先使用 `URLSearchParams`。
-- 图片、SSE 等不能设置 header 的资源请求必须通过 `withAccessToken` 追加 `access_token`。
-- 组件层不要直接引用 `apiBase` 或手写 `/api/v1`。
+## API 与部署边界
 
-错误处理由 `src/api/client.ts` 统一解析 server 返回的 `{ error: { message } }`。后续如果要展示 `code/details/requestId`，应先扩展 client 的错误类型，而不是在组件里重复解析。
+所有 API 方法通过 client 封装。路径参数使用 encodeURIComponent，查询参数使用 URLSearchParams。图片、CBZ 和 SSE 使用同源资源 URL，Cookie 自动随请求发送。
 
-## 页面结构
+浏览器固定使用 `/api/v1`。开发由 Vite 代理，独立部署由站点入口反向代理至 Server；当前不支持浏览器直接跨站 Cookie 登录。
 
-当前使用 hash tab 做轻量页面分区：
+协议源是 `packages/contracts/openapi.yaml`，生成文件禁止手改。现阶段鉴权接口使用生成类型和服务端 schema；已有业务接口保留原有类型与封装，后续按功能迁移。
 
-- `#search`：搜索、详情和阅读器。
-- `#history`：阅读历史和恢复阅读。
-- `#downloads`：下载任务、下载明细、失败过滤和任务操作。
-- `#sources`：源安装、启用/禁用、源设置、Cookie 导入/清空。
+## 功能边界
 
-暂不使用 React Router。只有当需要深链到具体漫画、章节、下载任务或设置页时，再评估引入路由库。
+- 源设置和 Cookie 导入归属当前选择的源，避免与可安装源列表混用。
+- 下载明细按需加载；批量失败重试调用服务端批量接口。
+- 会导致数据丢失或客户端断连的操作应清晰提示后果，例如删除文件和撤销 Token。
+- 历史页沿用既有行为；新增功能仍围绕搜索、聚合搜索、下载和 NAS/VPS 部署需求。
 
-## 状态管理约定
-
-当前状态集中在 `App.tsx`，适合现阶段规模。后续拆分优先级：
-
-1. 先按页面拆组件，例如 `SearchView`、`ReaderView`、`DownloadsView`、`SourcesView`、`HistoryView`。
-2. 再把页面内部纯 UI 拆成小组件，例如 `DownloadTaskCard`、`SourceCard`、`ComicCard`。
-3. 最后才考虑全局状态库。除非出现跨页面复杂同步，否则不要提前引入。
-
-当前 `busy` 是全局 pending 状态。后续体验优化应逐步拆成局部 pending，例如搜索、源管理、下载操作分别维护状态。
-
-## 阅读器约定
-
-当前阅读器仍是长图列表模式，历史恢复依赖图片页锚点：`page-{index}`。
-
-后续阅读器增强建议顺序：
-
-- 用 IntersectionObserver 或滚动计算保存当前页。
-- 节流调用 `saveHistory`，避免滚动时频繁请求。
-- 增加上一章/下一章、返回详情和当前页指示。
-- 单张图片加载失败时提供重试，不要让整个阅读器失败。
-
-## 下载管理约定
-
-下载任务当前按状态分组：进行中、失败、完成、其他。
-
-后续新增下载能力时：
-
-- 单任务操作继续放在任务卡片内。
-- 危险操作必须确认，例如删除任务、删除文件。
-- 下载明细默认按需加载，避免进入页面时拉取所有任务明细。
-- 如果要批量重试失败图片，优先等 server 提供批量接口；不要在前端循环大量单图请求作为长期方案。
-
-## 源管理约定
-
-源管理当前保留 JSON 设置编辑。后续设置表单化时：
-
-- 保留 JSON 高级编辑作为兜底。
-- 优先支持基础类型：string、number、boolean、enum。
-- 不确定 schema 结构时不要猜测，应先补齐 server 契约或文档。
-- Cookie 操作属于敏感操作，清空前必须确认。
-
-## 测试约定
-
-当前测试重点覆盖 API client 和 URL helper。
-
-运行命令：
+## 验证
 
 ```bash
+pnpm --filter @venera/contracts generate:check
 pnpm --filter @venera/web test
 pnpm --filter @venera/web typecheck
 pnpm --filter @venera/web build
 ```
 
-新增测试优先级：
-
-- API client：错误解析、token header、path encoding、资源 URL token。
-- 纯函数：搜索分页、下载分组、阅读进度计算。
-- 组件测试：只有当组件拆分后再引入，避免在当前 `App.tsx` 巨组件上写脆弱测试。
-
-`vitest.config.ts` 使用 `jsdom` 环境。当前测试内显式 mock `localStorage`，避免 Node/Vitest/jsdom 组合差异影响测试稳定性。
-
-## 后续演进建议
-
-近期优先级：
-
-1. 从 `App.tsx` 拆出页面组件。
-2. 为搜索分页、下载分组、阅读进度计算补纯函数测试。
-3. 增加真实阅读进度保存。
-4. 表单化源设置。
-5. 评估深链需求，再决定是否引入 React Router。
-
-每个阶段继续保持小提交，并在提交前至少运行 `test`、`typecheck`、`build`。
+鉴权回归还需运行 server 测试，覆盖匿名/登录两种模式、CSRF、密码限流与重置、Token 权限、SSE 失效和真实 HTTP 连接。浏览器验证登录、账号设置、退出，以及 401 后返回登录页。

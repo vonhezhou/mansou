@@ -16,38 +16,31 @@ GET /api/v1/openapi.json
 pnpm --filter @venera/server openapi openapi.json
 ```
 
-该命令会从 `apps/server/src/routes/openapi.ts` 导出当前手写维护的 OpenAPI 文档。修改路由后应同步更新该文件，并至少运行：
+协议唯一源文件是 `packages/contracts/openapi.yaml`。先修改 YAML，再生成类型和运行时文档：
 
 ```bash
-pnpm --filter @venera/server test
-pnpm --filter @venera/server typecheck
+pnpm --filter @venera/contracts generate
+pnpm --filter @venera/contracts build
+pnpm --filter @venera/contracts generate:check
 ```
 
-如果改动涉及 `@venera/storage` 的源码，server 测试前应先构建 storage，确保 workspace package 导出同步：
+`src/api.generated.ts` 和 `src/openapi.generated.ts` 是生成文件，请勿手改。生成结果纳入 Git，CI 检查是否与 YAML 一致。Server 文档端点从生成产物返回 JSON；鉴权开启时该端点也需要凭据。
 
-```bash
-pnpm --filter @venera/storage build
-pnpm --filter @venera/server test
-```
+鉴权接口使用 YAML schema 做运行时请求校验和响应序列化，前端鉴权类型直接来自生成产物。已有业务路由仍保留原有 Zod 校验和请求封装；本次不把所有业务路由重写为生成客户端。
 
-生成 TypeScript 客户端示例：
+## 鉴权接口
 
-```bash
-npx openapi-typescript openapi.json -o api-types.ts
-npx @hey-api/openapi-ts -i openapi.json -o generated-client
-```
+- `GET /api/v1/auth/session`：公开，返回 mode、initialized、authenticated；已登录浏览器另返回 username、csrfToken、expiresAt。
+- `POST /api/v1/auth/login`：公开，接受 username/password，要求 Origin 匹配 AUTH_ORIGIN，成功设置 Cookie。
+- `POST /api/v1/auth/logout`：撤销当前浏览器会话。
+- `PUT /api/v1/auth/password`：接受 oldPassword/newPassword，成功撤销所有会话。
+- `GET /api/v1/auth/tokens`：列出 Token 元数据，不含明文或哈希。
+- `POST /api/v1/auth/tokens`：接受 name 和可选 expiresAt（Unix 毫秒；null 表示不过期），返回一次性 token 和 entry。
+- `DELETE /api/v1/auth/tokens/{id}`：撤销指定 Token。
 
-如果启用了 `VENERA_ACCESS_TOKEN`，普通 API 使用：
+退出、改密、Token 管理仅允许管理员 Session；写操作要求匹配的 Origin 和 X-CSRF-Token。外部客户端通过 `Authorization: Bearer <token>` 访问业务接口，不能操作这些账号接口。
 
-```text
-Authorization: Bearer <token>
-```
-
-图片和 SSE 这类浏览器无法设置自定义请求头的场景，也支持：
-
-```text
-?access_token=<token>
-```
+浏览器图片、文件、SSE 使用同源 Cookie，不再接受 URL 中的 access_token 或 x-venera-token。公开 API 响应禁止缓存；开启鉴权但未初始化管理员时不允许业务访问。配置、初始化、限流、过期和迁移见 [鉴权说明](auth.md)。
 
 ## 错误格式
 
@@ -66,6 +59,10 @@ API 错误统一返回：
 常见错误码：
 
 - `VALIDATION_ERROR`：请求参数或请求体校验失败。
+- `UNAUTHORIZED` / `INVALID_CREDENTIALS`：401，凭据缺失、失效或登录失败。
+- `CSRF_REJECTED` / `SESSION_REQUIRED`：403，跨站请求校验失败或需要浏览器会话。
+- `AUTH_RATE_LIMITED`：429，登录或密码验证过于频繁。
+- `AUTH_DISABLED` / `TOKEN_NOT_FOUND`：404，鉴权功能未启用或 Token 不存在。
 - `DOWNLOAD_NOT_FOUND`：下载任务不存在。
 - `SOURCE_NOT_LOADED`：源未加载或不存在。
 - `PLUGIN_TIMEOUT`：插件调用超时。
@@ -176,7 +173,8 @@ data: [{"id":"task-id","status":"running"}]
 - 首次连接会立即发送当前任务列表。
 - 下载任务状态变化时由 `DownloadService` 主动推送。
 - 服务端保留 heartbeat：`: heartbeat`，当前间隔为 30 秒。
-- 如果启用了 `VENERA_ACCESS_TOKEN`，浏览器 `EventSource` 应使用 `?access_token=<token>`。
+- 浏览器 EventSource 使用同源 Cookie；其他客户端可携带 Bearer Token。
+- 凭据失效时发送 `event: auth-expired`、`data: {}` 后关闭连接；空闲连接每秒检查一次，重连重新鉴权。
 
 ## 历史记录
 

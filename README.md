@@ -1,16 +1,16 @@
 # Venera Web
 
-Venera Web 是 Venera 漫画源插件生态的 Web 化实现。当前仓库处于正式化迁移阶段，阶段 0 已建立 pnpm monorepo 骨架，并迁移 `venera_web_poc` 的 Fastify 服务、插件运行时、图片代理、下载服务、mock 源和最小 Web UI。
+Venera Web 是 Venera 漫画源插件生态的 Web 化实现。项目使用 pnpm monorepo，提供 Fastify 服务、React Web 客户端、插件运行时、图片代理和下载管理。支持可信局域网免登录，以及公网单管理员登录与客户端 API Token。
 
 ## 项目结构
 
 ```text
-apps/server          Fastify API、PoC 运行时和静态 UI
-apps/web             正式 Web 前端占位，后续阶段实现
-packages/contracts   共享 Zod schema 和 TypeScript 类型
+apps/server          Fastify API、插件运行时、鉴权和静态资源
+apps/web             React/Vite Web 客户端
+packages/contracts   OpenAPI YAML、生成类型和共享 schema
 packages/core        领域服务占位
 packages/plugin-runtime 插件运行时包占位
-packages/storage     存储层占位
+packages/storage     SQLite 业务与鉴权存储
 packages/shared      通用工具占位
 doc                  设计文档和执行计划
 ```
@@ -19,10 +19,11 @@ doc                  设计文档和执行计划
 
 ```bash
 pnpm install
+pnpm build
 pnpm dev
 ```
 
-默认服务地址为 `http://localhost:3210`，健康检查为 `GET /health`。
+开发页面为 `http://localhost:5173`，API 服务为 `http://localhost:3210`，健康检查为 `GET /health`。源码运行未配置鉴权时默认免登录；公网部署按 `doc/deployment.md` 配置 HTTPS 与 required 模式。
 
 ## 常用命令
 
@@ -35,8 +36,9 @@ pnpm lint
 
 ## 配置
 
-复制 `.env.example` 后按需设置环境变量。常用变量包括：
+Compose 可复制 `.env.example` 后修改；源码运行需显式导出环境变量，Node.js 不自动加载 `.env`。常用变量包括：
 
+- `AUTH_MODE`、`AUTH_ORIGIN`、`AUTH_SESSION_TTL_SECONDS`
 - `PORT`、`HOST`
 - `VENERA_DATA_DIR`
 - `VENERA_SOURCE_LIST_URL`
@@ -50,3 +52,5 @@ pnpm lint
 - `doc/execution_plan.md`
 - `doc/deployment.md`
 - `doc/api.md`
+
+- `doc/auth.md`：管理员初始化、登录、API Token、密码恢复及旧配置迁移
