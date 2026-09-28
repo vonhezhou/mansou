@@ -176,4 +176,83 @@ describe("session authentication", () => {
       ).statusCode,
     ).toBe(404);
   });
+  it("issues one-time tokens and limits token clients to business APIs", async () => {
+    built.context.storage.auth.createAdmin("admin", digest);
+    const headers = await login();
+    const created = await built.app.inject({
+      method: "POST",
+      url: "/api/v1/auth/tokens",
+      headers,
+      payload: { name: "CLI", expiresAt: null },
+    });
+    expect(created.statusCode).toBe(200);
+    const { token, entry } = created.json();
+    const bearer = { authorization: `Bearer ${token}` };
+    expect((await built.app.inject({ url: "/api/v1/sources", headers: bearer })).statusCode).toBe(
+      200,
+    );
+    expect(
+      (
+        await built.app.inject({
+          method: "POST",
+          url: "/api/v1/settings/cache/images/prune",
+          headers: bearer,
+        })
+      ).statusCode,
+    ).toBe(200);
+    for (const request of [
+      { method: "GET" as const, url: "/api/v1/auth/tokens" },
+      { method: "POST" as const, url: "/api/v1/auth/tokens", payload: { name: "escalation" } },
+      {
+        method: "PUT" as const,
+        url: "/api/v1/auth/password",
+        payload: { oldPassword: password, newPassword: password },
+      },
+      { method: "DELETE" as const, url: `/api/v1/auth/tokens/${entry.id}` },
+    ])
+      expect((await built.app.inject({ ...request, headers: bearer })).statusCode).toBe(403);
+    const listed = await built.app.inject({ url: "/api/v1/auth/tokens", headers });
+    expect(listed.json()).toEqual([entry]);
+    expect(listed.body).not.toContain(token);
+    expect(listed.body).not.toContain(secretHash(token));
+    expect(
+      (
+        await built.app.inject({
+          method: "DELETE",
+          url: `/api/v1/auth/tokens/${entry.id}`,
+          headers,
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect((await built.app.inject({ url: "/api/v1/sources", headers: bearer })).statusCode).toBe(
+      401,
+    );
+    expect((await built.app.inject({ url: "/api/v1/sources", headers })).statusCode).toBe(200);
+  });
+  it("rejects expired tokens and invalid expiration dates", async () => {
+    built.context.storage.auth.createAdmin("admin", digest);
+    const headers = await login();
+    expect(
+      (
+        await built.app.inject({
+          method: "POST",
+          url: "/api/v1/auth/tokens",
+          headers,
+          payload: { name: "expired", expiresAt: 1 },
+        })
+      ).statusCode,
+    ).toBe(400);
+    built.context.storage.auth.createToken(
+      { id: "expired", name: "old", createdAt: 1, expiresAt: 2 },
+      secretHash("old-token"),
+    );
+    expect(
+      (
+        await built.app.inject({
+          url: "/api/v1/sources",
+          headers: { authorization: "Bearer old-token" },
+        })
+      ).statusCode,
+    ).toBe(401);
+  });
 });

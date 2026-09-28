@@ -1079,6 +1079,74 @@ export const openApiDocument = {
         ],
       },
     },
+    "/api/v1/auth/tokens": {
+      get: {
+        operationId: "listApiTokens",
+        tags: ["auth"],
+        security: [{ sessionAuth: [] }],
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": {
+                schema: { type: "array", items: { $ref: "#/components/schemas/ApiToken" } },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/Error" },
+          "401": { $ref: "#/components/responses/Error" },
+          "403": { $ref: "#/components/responses/Error" },
+          "404": { $ref: "#/components/responses/Error" },
+        },
+      },
+      post: {
+        operationId: "createApiToken",
+        tags: ["auth"],
+        security: [{ sessionAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/CreateApiTokenRequest" } },
+          },
+        },
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/CreateApiTokenResult" } },
+            },
+          },
+          "400": { $ref: "#/components/responses/Error" },
+          "401": { $ref: "#/components/responses/Error" },
+          "403": { $ref: "#/components/responses/Error" },
+          "404": { $ref: "#/components/responses/Error" },
+        },
+        parameters: [
+          { name: "X-CSRF-Token", in: "header", required: true, schema: { type: "string" } },
+        ],
+      },
+    },
+    "/api/v1/auth/tokens/{id}": {
+      delete: {
+        operationId: "revokeApiToken",
+        tags: ["auth"],
+        security: [{ sessionAuth: [] }],
+        responses: {
+          "200": {
+            description: "OK",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Ok" } } },
+          },
+          "400": { $ref: "#/components/responses/Error" },
+          "401": { $ref: "#/components/responses/Error" },
+          "403": { $ref: "#/components/responses/Error" },
+          "404": { $ref: "#/components/responses/Error" },
+        },
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+          { name: "X-CSRF-Token", in: "header", required: true, schema: { type: "string" } },
+        ],
+      },
+    },
   },
   components: {
     securitySchemes: {
@@ -1445,6 +1513,38 @@ export const openApiDocument = {
           newPassword: { type: "string", minLength: 12, maxLength: 128, writeOnly: true },
         },
         required: ["oldPassword", "newPassword"],
+      },
+      ApiToken: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          id: { type: "string", format: "uuid" },
+          name: { type: "string" },
+          createdAt: { type: "integer", format: "int64" },
+          expiresAt: { anyOf: [{ type: "integer", format: "int64" }, { type: "null" }] },
+        },
+        required: ["id", "name", "createdAt", "expiresAt"],
+      },
+      CreateApiTokenRequest: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          name: { type: "string", minLength: 1, maxLength: 80 },
+          expiresAt: { anyOf: [{ type: "integer", format: "int64" }, { type: "null" }] },
+        },
+        required: ["name"],
+      },
+      CreateApiTokenResult: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          token: {
+            type: "string",
+            description: "Shown once. Store securely; never available from the list endpoint.",
+          },
+          entry: { $ref: "#/components/schemas/ApiToken" },
+        },
+        required: ["token", "entry"],
       },
     },
   },

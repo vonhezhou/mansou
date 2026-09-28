@@ -1,3 +1,4 @@
+import { TokenPanel } from "./TokenPanel.js";
 import { useState, type FormEvent } from "react";
 import { authApi } from "../../api/auth.js";
 
@@ -48,6 +49,7 @@ export function AccountPanel({
           {error}
         </p>
       )}
+      {expanded && <TokenPanel />}
       {expanded && (
         <form onSubmit={changePassword}>
           <h2>修改密码</h2>

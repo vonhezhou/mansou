@@ -797,6 +797,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/auth/tokens": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["listApiTokens"];
+    put?: never;
+    post: operations["createApiToken"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/tokens/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: operations["revokeApiToken"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1019,6 +1051,23 @@ export interface components {
     ChangePasswordRequest: {
       oldPassword: string;
       newPassword: string;
+    };
+    ApiToken: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+      /** Format: int64 */
+      createdAt: number;
+      expiresAt: number | null;
+    };
+    CreateApiTokenRequest: {
+      name: string;
+      expiresAt?: number | null;
+    };
+    CreateApiTokenResult: {
+      /** @description Shown once. Store securely; never available from the list endpoint. */
+      token: string;
+      entry: components["schemas"]["ApiToken"];
     };
   };
   responses: {
@@ -2368,6 +2417,88 @@ export interface operations {
       401: components["responses"]["Error"];
       403: components["responses"]["Error"];
       429: components["responses"]["Error"];
+    };
+  };
+  listApiTokens: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiToken"][];
+        };
+      };
+      400: components["responses"]["Error"];
+      401: components["responses"]["Error"];
+      403: components["responses"]["Error"];
+      404: components["responses"]["Error"];
+    };
+  };
+  createApiToken: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateApiTokenRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreateApiTokenResult"];
+        };
+      };
+      400: components["responses"]["Error"];
+      401: components["responses"]["Error"];
+      403: components["responses"]["Error"];
+      404: components["responses"]["Error"];
+    };
+  };
+  revokeApiToken: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": string;
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Ok"];
+        };
+      };
+      400: components["responses"]["Error"];
+      401: components["responses"]["Error"];
+      403: components["responses"]["Error"];
+      404: components["responses"]["Error"];
     };
   };
 }
