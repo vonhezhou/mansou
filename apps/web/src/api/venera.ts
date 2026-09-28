@@ -1,4 +1,4 @@
-import { api, apiBase, withAccessToken } from "./client.js";
+import { api, apiBase } from "./client.js";
 import type {
   AggregatedSearchItem,
   CacheStats,
@@ -33,11 +33,11 @@ export function imageUrl(
   const params = new URLSearchParams({ sourceKey, imageKey, thumbnail: String(thumbnail) });
   if (comicId) params.set("comicId", comicId);
   if (episodeId) params.set("episodeId", episodeId);
-  return withAccessToken(`${apiBase}/image?${params}`);
+  return `${apiBase}/image?${params}`;
 }
 
 export function downloadsEventUrl() {
-  return withAccessToken(`${apiBase}/downloads/events`);
+  return `${apiBase}/downloads/events`;
 }
 
 export const veneraApi = {
@@ -132,7 +132,7 @@ export const veneraApi = {
   exportDownloadCbz: (taskId: string) =>
     api<{ path: string }>(`/downloads/${encodeURIComponent(taskId)}/cbz`, { method: "POST" }),
   downloadDownloadCbzUrl: (taskId: string) =>
-    withAccessToken(`${apiBase}/downloads/${encodeURIComponent(taskId)}/cbz`),
+    `${apiBase}/downloads/${encodeURIComponent(taskId)}/cbz`,
   deleteDownload: (taskId: string, files = false) =>
     api(`/downloads/${encodeURIComponent(taskId)}${files ? "?files=true" : ""}`, {
       method: "DELETE",

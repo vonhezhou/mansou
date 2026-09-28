@@ -1,39 +1,40 @@
 export const apiBase = "/api/v1";
-
-type ApiErrorBody = { error?: { message?: string } };
-
-export function getAccessToken() {
-  return window.localStorage.getItem("venera_access_token") ?? "";
+let csrfToken = "";
+export function setCsrfToken(value: string) {
+  csrfToken = value;
 }
-
-export function saveAccessTokenValue(value: string) {
-  if (value) window.localStorage.setItem("venera_access_token", value);
-  else window.localStorage.removeItem("venera_access_token");
-}
-
-export function withAccessToken(url: string) {
-  const token = getAccessToken();
-  if (!token) return url;
-  const next = new URL(url, window.location.origin);
-  next.searchParams.set("access_token", token);
-  return `${next.pathname}${next.search}`;
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message);
+  }
 }
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getAccessToken();
+  const headers = new Headers(init?.headers);
+  if (init?.body && !headers.has("content-type")) headers.set("content-type", "application/json");
+  if (!["GET", "HEAD", "OPTIONS"].includes((init?.method ?? "GET").toUpperCase()) && csrfToken)
+    headers.set("x-csrf-token", csrfToken);
   const response = await fetch(`${apiBase}${path}`, {
-    headers: {
-      "content-type": "application/json",
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-      ...(init?.headers ?? {}),
-    },
     ...init,
+    headers,
+    credentials: "same-origin",
   });
   const contentType = response.headers.get("content-type") ?? "";
   const body = contentType.includes("application/json")
     ? await response.json()
     : await response.text();
-  if (!response.ok)
-    throw new Error((body as ApiErrorBody)?.error?.message ?? `HTTP ${response.status}`);
+  if (!response.ok) {
+    if (response.status === 401 && path !== "/auth/login")
+      window.dispatchEvent(new Event("venera:unauthorized"));
+    throw new ApiError(
+      response.status,
+      body?.error?.code ?? "HTTP_ERROR",
+      body?.error?.message ?? `HTTP ${response.status}`,
+    );
+  }
   return body as T;
 }

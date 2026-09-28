@@ -1,3 +1,7 @@
+import { readAuthConfig, type AuthConfig } from "./auth/config.js";
+import { AuthService } from "./auth/service.js";
+import { registerAuthHook } from "./auth/http.js";
+import { registerAuthRoutes } from "./routes/auth.js";
 import Fastify from "fastify";
 import { createStorage } from "@venera/storage";
 import { ZodError } from "zod";
@@ -26,41 +30,34 @@ import { registerStaticRoutes } from "./routes/static.js";
 import { registerSettingRoutes } from "./routes/settings.js";
 import type { RouteContext } from "./routes/types.js";
 
-export async function buildApp() {
-  const app = Fastify({ logger: true });
+export async function buildApp(authConfig: AuthConfig = readAuthConfig()) {
+  const app = Fastify({
+    logger: {
+      redact: ["req.headers.authorization", "req.headers.cookie", 'res.headers["set-cookie"]'],
+      serializers: {
+        req: (req) => ({
+          method: req.method,
+          url: req.url?.split("?")[0],
+          hostname: req.hostname,
+          remoteAddress: req.ip,
+        }),
+      },
+    },
+  });
   const storage = createStorage(config.dataDir);
+  const auth = new AuthService(storage, authConfig);
+  registerAuthHook(app, auth);
   const repository = new SourceRepositoryService();
   const dataStore = new SourceDataStore(storage);
   const cookieStore = new SourceCookieStore(storage);
   const runtime = new SourceRuntime(repository, dataStore, cookieStore);
   const imageProxy = new ImageProxyService(runtime);
   const downloads = new DownloadService(runtime, imageProxy, storage);
-  const context: RouteContext = { repository, runtime, imageProxy, downloads, storage };
+  const context: RouteContext = { repository, runtime, imageProxy, downloads, storage, auth };
 
   app.addHook("onClose", async () => {
     await runtime.close();
     storage.close();
-  });
-
-  app.addHook("onRequest", async (request, reply) => {
-    if (
-      !config.accessToken ||
-      request.url === "/health" ||
-      request.url === "/api/v1/health" ||
-      request.url.startsWith("/assets/") ||
-      request.url === "/"
-    )
-      return;
-    const header = request.headers.authorization;
-    const queryToken = (request.query as { access_token?: string } | undefined)?.access_token;
-    const token = header?.startsWith("Bearer ")
-      ? header.slice("Bearer ".length)
-      : (request.headers["x-venera-token"] ?? queryToken);
-    if (token !== config.accessToken) {
-      reply.code(401).send({
-        error: { code: "UNAUTHORIZED", message: "Access token required", requestId: request.id },
-      });
-    }
   });
 
   app.setErrorHandler((error, request, reply) => {
@@ -74,7 +71,7 @@ export async function buildApp() {
           : statusCode === 404
             ? "NOT_FOUND"
             : "INTERNAL_ERROR";
-    request.log.error({ error }, "request failed");
+    request.log.error({ code, statusCode }, "request failed");
     reply.status(statusCode).send({
       error: {
         code,
@@ -94,7 +91,7 @@ export async function buildApp() {
     reply.status(404).send({
       error: {
         code: "NOT_FOUND",
-        message: `Route not found: ${request.method} ${request.url}`,
+        message: `Route not found: ${request.method}`,
         requestId: request.id,
       },
     });
@@ -104,6 +101,7 @@ export async function buildApp() {
   await registerStaticRoutes(app);
   await app.register(
     async (api) => {
+      await registerAuthRoutes(api, auth);
       await registerSourceRepositoryRoutes(api, context);
       await registerSourceRoutes(api, context);
       await registerSearchRoutes(api, context);

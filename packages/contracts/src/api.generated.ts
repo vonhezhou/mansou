@@ -732,6 +732,71 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/auth/session": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["getSession"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/login": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** @description Requires Origin equal to AUTH_ORIGIN; only available in required mode. No public account creation. */
+    post: operations["login"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/logout": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["logout"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/password": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: operations["changePassword"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -742,9 +807,6 @@ export interface components {
     Health: {
       ok: boolean;
       name: string;
-      dataDir: string;
-      proxy?: string | null;
-      noProxy: string[];
     };
     ApiError: {
       error: {
@@ -939,6 +1001,24 @@ export interface components {
       stack?: string[];
     } & {
       [key: string]: unknown;
+    };
+    AuthSession: {
+      /** @enum {string} */
+      mode: "none" | "required";
+      authenticated: boolean;
+      initialized: boolean;
+      username?: string;
+      csrfToken?: string;
+      /** @description Unix milliseconds */
+      expiresAt?: number;
+    };
+    LoginRequest: {
+      username: string;
+      password: string;
+    };
+    ChangePasswordRequest: {
+      oldPassword: string;
+      newPassword: string;
     };
   };
   responses: {
@@ -1583,7 +1663,6 @@ export interface operations {
         comicId?: string;
         episodeId?: string;
         thumbnail?: boolean;
-        access_token?: string;
       };
       header?: never;
       path?: never;
@@ -1649,9 +1728,7 @@ export interface operations {
   };
   subscribeDownloads: {
     parameters: {
-      query?: {
-        access_token?: string;
-      };
+      query?: never;
       header?: never;
       path?: never;
       cookie?: never;
@@ -2183,6 +2260,114 @@ export interface operations {
           "application/json": components["schemas"]["DebugResult"];
         };
       };
+    };
+  };
+  getSession: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuthSession"];
+        };
+      };
+      400: components["responses"]["Error"];
+      401: components["responses"]["Error"];
+      403: components["responses"]["Error"];
+      429: components["responses"]["Error"];
+    };
+  };
+  login: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["LoginRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuthSession"];
+        };
+      };
+      400: components["responses"]["Error"];
+      401: components["responses"]["Error"];
+      403: components["responses"]["Error"];
+      429: components["responses"]["Error"];
+    };
+  };
+  logout: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Ok"];
+        };
+      };
+      400: components["responses"]["Error"];
+      401: components["responses"]["Error"];
+      403: components["responses"]["Error"];
+      429: components["responses"]["Error"];
+    };
+  };
+  changePassword: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChangePasswordRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Ok"];
+        };
+      };
+      400: components["responses"]["Error"];
+      401: components["responses"]["Error"];
+      403: components["responses"]["Error"];
+      429: components["responses"]["Error"];
     };
   };
 }

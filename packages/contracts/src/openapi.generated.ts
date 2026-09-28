@@ -5,10 +5,10 @@ export const openApiDocument = {
     title: "Venera Web API",
     version: "0.1.0",
     description:
-      "HTTP API for source management, search, reading, downloads, cache and diagnostics.",
+      "Venera HTTP API. Authentication is required unless explicitly disabled by AUTH_MODE=none. Browser mutations require Origin and X-CSRF-Token; API tokens use Authorization. SSE emits downloads snapshots and auth-expired before closing on credential expiry/revocation.",
   },
   servers: [{ url: "/" }],
-  security: [{ bearerAuth: [] }, { veneraToken: [] }, {}],
+  security: [{ sessionAuth: [] }, { bearerAuth: [] }],
   paths: {
     "/health": {
       get: {
@@ -517,7 +517,6 @@ export const openApiDocument = {
           { name: "comicId", in: "query", required: false, schema: { type: "string" } },
           { name: "episodeId", in: "query", required: false, schema: { type: "string" } },
           { name: "thumbnail", in: "query", schema: { type: "boolean" } },
-          { name: "access_token", in: "query", required: false, schema: { type: "string" } },
         ],
         responses: {
           "200": {
@@ -568,9 +567,7 @@ export const openApiDocument = {
       get: {
         operationId: "subscribeDownloads",
         tags: ["downloads"],
-        parameters: [
-          { name: "access_token", in: "query", required: false, schema: { type: "string" } },
-        ],
+        parameters: [],
         responses: { "200": { description: "Server-sent events stream" } },
       },
     },
@@ -990,11 +987,113 @@ export const openApiDocument = {
         },
       },
     },
+    "/api/v1/auth/session": {
+      get: {
+        operationId: "getSession",
+        tags: ["auth"],
+        security: [],
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/AuthSession" } },
+            },
+          },
+          "400": { $ref: "#/components/responses/Error" },
+          "401": { $ref: "#/components/responses/Error" },
+          "403": { $ref: "#/components/responses/Error" },
+          "429": { $ref: "#/components/responses/Error" },
+        },
+      },
+    },
+    "/api/v1/auth/login": {
+      post: {
+        operationId: "login",
+        tags: ["auth"],
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/LoginRequest" } },
+          },
+        },
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/AuthSession" } },
+            },
+          },
+          "400": { $ref: "#/components/responses/Error" },
+          "401": { $ref: "#/components/responses/Error" },
+          "403": { $ref: "#/components/responses/Error" },
+          "429": { $ref: "#/components/responses/Error" },
+        },
+        description:
+          "Requires Origin equal to AUTH_ORIGIN; only available in required mode. No public account creation.",
+      },
+    },
+    "/api/v1/auth/logout": {
+      post: {
+        operationId: "logout",
+        tags: ["auth"],
+        security: [{ sessionAuth: [] }],
+        responses: {
+          "200": {
+            description: "OK",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Ok" } } },
+          },
+          "400": { $ref: "#/components/responses/Error" },
+          "401": { $ref: "#/components/responses/Error" },
+          "403": { $ref: "#/components/responses/Error" },
+          "429": { $ref: "#/components/responses/Error" },
+        },
+        parameters: [
+          { name: "X-CSRF-Token", in: "header", required: true, schema: { type: "string" } },
+        ],
+      },
+    },
+    "/api/v1/auth/password": {
+      put: {
+        operationId: "changePassword",
+        tags: ["auth"],
+        security: [{ sessionAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/ChangePasswordRequest" } },
+          },
+        },
+        responses: {
+          "200": {
+            description: "OK",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Ok" } } },
+          },
+          "400": { $ref: "#/components/responses/Error" },
+          "401": { $ref: "#/components/responses/Error" },
+          "403": { $ref: "#/components/responses/Error" },
+          "429": { $ref: "#/components/responses/Error" },
+        },
+        parameters: [
+          { name: "X-CSRF-Token", in: "header", required: true, schema: { type: "string" } },
+        ],
+      },
+    },
   },
   components: {
     securitySchemes: {
-      bearerAuth: { type: "http", scheme: "bearer" },
-      veneraToken: { type: "apiKey", in: "header", name: "x-venera-token" },
+      sessionAuth: {
+        type: "apiKey",
+        in: "cookie",
+        name: "__Host-venera_session",
+        description:
+          "HTTPS session cookie. HTTP development uses venera_session. Unsafe session requests require matching Origin and X-CSRF-Token.",
+      },
+      bearerAuth: {
+        type: "http",
+        scheme: "bearer",
+        description: "Opaque API token for non-browser clients.",
+      },
     },
     responses: {
       Error: {
@@ -1006,14 +1105,8 @@ export const openApiDocument = {
       Ok: { type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"] },
       Health: {
         type: "object",
-        properties: {
-          ok: { type: "boolean" },
-          name: { type: "string" },
-          dataDir: { type: "string" },
-          proxy: { anyOf: [{ type: "string" }, { type: "null" }] },
-          noProxy: { type: "array", items: { type: "string" } },
-        },
-        required: ["ok", "name", "dataDir", "noProxy"],
+        properties: { ok: { type: "boolean" }, name: { type: "string" } },
+        required: ["ok", "name"],
       },
       ApiError: {
         type: "object",
@@ -1321,6 +1414,37 @@ export const openApiDocument = {
           stack: { type: "array", items: { type: "string" } },
         },
         required: ["ok", "name", "durationMs"],
+      },
+      AuthSession: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          mode: { type: "string", enum: ["none", "required"] },
+          authenticated: { type: "boolean" },
+          initialized: { type: "boolean" },
+          username: { type: "string" },
+          csrfToken: { type: "string" },
+          expiresAt: { type: "integer", description: "Unix milliseconds" },
+        },
+        required: ["mode", "authenticated", "initialized"],
+      },
+      LoginRequest: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          username: { type: "string", minLength: 1, maxLength: 64 },
+          password: { type: "string", minLength: 1, maxLength: 128, writeOnly: true },
+        },
+        required: ["username", "password"],
+      },
+      ChangePasswordRequest: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          oldPassword: { type: "string", minLength: 1, maxLength: 128, writeOnly: true },
+          newPassword: { type: "string", minLength: 12, maxLength: 128, writeOnly: true },
+        },
+        required: ["oldPassword", "newPassword"],
       },
     },
   },

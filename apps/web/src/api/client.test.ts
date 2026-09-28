@@ -1,67 +1,60 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { api, getAccessToken, saveAccessTokenValue, withAccessToken } from "./client.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { api, setCsrfToken } from "./client.js";
 
-function installLocalStorage() {
-  const data = new Map<string, string>();
-  Object.defineProperty(window, "localStorage", {
-    configurable: true,
-    value: {
-      clear: () => data.clear(),
-      getItem: (key: string) => data.get(key) ?? null,
-      removeItem: (key: string) => data.delete(key),
-      setItem: (key: string, value: string) => data.set(key, value),
-    },
+afterEach(() => {
+  setCsrfToken("");
+  vi.restoreAllMocks();
+});
+describe("session API client", () => {
+  it("uses same-origin cookies and merges headers without losing CSRF", async () => {
+    setCsrfToken("csrf-test");
+    const fetchMock = vi
+      .spyOn(window, "fetch")
+      .mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    await expect(
+      api("/test", { method: "POST", body: "{}", headers: { "x-test": "value" } }),
+    ).resolves.toEqual({ ok: true });
+    const init = fetchMock.mock.calls[0][1]!;
+    expect(init.credentials).toBe("same-origin");
+    expect(new Headers(init.headers).get("x-csrf-token")).toBe("csrf-test");
+    expect(new Headers(init.headers).get("x-test")).toBe("value");
+    expect(new Headers(init.headers).has("authorization")).toBe(false);
   });
-}
-
-describe("api client", () => {
-  beforeEach(() => installLocalStorage());
-
-  afterEach(() => {
-    window.localStorage.clear();
-    vi.restoreAllMocks();
+  it("signals expired sessions and preserves structured errors", async () => {
+    const expired = vi.fn();
+    window.addEventListener("venera:unauthorized", expired);
+    try {
+      vi.spyOn(window, "fetch").mockResolvedValue(
+        new Response(JSON.stringify({ error: { code: "UNAUTHORIZED", message: "请先登录" } }), {
+          status: 401,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+      await expect(api("/sources")).rejects.toMatchObject({
+        status: 401,
+        code: "UNAUTHORIZED",
+        message: "请先登录",
+      });
+      expect(expired).toHaveBeenCalledOnce();
+    } finally {
+      window.removeEventListener("venera:unauthorized", expired);
+    }
   });
-
-  it("stores and clears access token", () => {
-    saveAccessTokenValue("secret");
-    expect(getAccessToken()).toBe("secret");
-
-    saveAccessTokenValue("");
-    expect(getAccessToken()).toBe("");
-  });
-
-  it("appends token to resource urls", () => {
-    saveAccessTokenValue("secret");
-    expect(withAccessToken("/api/v1/image?imageKey=a")).toBe(
-      "/api/v1/image?imageKey=a&access_token=secret",
-    );
-  });
-
-  it("sends bearer token and parses json", async () => {
-    saveAccessTokenValue("secret");
-    const fetchMock = vi.spyOn(window, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ ok: true }), {
-        headers: { "content-type": "application/json" },
-      }),
-    );
-
-    await expect(api<{ ok: boolean }>("/health")).resolves.toEqual({ ok: true });
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/v1/health",
-      expect.objectContaining({
-        headers: expect.objectContaining({ authorization: "Bearer secret" }),
-      }),
-    );
-  });
-
-  it("uses server error message", async () => {
-    vi.spyOn(window, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ error: { message: "bad request" } }), {
-        status: 400,
-        headers: { "content-type": "application/json" },
-      }),
-    );
-
-    await expect(api("/broken")).rejects.toThrow("bad request");
+  it("does not treat an incorrect login password as an expired session", async () => {
+    const expired = vi.fn();
+    window.addEventListener("venera:unauthorized", expired);
+    try {
+      vi.spyOn(window, "fetch").mockResolvedValue(
+        new Response("{}", { status: 401, headers: { "content-type": "application/json" } }),
+      );
+      await expect(api("/auth/login", { method: "POST" })).rejects.toThrow();
+      expect(expired).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener("venera:unauthorized", expired);
+    }
   });
 });

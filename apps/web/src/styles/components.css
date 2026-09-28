@@ -208,3 +208,22 @@ button.accent {
     grid-template-columns: 1fr;
   }
 }
+
+.auth-panel {
+  max-width: 480px;
+  margin: 10vh auto;
+}
+.auth-panel form,
+.account-panel form {
+  display: grid;
+  gap: 12px;
+  max-width: 480px;
+}
+.auth-panel label,
+.account-panel label {
+  display: grid;
+  gap: 6px;
+}
+.account-panel {
+  margin-bottom: 16px;
+}

@@ -5,19 +5,36 @@ import { notFound } from "./errors.js";
 import type { RouteContext } from "./types.js";
 
 export async function registerDownloadRoutes(app: FastifyInstance, context: RouteContext) {
-  app.get("/downloads/events", async (_request, reply) => {
+  app.get("/downloads/events", async (request, reply) => {
+    const identity = request.identity!;
+    reply.hijack();
     reply.raw.writeHead(200, {
       "content-type": "text/event-stream",
-      "cache-control": "no-cache",
+      "cache-control": "no-store",
+      "x-accel-buffering": "no",
       connection: "keep-alive",
     });
+    const valid = () => {
+      if (context.auth.valid(identity)) return true;
+      reply.raw.write("event: auth-expired\ndata: {}\n\n");
+      reply.raw.end();
+      return false;
+    };
     const unsubscribe = context.downloads.subscribe((tasks) => {
-      reply.raw.write(`event: downloads\ndata: ${JSON.stringify(tasks)}\n\n`);
+      if (valid()) reply.raw.write(`event: downloads\ndata: ${JSON.stringify(tasks)}\n\n`);
     });
-    const heartbeat = setInterval(() => reply.raw.write(`: heartbeat\n\n`), 30000);
+    // Recheck persisted credentials so CLI password resets also close idle streams.
+    const expiry = setInterval(valid, 1000);
+    const heartbeat = setInterval(() => {
+      if (valid()) reply.raw.write(": heartbeat\n\n");
+    }, 30000);
+    const shutdown = () => reply.raw.end();
+    app.server.on("close", shutdown);
     reply.raw.on("close", () => {
+      clearInterval(expiry);
       clearInterval(heartbeat);
       unsubscribe();
+      app.server.off("close", shutdown);
     });
   });
 

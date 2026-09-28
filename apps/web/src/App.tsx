@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { downloadsEventUrl, veneraApi } from "./api/venera.js";
-import { getAccessToken, saveAccessTokenValue } from "./api/client.js";
+import { AuthGate } from "./features/auth/AuthGate.js";
+import { AccountPanel } from "./features/auth/AccountPanel.js";
+import type { AuthSession } from "./api/auth.js";
 import { AppShell } from "./app/AppShell.js";
 import { isTabKey, type TabKey } from "./app/navigation.js";
 import { getHistoryComicId, getHistoryEpisodeId, getHistorySourceKey } from "./lib/history.js";
@@ -19,10 +21,23 @@ function readInitialTab(): TabKey {
 }
 
 export function App() {
+  return (
+    <AuthGate>
+      {(session, reload) => <Workspace session={session} reloadSession={reload} />}
+    </AuthGate>
+  );
+}
+
+function Workspace({
+  session,
+  reloadSession,
+}: {
+  session: AuthSession;
+  reloadSession: () => Promise<void>;
+}) {
   const [sourceKey, setSourceKey] = useState("mock");
   const [detailSourceKey, setDetailSourceKey] = useState(sourceKey);
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [accessToken, setAccessToken] = useState(getAccessToken());
   const [activeTab, setActiveTab] = useState<TabKey>(readInitialTab);
   const [health, setHealth] = useState<Health | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -47,8 +62,15 @@ export function App() {
     events.addEventListener("downloads", (event) =>
       downloadsState.setDownloads(JSON.parse((event as MessageEvent).data)),
     );
+    events.addEventListener("auth-expired", () => {
+      events.close();
+      window.dispatchEvent(new Event("venera:unauthorized"));
+    });
+    events.onerror = () => {
+      void reloadSession();
+    };
     return () => events.close();
-  }, [accessToken]);
+  }, []);
 
   useEffect(() => {
     void checkHealth();
@@ -122,11 +144,6 @@ export function App() {
     });
   }
 
-  function saveAccessToken(value: string) {
-    setAccessToken(value);
-    saveAccessTokenValue(value);
-  }
-
   const shellBusy = refreshing || openingHistory;
   const sourcesBusy = sourcesState.managingSources || refreshing;
   const downloadsBusy = downloadsState.loadingDownloads;
@@ -134,17 +151,18 @@ export function App() {
   return (
     <AppShell
       activeTab={activeTab}
-      accessToken={accessToken}
       busy={shellBusy}
       error={error}
       health={health}
-      onAccessTokenChange={saveAccessToken}
       onRefresh={() => {
         void checkHealth();
         void refresh();
       }}
       onTabChange={setActiveTab}
     >
+      {session.mode === "required" && (
+        <AccountPanel username={session.username ?? "admin"} onSessionChange={reloadSession} />
+      )}
       {activeTab === "search" && (
         <SearchView
           busy={searchState.searchBusy}

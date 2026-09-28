@@ -4,12 +4,10 @@ import { navigationItems, type TabKey } from "./navigation.js";
 
 type AppShellProps = {
   activeTab: TabKey;
-  accessToken: string;
   busy: boolean;
   error: string | null;
   health: Health | null;
   children: ReactNode;
-  onAccessTokenChange: (value: string) => void;
   onRefresh: () => void;
   onTabChange: (tab: TabKey) => void;
 };
@@ -30,15 +28,6 @@ export function AppShell(props: AppShellProps) {
           <span className={props.health?.ok ? "health online" : "health offline"}>
             {props.health?.ok ? "服务在线" : "服务未连接"}
           </span>
-          <label>
-            访问 Token
-            <input
-              value={props.accessToken}
-              onChange={(event) => props.onAccessTokenChange(event.target.value)}
-              placeholder="可选"
-              type="password"
-            />
-          </label>
           <button onClick={props.onRefresh} disabled={props.busy}>
             刷新
           </button>
