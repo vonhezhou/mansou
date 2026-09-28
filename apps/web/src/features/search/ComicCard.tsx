@@ -6,12 +6,17 @@ type ComicCardProps = {
   sourceKey: string;
   sourceName?: string;
   onOpenComic: (comic: Comic, sourceKey?: string) => void;
-  onDownloadComic: (comic: Comic, sourceKey?: string) => void;
+  busy?: boolean;
 };
 
 export function ComicCard(props: ComicCardProps) {
   return (
-    <article className="comic-card">
+    <button
+      className="comic-card"
+      disabled={props.busy}
+      onClick={() => props.onOpenComic(props.comic, props.sourceKey)}
+      aria-label={`查看 ${props.comic.title} 的详情`}
+    >
       <img
         src={imageUrl(
           props.sourceKey,
@@ -21,16 +26,10 @@ export function ComicCard(props: ComicCardProps) {
           true,
         )}
         alt=""
+        loading="lazy"
       />
-      {props.sourceName && <span className="source-label">{props.sourceName}</span>}
       <strong>{props.comic.title}</strong>
-      <span>{props.comic.description}</span>
-      <div className="card-actions">
-        <button onClick={() => props.onOpenComic(props.comic, props.sourceKey)}>详情</button>
-        <button onClick={() => props.onDownloadComic(props.comic, props.sourceKey)}>
-          保存全本到服务器
-        </button>
-      </div>
-    </article>
+      <span className="source-label">{props.sourceName ?? props.sourceKey}</span>
+    </button>
   );
 }

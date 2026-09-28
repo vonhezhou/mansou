@@ -21,50 +21,60 @@ export function DownloadsView(props: DownloadsViewProps) {
 
   return (
     <section className="panel downloads">
-      <h2>服务器下载中心</h2>
+      <h1>下载</h1>
       <p className="muted download-destination-note">
-        这里管理保存到 NAS 的下载任务。任务在服务器后台运行，关闭浏览器也不会中断；完成后可将 CBZ
-        下载到本机。
+        下载任务在服务器后台运行，完成后可获取 CBZ 文件。
       </p>
       <DownloadSummary downloads={props.downloads} />
-      <CachePanel
-        cache={props.cache}
-        onPruneCache={props.onPruneCache}
-        onClearCache={props.onClearCache}
-      />
-      {props.downloads.length === 0 && <p className="muted">暂无下载任务。</p>}
-      <div className="download-filters">
-        <label>
-          来源筛选
-          <input
-            value={sourceFilter}
-            onChange={(event) => setSourceFilter(event.target.value)}
-            placeholder="sourceKey"
+      <div className="download-tools">
+        <details className="disclosure">
+          <summary>图片缓存管理</summary>
+          <CachePanel
+            cache={props.cache}
+            onPruneCache={props.onPruneCache}
+            onClearCache={props.onClearCache}
           />
-        </label>
-        <label>
-          漫画筛选
-          <input
-            value={comicFilter}
-            onChange={(event) => setComicFilter(event.target.value)}
-            placeholder="漫画 ID 或标题"
-          />
-        </label>
+        </details>
+        {props.downloads.length === 0 && <p className="muted">暂无下载任务。</p>}
+        <details className="disclosure">
+          <summary>筛选下载任务</summary>
+          <div className="download-filters">
+            <label>
+              来源筛选
+              <input
+                value={sourceFilter}
+                onChange={(event) => setSourceFilter(event.target.value)}
+                placeholder="sourceKey"
+              />
+            </label>
+            <label>
+              漫画筛选
+              <input
+                value={comicFilter}
+                onChange={(event) => setComicFilter(event.target.value)}
+                placeholder="漫画 ID 或标题"
+              />
+            </label>
+          </div>
+          <label className="inline-toggle">
+            <input
+              checked={props.failedItemsOnly}
+              onChange={(event) => props.onFailedItemsOnlyChange(event.target.checked)}
+              type="checkbox"
+            />{" "}
+            下载明细只看失败项
+          </label>
+        </details>
       </div>
-      <label className="inline-toggle">
-        <input
-          checked={props.failedItemsOnly}
-          onChange={(event) => props.onFailedItemsOnlyChange(event.target.checked)}
-          type="checkbox"
-        />{" "}
-        下载明细只看失败项
-      </label>
       {props.downloads.length > 0 && filteredDownloads.length === 0 && (
         <p className="muted">没有匹配当前筛选条件的下载任务。</p>
       )}
       {groupedDownloads.map((group) => (
         <div className="download-group" key={group.key}>
-          <h3>{group.title}</h3>
+          <div className="section-heading">
+            <h3>{group.title}</h3>
+            <span className="count-badge">{group.tasks.length}</span>
+          </div>
           {group.tasks.map((task) => (
             <DownloadTaskCard
               busy={props.busy}

@@ -16,7 +16,6 @@ type SearchResultsProps = {
   onAggregateResultLayoutChange: (value: "grouped" | "flat") => void;
   onLoadMore: () => void;
   onOpenComic: (comic: Comic, sourceKey?: string) => void;
-  onDownloadComic: (comic: Comic, sourceKey?: string) => void;
 };
 
 export function SearchResults(props: SearchResultsProps) {
@@ -33,9 +32,16 @@ export function SearchResults(props: SearchResultsProps) {
   );
 
   return (
-    <div className="panel">
-      <h2>搜索结果</h2>
-      {!props.hasSearched && <p className="muted">输入关键词后开始搜索。</p>}
+    <section
+      className={`search-results${props.hasSearched ? " has-results" : ""}`}
+      aria-busy={props.busy}
+    >
+      {!props.hasSearched && (
+        <div className="empty-state">
+          <h2>从一本漫画开始</h2>
+          <p className="muted">输入名称，搜索你已启用的漫画源。</p>
+        </div>
+      )}
       {props.hasSearched && props.searchMode === "single" && props.results.length === 0 && (
         <p className="muted">没有找到结果，可以更换关键词或源。</p>
       )}
@@ -51,7 +57,7 @@ export function SearchResults(props: SearchResultsProps) {
                 key={comic.id}
                 sourceKey={props.sourceKey}
                 onOpenComic={props.onOpenComic}
-                onDownloadComic={props.onDownloadComic}
+                busy={props.busy}
               />
             ))}
           </div>
@@ -72,21 +78,37 @@ export function SearchResults(props: SearchResultsProps) {
       )}
       {props.searchMode === "aggregate" && props.hasSearched && (
         <div className="result-toolbar">
-          <span className="muted">聚合结果 {aggregateCount} 项</span>
-          <button
-            className={props.aggregateResultLayout === "grouped" ? "active" : ""}
-            onClick={() => props.onAggregateResultLayoutChange("grouped")}
-          >
-            按源分组
-          </button>
-          <button
-            className={props.aggregateResultLayout === "flat" ? "active" : ""}
-            onClick={() => props.onAggregateResultLayoutChange("flat")}
-          >
-            全部平铺
-          </button>
+          <h2>
+            搜索结果 <span className="count-badge">{aggregateCount}</span>
+          </h2>
+          <div className="segmented-control">
+            <button
+              aria-pressed={props.aggregateResultLayout === "grouped"}
+              className={props.aggregateResultLayout === "grouped" ? "active" : ""}
+              onClick={() => props.onAggregateResultLayoutChange("grouped")}
+            >
+              按源分组
+            </button>
+            <button
+              aria-pressed={props.aggregateResultLayout === "flat"}
+              className={props.aggregateResultLayout === "flat" ? "active" : ""}
+              onClick={() => props.onAggregateResultLayoutChange("flat")}
+            >
+              全部平铺
+            </button>
+          </div>
         </div>
       )}
+      {props.searchMode === "aggregate" &&
+        props.aggregateResultLayout === "flat" &&
+        props.aggregatedResults.some((item) => item.error) && (
+          <p className="alert" role="status">
+            {props.aggregatedResults
+              .filter((item) => item.error)
+              .map((item) => `${item.sourceName}：${item.error}`)
+              .join("；")}
+          </p>
+        )}
       {props.searchMode === "aggregate" && props.aggregateResultLayout === "flat" && (
         <div className="cards">
           {flatAggregatedResults.map(({ comic, sourceKey, sourceName }) => (
@@ -96,7 +118,7 @@ export function SearchResults(props: SearchResultsProps) {
               sourceKey={sourceKey}
               sourceName={sourceName}
               onOpenComic={props.onOpenComic}
-              onDownloadComic={props.onDownloadComic}
+              busy={props.busy}
             />
           ))}
         </div>
@@ -106,7 +128,12 @@ export function SearchResults(props: SearchResultsProps) {
           {props.aggregatedResults.map((item) => (
             <section className="aggregate-source" key={item.sourceKey}>
               <header>
-                <h3>{item.sourceName}</h3>
+                <div className="section-identity">
+                  <span className="source-avatar" aria-hidden="true">
+                    {item.sourceName.slice(0, 1)}
+                  </span>
+                  <h3>{item.sourceName}</h3>
+                </div>
                 <span className="muted">
                   {item.sourceKey}
                   {item.error ? ` / ${item.error}` : ` / ${item.result?.comics.length ?? 0} 项`}
@@ -121,7 +148,7 @@ export function SearchResults(props: SearchResultsProps) {
                       sourceKey={item.sourceKey}
                       sourceName={item.sourceName}
                       onOpenComic={props.onOpenComic}
-                      onDownloadComic={props.onDownloadComic}
+                      busy={props.busy}
                     />
                   ))}
                 </div>
@@ -130,6 +157,6 @@ export function SearchResults(props: SearchResultsProps) {
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }

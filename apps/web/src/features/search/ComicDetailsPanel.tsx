@@ -30,39 +30,48 @@ export function ComicDetailsPanel(props: ComicDetailsPanelProps) {
 
   return (
     <aside className="panel details">
-      <h2>详情</h2>
       {props.details ? (
         <>
-          {props.details.cover && (
-            <img
-              className="detail-cover"
-              src={imageUrl(
-                props.detailSourceKey,
-                props.details.cover,
-                props.details.comicId ?? props.details.id,
-                undefined,
-                true,
-              )}
-              alt=""
-            />
-          )}
-          <h3>{props.details.title}</h3>
-          <p>{props.details.description}</p>
-          <p className="muted">
-            源：{props.detailSourceKey} / 漫画 ID：{props.details.comicId ?? props.details.id}
-          </p>
-          <div className="comic-stats">
-            <span>共 {chapterIds.length} 章</span>
-            <span>
-              {allPagesCounted
-                ? `共 ${countedPageCount} 页`
-                : `已统计 ${countedChapterCount}/${chapterIds.length} 章，${countedPageCount} 页`}
-            </span>
+          <div className="detail-heading">
+            {props.details.cover && (
+              <img
+                className="detail-cover"
+                src={imageUrl(
+                  props.detailSourceKey,
+                  props.details.cover,
+                  props.details.comicId ?? props.details.id,
+                  undefined,
+                  true,
+                )}
+                alt=""
+              />
+            )}
+            <div>
+              <h2>{props.details.title}</h2>
+              <p>{props.details.description}</p>
+              <p className="muted">
+                {props.detailSourceKey} · 共 {chapterIds.length} 章
+              </p>
+            </div>
           </div>
-          {chapterIds.length > 0 && !allPagesCounted && (
-            <button className="secondary-action" onClick={props.onCountAllPages}>
-              统计全部章节页数
-            </button>
+          <details className="disclosure">
+            <summary>章节页数统计</summary>
+            <div className="comic-stats">
+              <span>共 {chapterIds.length} 章</span>
+              <span>
+                {allPagesCounted
+                  ? `共 ${countedPageCount} 页`
+                  : `已统计 ${countedChapterCount}/${chapterIds.length} 章，${countedPageCount} 页`}
+              </span>
+            </div>
+            {chapterIds.length > 0 && !allPagesCounted && (
+              <button className="secondary-action" onClick={props.onCountAllPages}>
+                统计全部章节页数
+              </button>
+            )}
+          </details>
+          {chapterIds.length === 0 && (
+            <button onClick={() => props.onPreviewEpisode()}>预览内容</button>
           )}
           <ChapterSelector
             chapters={props.details.chapters ?? {}}
@@ -76,7 +85,6 @@ export function ComicDetailsPanel(props: ComicDetailsPanelProps) {
           <DownloadActions
             selectedEpisodeIds={props.selectedEpisodeIds}
             downloadCreateStatus={props.downloadCreateStatus}
-            onPreviewEpisode={() => props.onPreviewEpisode()}
             onCreateDownload={props.onCreateDownload}
           />
         </>

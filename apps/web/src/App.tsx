@@ -118,10 +118,12 @@ function Workspace({
         void refresh();
       }}
       onTabChange={setActiveTab}
+      account={
+        session.mode === "required" ? (
+          <AccountPanel username={session.username ?? "admin"} onSessionChange={reloadSession} />
+        ) : undefined
+      }
     >
-      {session.mode === "required" && (
-        <AccountPanel username={session.username ?? "admin"} onSessionChange={reloadSession} />
-      )}
       {activeTab === "search" && (
         <SearchView
           busy={searchState.searchBusy}
@@ -152,9 +154,7 @@ function Workspace({
           onSearch={() => void searchState.submitSearch()}
           onLoadMore={() => void searchState.loadMoreResults()}
           onOpenComic={(comic, nextSourceKey) => void searchState.openComic(comic, nextSourceKey)}
-          onDownloadComic={(comic, nextSourceKey) =>
-            void searchState.downloadComic(comic, nextSourceKey)
-          }
+          onCloseDetails={searchState.closeDetails}
           onPreviewEpisode={(id) => void searchState.previewEpisode(id)}
           onCountAllPages={() => void searchState.countAllPages()}
           onToggleSelectedEpisode={searchState.toggleSelectedEpisode}

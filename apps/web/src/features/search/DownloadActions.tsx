@@ -1,7 +1,6 @@
 type DownloadActionsProps = {
   selectedEpisodeIds: string[];
   downloadCreateStatus: string | null;
-  onPreviewEpisode: () => void;
   onCreateDownload: (mode: "first" | "selected" | "all") => void;
 };
 
@@ -9,18 +8,16 @@ export function DownloadActions(props: DownloadActionsProps) {
   return (
     <>
       <p className="muted download-destination-note">
-        以下操作会将内容保存到 NAS，浏览器关闭后仍会继续。完成后可在“下载中心”下载到本机。
+        下载在服务器后台运行，完成后可在下载中心获取文件。
       </p>
-      <div className="actions">
-        <button onClick={props.onPreviewEpisode}>预览章节</button>
-        <button onClick={() => props.onCreateDownload("first")}>保存首章到服务器</button>
+      <div className="actions download-actions">
         <button
           onClick={() => props.onCreateDownload("selected")}
           disabled={props.selectedEpisodeIds.length === 0}
         >
-          保存所选章节到服务器
+          下载所选章节
         </button>
-        <button onClick={() => props.onCreateDownload("all")}>保存全本到服务器</button>
+        <button onClick={() => props.onCreateDownload("all")}>下载全本</button>
       </div>
       {props.downloadCreateStatus && <p className="muted">{props.downloadCreateStatus}</p>}
     </>

@@ -5,9 +5,7 @@
 body {
   margin: 0;
   min-width: 320px;
-  background:
-    radial-gradient(circle at top left, rgba(79, 140, 255, 0.1), transparent 28rem),
-    linear-gradient(180deg, var(--color-bg-soft), var(--color-bg));
+  background: var(--color-bg);
 }
 
 button,
@@ -19,21 +17,20 @@ textarea {
 
 button {
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   padding: 0.72rem 1rem;
   background: var(--color-primary-strong);
-  color: white;
+  color: #fff;
   cursor: pointer;
   transition:
     background 0.16s ease,
     border-color 0.16s ease,
     opacity 0.16s ease,
-    transform 0.16s ease;
+    color 0.16s ease;
 }
 
 button:hover:not(:disabled) {
-  background: var(--color-primary);
-  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--color-primary-strong) 85%, white);
 }
 
 button:focus-visible,
@@ -46,7 +43,7 @@ textarea:focus-visible {
 }
 
 button:disabled {
-  cursor: wait;
+  cursor: not-allowed;
   opacity: 0.58;
   background: var(--color-disabled);
 }
@@ -59,7 +56,7 @@ textarea {
   border-radius: var(--radius-md);
   padding: 0.75rem;
   color: var(--color-text);
-  background: #0b1326;
+  background: var(--color-surface);
 }
 
 input[type="checkbox"] {
@@ -77,4 +74,42 @@ h2,
 h3,
 p {
   overflow-wrap: anywhere;
+}
+
+h1 {
+  font-size: 24px;
+  line-height: 1.3;
+  letter-spacing: -0.03em;
+  margin: 0 0 20px;
+}
+h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+h3 {
+  font-size: 16px;
+}
+summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+summary:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+}
+a {
+  color: var(--color-primary);
+}
+button.quiet-button {
+  background: transparent;
+  color: var(--color-muted);
+}
+button.quiet-button:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+.theme-toggle {
+  font-size: 22px;
+  padding: 4px 10px;
 }

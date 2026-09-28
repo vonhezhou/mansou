@@ -16,10 +16,10 @@ type UseSearchOptions = {
 };
 
 export function useSearch(options: UseSearchOptions) {
-  const [keyword, setKeyword] = useState("test");
+  const [keyword, setKeyword] = useState("");
   const [searchMode, setSearchMode] = useState<"single" | "aggregate">("single");
   const [aggregateSourceKeys, setAggregateSourceKeys] = useState<string[]>([]);
-  const [aggregateResultLayout, setAggregateResultLayout] = useState<"grouped" | "flat">("grouped");
+  const [aggregateResultLayout, setAggregateResultLayout] = useState<"grouped" | "flat">("flat");
   const [results, setResults] = useState<Comic[]>([]);
   const [aggregatedResults, setAggregatedResults] = useState<AggregatedSearchItem[]>([]);
   const [searchPage, setSearchPage] = useState(1);
@@ -107,24 +107,13 @@ export function useSearch(options: UseSearchOptions) {
     await options.runWith(setLoadingDetails, async () => {
       const data = await veneraApi.comicDetails(nextSourceKey, comic.id);
       const firstEpisode = Object.keys(data.chapters ?? {})[0] ?? "_default";
-      options.setSourceKey(nextSourceKey);
       options.setDetailSourceKey(nextSourceKey);
       setDetails(data);
       setEpisodeId(firstEpisode);
       setSelectedEpisodeIds([]);
       setEpisodePageCounts({});
       setPreviewImages([]);
-      try {
-        const pages = await veneraApi.episodePages(
-          nextSourceKey,
-          data.comicId ?? data.id,
-          firstEpisode,
-        );
-        setPreviewImages(pages.images ?? []);
-        setEpisodePageCounts({ [firstEpisode]: pages.images?.length ?? 0 });
-      } catch {
-        // 详情仍然可用；部分源只能在用户完成登录或设置后返回章节图片。
-      }
+      setDownloadCreateStatus(null);
     });
   }
 
@@ -197,17 +186,19 @@ export function useSearch(options: UseSearchOptions) {
         );
       }
       setDownloadCreateStatus(`创建完成：成功 ${success}，失败 ${failed}`);
-      options.setActiveTab("downloads");
+      if (failed === 0) {
+        setDetails(null);
+        setPreviewImages([]);
+        options.setActiveTab("downloads");
+      }
       await options.loadDownloads();
     });
   }
 
-  async function downloadComic(comic: Comic, nextSourceKey = options.sourceKey) {
-    await options.runWith(setCreatingDownload, async () => {
-      await veneraApi.createDownload({ sourceKey: nextSourceKey, comicId: comic.id, all: true });
-      options.setActiveTab("downloads");
-      await options.loadDownloads();
-    });
+  function closeDetails() {
+    setDetails(null);
+    setPreviewImages([]);
+    setDownloadCreateStatus(null);
   }
 
   function toggleAggregateSource(source: string) {
@@ -263,7 +254,7 @@ export function useSearch(options: UseSearchOptions) {
     previewEpisode,
     createDownload,
     countAllPages,
-    downloadComic,
+    closeDetails,
     toggleAggregateSource,
     toggleSelectedEpisode,
     selectEpisodes,

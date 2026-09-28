@@ -13,7 +13,7 @@ export function ChapterPreview(props: ChapterPreviewProps) {
     <section className="panel chapter-preview">
       <h2>内容缩略预览</h2>
       {props.previewImages.length === 0 ? (
-        <p className="muted">打开详情后会自动尝试获取首章页面；也可以在章节列表中切换预览。</p>
+        <p className="muted">选择章节后点击预览。</p>
       ) : (
         <>
           <p className="muted">

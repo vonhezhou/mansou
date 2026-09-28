@@ -15,13 +15,13 @@
   padding: 6px 10px;
   border: 1px solid var(--color-border);
   border-radius: 999px;
-  background: #0b1328;
+  background: var(--color-surface-2);
 }
 
 .secondary-action {
   width: 100%;
   margin-bottom: 4px;
-  background: #1e293b;
+  background: var(--color-surface-2);
 }
 
 .page-thumbnails {
@@ -35,9 +35,8 @@
 .page-thumbnails figure {
   margin: 0;
   overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: #020617;
+  border-top: 1px solid var(--color-border);
+  background: transparent;
 }
 
 .chapter-preview .page-thumbnails img {

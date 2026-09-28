@@ -1,4 +1,5 @@
 :root {
+  color-scheme: dark;
   color: var(--color-text);
   background: var(--color-bg);
   font-family:
@@ -9,30 +10,53 @@
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  --color-bg: #141619;
+  --color-bg-soft: #1d1f22;
+  --color-surface: #202328;
+  --color-surface-2: #292d33;
+  --color-surface-3: #2c2f34;
+  --color-border: #363b44;
+  --color-border-strong: #44474e;
+  --color-text: #e8e9ed;
+  --color-muted: #a0a3ad;
+  --color-primary: #8ab4ff;
+  --color-primary-strong: #356fe0;
+  --color-danger: #cc4049;
+  --color-danger-soft: #382326;
+  --color-danger-text: #ffb4bb;
+  --color-warning: #e6b15a;
+  --color-success: #78cfa3;
+  --color-info: #8ab4ff;
+  --color-disabled: #44474e;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --shadow-panel: 0 8px 28px #00000014;
+  --shadow-card: 0 3px 10px #00000012;
+  --color-primary-soft: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
 
-  --color-bg: #070b14;
-  --color-bg-soft: #0a1020;
-  --color-surface: #0f172a;
-  --color-surface-2: #111c2f;
-  --color-surface-3: #162238;
-  --color-border: #233047;
-  --color-border-strong: #334155;
-  --color-text: #e5edf8;
-  --color-muted: #8ea0b8;
-  --color-primary: #4f8cff;
-  --color-primary-strong: #2563eb;
-  --color-danger: #ef4444;
-  --color-danger-soft: #450a0a;
-  --color-warning: #f59e0b;
-  --color-success: #22c55e;
-  --color-info: #38bdf8;
-  --color-disabled: #64748b;
-
-  --radius-sm: 10px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
-  --radius-xl: 30px;
-  --shadow-panel: 0 18px 60px rgba(0, 0, 0, 0.28);
-  --shadow-card: 0 12px 36px rgba(0, 0, 0, 0.22);
-  --focus-ring: 0 0 0 3px rgba(79, 140, 255, 0.28);
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f4f5f8;
+  --color-bg-soft: #f8f9fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f3f5f8;
+  --color-surface-3: #e9edf3;
+  --color-border: #dfe3eb;
+  --color-border-strong: #cbd0da;
+  --color-text: #20232a;
+  --color-muted: #686f7e;
+  --color-primary: #245ecb;
+  --color-primary-strong: #2869df;
+  --color-danger: #b82e38;
+  --color-danger-soft: #fff0f1;
+  --color-danger-text: #a92230;
+  --color-success: #267448;
+  --color-info: #245ecb;
+  --color-disabled: #dce0e7;
 }
