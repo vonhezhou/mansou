@@ -12,7 +12,8 @@
     "openapi": "tsx src/cli/openapi.ts",
     "storage": "tsx src/cli/storage.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "admin": "tsx src/cli/admin.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",

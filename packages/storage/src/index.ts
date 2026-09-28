@@ -1,3 +1,5 @@
+import { AuthStorage } from "./auth.js";
+export type { Admin, Session, ApiToken } from "./auth.js";
 import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -14,7 +16,11 @@ export function createStorage(dataDir: string) {
 }
 
 class AppStorage {
-  constructor(private readonly db: Database.Database) {}
+  readonly auth: AuthStorage;
+
+  constructor(private readonly db: Database.Database) {
+    this.auth = new AuthStorage(db);
+  }
 
   close() {
     this.db.close();
