@@ -21,7 +21,6 @@ import { registerDebugRoutes } from "./routes/debug.js";
 import { registerDownloadRoutes } from "./routes/downloads.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerImageRoutes } from "./routes/images.js";
-import { registerLibraryRoutes } from "./routes/library.js";
 import { registerOpenApiRoutes } from "./routes/openapi.js";
 import { registerSearchRoutes } from "./routes/search.js";
 import { registerSourceRepositoryRoutes } from "./routes/sourceRepository.js";
@@ -109,7 +108,6 @@ export async function buildApp(authConfig: AuthConfig = readAuthConfig()) {
       await registerComicRoutes(api, context);
       await registerImageRoutes(api, context);
       await registerDownloadRoutes(api, context);
-      await registerLibraryRoutes(api, context);
       await registerSettingRoutes(api, context);
       await registerDebugRoutes(api, context);
       await registerOpenApiRoutes(api);

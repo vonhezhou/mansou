@@ -6,7 +6,6 @@ import type {
   DownloadItem,
   DownloadTask,
   Health,
-  HistoryItem,
   RepositorySource,
   RetryFailedDownloadImagesResult,
   SearchResult,
@@ -92,16 +91,6 @@ export const veneraApi = {
     api<Details>(comicDetailPath(sourceKey, comicId)),
   episodePages: (sourceKey: string, comicId: string, episodeId: string) =>
     api<{ images: string[] }>(episodePagesPath(sourceKey, comicId, episodeId)),
-  listHistory: () => api<HistoryItem[]>("/library/history"),
-  saveHistory: (
-    sourceKey: string,
-    comicId: string,
-    input: { episodeId?: string; page?: number; progress?: number },
-  ) =>
-    api(`/library/history/${encodeURIComponent(sourceKey)}/${encodeURIComponent(comicId)}`, {
-      method: "PUT",
-      body: JSON.stringify(input),
-    }),
   createDownload: (input: {
     sourceKey: string;
     comicId: string;

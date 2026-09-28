@@ -1,7 +1,7 @@
 import { startTransition, useState } from "react";
 import type { Comic } from "@venera/contracts";
 import { veneraApi } from "../api/venera.js";
-import type { AggregatedSearchItem, Details, HistoryItem, Source } from "../types.js";
+import type { AggregatedSearchItem, Details, Source } from "../types.js";
 
 type RunWith = (setLoading: (value: boolean) => void, task: () => Promise<void>) => Promise<void>;
 
@@ -11,8 +11,7 @@ type UseSearchOptions = {
   detailSourceKey: string;
   setSourceKey: (value: string) => void;
   setDetailSourceKey: (value: string) => void;
-  setActiveTab: (value: "search" | "history" | "downloads" | "sources") => void;
-  setHistory: (value: HistoryItem[]) => void;
+  setActiveTab: (value: "search" | "downloads" | "sources") => void;
   loadDownloads: () => Promise<void>;
 };
 
@@ -129,7 +128,7 @@ export function useSearch(options: UseSearchOptions) {
     });
   }
 
-  async function previewEpisode(nextEpisodeId = episodeId, initialPage = 0) {
+  async function previewEpisode(nextEpisodeId = episodeId) {
     if (!details || !nextEpisodeId) return;
     await options.runWith(setPreviewingChapter, async () => {
       const data = await veneraApi.episodePages(
@@ -143,18 +142,6 @@ export function useSearch(options: UseSearchOptions) {
         ...current,
         [nextEpisodeId]: data.images?.length ?? 0,
       }));
-      await veneraApi.saveHistory(options.detailSourceKey, details.comicId ?? details.id, {
-        episodeId: nextEpisodeId,
-        page: initialPage,
-        progress: data.images.length > 0 ? initialPage / data.images.length : 0,
-      });
-      options.setHistory(await veneraApi.listHistory());
-      if (initialPage > 0)
-        window.setTimeout(
-          () =>
-            document.getElementById(`page-${initialPage + 1}`)?.scrollIntoView({ block: "start" }),
-          100,
-        );
     });
   }
 
@@ -280,9 +267,5 @@ export function useSearch(options: UseSearchOptions) {
     toggleAggregateSource,
     toggleSelectedEpisode,
     selectEpisodes,
-    setDetails,
-    setEpisodeId,
-    setPreviewImages,
-    setSelectedEpisodeIds,
   };
 }

@@ -5,10 +5,8 @@ import { AccountPanel } from "./features/auth/AccountPanel.js";
 import type { AuthSession } from "./api/auth.js";
 import { AppShell } from "./app/AppShell.js";
 import { isTabKey, type TabKey } from "./app/navigation.js";
-import { getHistoryComicId, getHistoryEpisodeId, getHistorySourceKey } from "./lib/history.js";
-import type { Health, HistoryItem } from "./types.js";
+import type { Health } from "./types.js";
 import { DownloadsView } from "./features/downloads/DownloadsView.js";
-import { HistoryView } from "./features/history/HistoryView.js";
 import { SearchView } from "./features/search/SearchView.js";
 import { SourcesView } from "./features/sources/SourcesView.js";
 import { useDownloads } from "./hooks/useDownloads.js";
@@ -37,11 +35,9 @@ function Workspace({
 }) {
   const [sourceKey, setSourceKey] = useState("mock");
   const [detailSourceKey, setDetailSourceKey] = useState(sourceKey);
-  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [activeTab, setActiveTab] = useState<TabKey>(readInitialTab);
   const [health, setHealth] = useState<Health | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [openingHistory, setOpeningHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const downloadsState = useDownloads(runWith);
   const sourcesState = useSources(runWith, sourceKey, setSourceKey);
@@ -52,7 +48,6 @@ function Workspace({
     setSourceKey,
     setDetailSourceKey,
     setActiveTab,
-    setHistory,
     loadDownloads: downloadsState.loadDownloads,
   });
 
@@ -106,52 +101,16 @@ function Workspace({
       searchState.syncAggregateSources(loaded);
       await downloadsState.loadDownloads();
       await downloadsState.loadCacheStats();
-      setHistory(await veneraApi.listHistory());
     });
   }
 
-  async function openHistoryItem(item: HistoryItem, mode: "details" | "read") {
-    const nextSourceKey = getHistorySourceKey(item);
-    const comicId = getHistoryComicId(item);
-    const nextEpisodeId = getHistoryEpisodeId(item);
-    if (!nextSourceKey || !comicId) return;
-    await runWith(setOpeningHistory, async () => {
-      const data = await veneraApi.comicDetails(nextSourceKey, comicId);
-      const episodeToRead = nextEpisodeId ?? Object.keys(data.chapters ?? {})[0] ?? "_default";
-      setSourceKey(nextSourceKey);
-      setDetailSourceKey(nextSourceKey);
-      searchState.setDetails(data);
-      searchState.setEpisodeId(episodeToRead);
-      searchState.setSelectedEpisodeIds([]);
-      setActiveTab("search");
-      if (mode === "details") {
-        searchState.setPreviewImages([]);
-      } else {
-        const pages = await veneraApi.episodePages(
-          nextSourceKey,
-          data.comicId ?? data.id,
-          episodeToRead,
-        );
-        searchState.setPreviewImages(pages.images ?? []);
-        window.setTimeout(
-          () =>
-            document
-              .getElementById(`page-${(item.page ?? 0) + 1}`)
-              ?.scrollIntoView({ block: "start" }),
-          100,
-        );
-      }
-    });
-  }
-
-  const shellBusy = refreshing || openingHistory;
   const sourcesBusy = sourcesState.managingSources || refreshing;
   const downloadsBusy = downloadsState.loadingDownloads;
 
   return (
     <AppShell
       activeTab={activeTab}
-      busy={shellBusy}
+      busy={refreshing}
       error={error}
       health={health}
       onRefresh={() => {
@@ -233,13 +192,6 @@ function Workspace({
           onResetSourceSettings={() => void sourcesState.resetSourceSettings()}
           onImportCookies={() => void sourcesState.importCookies()}
           onClearCookies={() => void sourcesState.clearCookies()}
-        />
-      )}
-
-      {activeTab === "history" && (
-        <HistoryView
-          history={history}
-          onOpenHistoryItem={(item, mode) => void openHistoryItem(item, mode)}
         />
       )}
 

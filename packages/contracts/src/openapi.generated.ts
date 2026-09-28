@@ -763,73 +763,6 @@ export const openApiDocument = {
         },
       },
     },
-    "/api/v1/library/history": {
-      get: {
-        operationId: "listHistory",
-        tags: ["library"],
-        responses: {
-          "200": {
-            description: "OK",
-            content: {
-              "application/json": {
-                schema: { type: "array", items: { $ref: "#/components/schemas/HistoryItem" } },
-              },
-            },
-          },
-        },
-      },
-    },
-    "/api/v1/library/history/{sourceKey}/{comicId}": {
-      get: {
-        operationId: "getHistory",
-        tags: ["library"],
-        parameters: [
-          { name: "sourceKey", in: "path", required: true, schema: { type: "string" } },
-          { name: "comicId", in: "path", required: true, schema: { type: "string" } },
-        ],
-        responses: {
-          "200": {
-            description: "OK",
-            content: {
-              "application/json": {
-                schema: { anyOf: [{ $ref: "#/components/schemas/HistoryItem" }, { type: "null" }] },
-              },
-            },
-          },
-        },
-      },
-      put: {
-        operationId: "saveHistory",
-        tags: ["library"],
-        parameters: [
-          { name: "sourceKey", in: "path", required: true, schema: { type: "string" } },
-          { name: "comicId", in: "path", required: true, schema: { type: "string" } },
-        ],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  episodeId: { type: "string" },
-                  page: { type: "number" },
-                  progress: { type: "number" },
-                },
-              },
-            },
-          },
-        },
-        responses: {
-          "200": {
-            description: "OK",
-            content: {
-              "application/json": { schema: { $ref: "#/components/schemas/HistoryItem" } },
-            },
-          },
-        },
-      },
-    },
     "/api/v1/settings/cache": {
       get: {
         operationId: "getCacheStats",
@@ -1396,21 +1329,6 @@ export const openApiDocument = {
           },
         },
         required: ["task", "retried", "results"],
-      },
-      HistoryItem: {
-        type: "object",
-        properties: {
-          id: { type: "string" },
-          source_key: { type: "string" },
-          comic_id: { type: "string" },
-          title: { type: "string" },
-          cover: { type: "string" },
-          episode_id: { type: "string" },
-          page: { type: "number" },
-          progress: { type: "number" },
-          updated_at: { type: "string" },
-        },
-        required: ["id", "source_key", "comic_id", "page", "progress", "updated_at"],
       },
       CacheStats: {
         type: "object",

@@ -82,7 +82,7 @@ Fastify API Gateway
   +-- Comic Service
   +-- Reader/Image Service ---- Image Cache
   +-- Download Service -------- Task Queue -------- File Downloads/CBZ
-  +-- Library Service --------- History/Favorites/ReadLater
+  +-- Library Service --------- Favorites/ReadLater
   |
   +-- Storage Layer ----------- SQLite + Data Files
 ```
@@ -107,7 +107,7 @@ Fastify API Gateway
 - `/api/v1/comics`：详情、章节、评论、评分、相关推荐。
 - `/api/v1/images`：缩略图和阅读图片代理。
 - `/api/v1/downloads`：下载任务、取消、重试、删除、导出。
-- `/api/v1/library`：历史、收藏、稍后阅读、本地下载库。
+- `/api/v1/library`：原规划的收藏、稍后阅读、本地下载库，当前未提供该路由组。
 - `/api/v1/settings`：系统设置、网络代理、缓存策略。
 - `/api/v1/debug`：插件调试，仅在调试模式启用或受权限保护。
 
@@ -158,7 +158,7 @@ Fastify API Gateway
 职责：
 
 - 将插件原始返回值归一化为稳定领域模型。
-- 实现聚合搜索、详情加载、章节页加载、图片加载配置、阅读历史、收藏、下载库。
+- 实现聚合搜索、详情加载、章节页加载、图片加载配置、收藏、下载库。
 - 屏蔽插件运行时差异和存储细节。
 
 关键服务：
@@ -168,11 +168,13 @@ Fastify API Gateway
 - `ComicService`：详情、章节、缩略图、评论和操作类能力。
 - `ImageService`：图片代理、缓存键、Content-Type 探测、Referer/User-Agent、重试。
 - `DownloadService`：任务创建、调度、进度、重试、取消、CBZ 导出、断点续传。
-- `LibraryService`：历史、收藏、稍后阅读、下载完成作品索引。
+- `LibraryService`：收藏、稍后阅读、下载完成作品索引。
 
 ### 5.5 Storage 包
 
 首版推荐 SQLite + 文件系统混合存储。
+
+Web 已移除阅读历史页面、接口及读写逻辑。新数据库不再创建 `history` 表；旧数据库中的历史表和数据保留但不再访问，迁移版本 4 仅保留版本标记。章节预览和下载记录不受影响。
 
 SQLite 存储：
 
@@ -180,7 +182,6 @@ SQLite 存储：
 - `source_settings`：源设置值。
 - `source_cookies`：Cookie 元数据或加密后的 Cookie 内容索引。
 - `plugin_data`：插件 `Data` 命名空间。
-- `history`：阅读历史、章节、页码、进度。
 - `favorites`：本地收藏。
 - `downloads`：下载任务和状态。
 - `download_items`：下载图片明细、文件路径、状态、重试次数。
@@ -325,7 +326,7 @@ GET /api/v1/images/:sourceKey?imageKey=...&comicId=...&episodeId=...&thumbnail=f
 - 可以通过 Web UI 安装源、配置源、导入 Cookie。
 - 至少 3 个真实源完成搜索、详情、章节、图片阅读主路径验证。
 - 聚合搜索支持部分失败并展示错误源。
-- 阅读器支持桌面和移动端基本体验，能保存阅读进度。
+- 章节预览支持桌面和移动端基本体验，不保存阅读进度。
 - 下载任务支持持久化、取消、重试、导出 CBZ。
-- 重启服务后源、设置、Cookie、历史、下载状态可恢复。
+- 重启服务后源、设置、Cookie、下载状态可恢复。
 - 提供 Docker 部署文档和基础自动化测试。

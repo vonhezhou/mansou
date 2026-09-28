@@ -226,47 +226,6 @@ class AppStorage {
   deleteDownloadItems(taskId: string) {
     this.db.prepare("delete from download_items where task_id = ?").run(taskId);
   }
-
-  listHistory() {
-    return this.db.prepare("select * from history order by updated_at desc limit 100").all();
-  }
-
-  getHistory(sourceKey: string, comicId: string) {
-    return (
-      this.db
-        .prepare("select * from history where source_key = ? and comic_id = ?")
-        .get(sourceKey, comicId) ?? null
-    );
-  }
-
-  saveHistory(input: {
-    sourceKey: string;
-    comicId: string;
-    title?: string;
-    cover?: string;
-    episodeId?: string;
-    page?: number;
-    progress?: number;
-  }) {
-    const id = `${input.sourceKey}:${input.comicId}`;
-    const now = new Date().toISOString();
-    this.db
-      .prepare(
-        "insert into history(id, source_key, comic_id, title, cover, episode_id, page, progress, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set title = coalesce(excluded.title, history.title), cover = coalesce(excluded.cover, history.cover), episode_id = excluded.episode_id, page = excluded.page, progress = excluded.progress, updated_at = excluded.updated_at",
-      )
-      .run(
-        id,
-        input.sourceKey,
-        input.comicId,
-        input.title ?? null,
-        input.cover ?? null,
-        input.episodeId ?? null,
-        input.page ?? 0,
-        input.progress ?? 0,
-        now,
-      );
-    return this.getHistory(input.sourceKey, input.comicId);
-  }
 }
 
 function migrate(db: Database.Database) {
@@ -312,16 +271,6 @@ function migrate(db: Database.Database) {
       updated_at text not null,
       primary key (source_key, key)
     );
-    create table if not exists history (
-      id text primary key,
-      user_id text,
-      source_key text not null,
-      comic_id text not null,
-      episode_id text,
-      page integer not null default 0,
-      progress real not null default 0,
-      updated_at text not null
-    );
     create table if not exists favorites (
       id text primary key,
       user_id text,
@@ -366,7 +315,6 @@ function migrate(db: Database.Database) {
       updated_at text not null
     );
     create index if not exists idx_download_items_task_id on download_items(task_id);
-    create index if not exists idx_history_source_comic on history(source_key, comic_id);
     insert into schema_migrations(version, applied_at) values (1, datetime('now'));
   `);
   }
@@ -385,11 +333,8 @@ function migrate(db: Database.Database) {
     if (!names.has("error_code")) db.exec("alter table download_items add column error_code text");
     db.exec("insert into schema_migrations(version, applied_at) values (3, datetime('now'))");
   }
+  // 保留已发布的迁移版本号；阅读历史已移除，旧表和数据不再修改。
   if (version < 4) {
-    const columns = db.prepare("pragma table_info(history)").all() as Array<{ name: string }>;
-    const names = new Set(columns.map((column) => column.name));
-    if (!names.has("title")) db.exec("alter table history add column title text");
-    if (!names.has("cover")) db.exec("alter table history add column cover text");
     db.exec("insert into schema_migrations(version, applied_at) values (4, datetime('now'))");
   }
 }

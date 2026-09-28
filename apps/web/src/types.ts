@@ -74,19 +74,6 @@ export type SourceMetadata = {
   script_url?: string;
   updated_at?: string;
 };
-export type HistoryItem = {
-  source_key?: string;
-  sourceKey?: string;
-  comic_id?: string;
-  comicId?: string;
-  title?: string;
-  cover?: string;
-  episode_id?: string;
-  episodeId?: string;
-  page?: number;
-  progress?: number;
-  updated_at?: string;
-};
 export type Health = {
   ok: boolean;
   name: string;

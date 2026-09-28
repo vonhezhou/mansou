@@ -1,45 +1,66 @@
-import { mkdtemp } from "node:fs/promises";
+import Database from "better-sqlite3";
+import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { createStorage } from "./index.js";
 
 describe("storage migrations", () => {
-  it("persists history title and cover", async () => {
+  it("creates a database without reading history", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "venera-storage-test-"));
-    const storage = createStorage(dir);
     try {
-      storage.saveHistory({
-        sourceKey: "mock",
-        comicId: "comic-1",
-        title: "Title",
-        cover: "cover",
-        episodeId: "chapter-1",
-        page: 3,
-        progress: 0.5,
-      });
-      expect(storage.getHistory("mock", "comic-1")).toMatchObject({
-        title: "Title",
-        cover: "cover",
-        episode_id: "chapter-1",
-        page: 3,
-      });
-
-      storage.saveHistory({
-        sourceKey: "mock",
-        comicId: "comic-1",
-        episodeId: "chapter-2",
-        page: 1,
-        progress: 0.2,
-      });
-      expect(storage.getHistory("mock", "comic-1")).toMatchObject({
-        title: "Title",
-        cover: "cover",
-        episode_id: "chapter-2",
-        page: 1,
-      });
-    } finally {
+      const storage = createStorage(dir);
       storage.close();
+      const db = new Database(path.join(dir, "venera_web.sqlite"));
+      try {
+        expect(
+          db.prepare("select name from sqlite_master where name = 'history'").get(),
+        ).toBeUndefined();
+      } finally {
+        db.close();
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true });
     }
   });
+
+  it.each([1, 3, 4, 5])(
+    "opens a version %i database without changing existing history",
+    async (version) => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), "venera-storage-test-"));
+      try {
+        const initial = createStorage(dir);
+        initial.close();
+        const db = new Database(path.join(dir, "venera_web.sqlite"));
+        try {
+          db.prepare("delete from schema_migrations where version > ?").run(version);
+          db.exec(
+            "create table history (id text primary key, page integer); insert into history values ('mock:comic-1', 3)",
+          );
+        } finally {
+          db.close();
+        }
+        const storage = createStorage(dir);
+        try {
+          storage.setPluginData("mock", "key", "value");
+          expect(storage.getPluginData("mock", "key")).toBe("value");
+        } finally {
+          storage.close();
+        }
+        const reopened = new Database(path.join(dir, "venera_web.sqlite"));
+        try {
+          expect(reopened.prepare("select * from history").all()).toEqual([
+            { id: "mock:comic-1", page: 3 },
+          ]);
+          expect(
+            reopened.prepare("select max(version) as version from schema_migrations").get(),
+          ).toEqual({ version: 5 });
+        } finally {
+          reopened.close();
+        }
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    },
+  );
 });

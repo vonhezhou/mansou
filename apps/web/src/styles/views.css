@@ -64,7 +64,6 @@
 }
 
 .source-list,
-.history,
 .download-items {
   display: grid;
   gap: 10px;
@@ -100,8 +99,6 @@
 }
 
 .source-list article,
-.history article,
-.history-item,
 .download-items div {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -115,12 +112,6 @@
 
 .source-list article {
   grid-template-columns: minmax(0, 1fr) auto auto;
-}
-
-.history-item {
-  width: 100%;
-  color: var(--color-text);
-  text-align: left;
 }
 
 .source-list article div {
@@ -225,8 +216,6 @@
 @media (max-width: 960px) {
   .source-management-grid,
   .source-list article,
-  .history article,
-  .history-item,
   .download-items div,
   .downloads article {
     grid-template-columns: 1fr;

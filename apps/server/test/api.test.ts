@@ -191,28 +191,21 @@ describe("api v1 mock source", () => {
     );
   });
 
-  it("stores reading history and reports cache stats", async () => {
-    const history = await app.inject({
-      method: "PUT",
-      url: "/api/v1/library/history/mock/mock-comic-1",
-      payload: {
-        title: "History Title",
-        cover: "mock://cover/history",
-        episodeId: "chapter-1",
-        page: 2,
-        progress: 0.4,
+  it("no longer exposes reading history endpoints", async () => {
+    for (const request of [
+      { method: "GET" as const, url: "/api/v1/library/history" },
+      { method: "GET" as const, url: "/api/v1/library/history/mock/mock-comic-1" },
+      {
+        method: "PUT" as const,
+        url: "/api/v1/library/history/mock/mock-comic-1",
+        payload: { page: 2 },
       },
-    });
-    expect(history.statusCode).toBe(200);
-    expect(history.json()).toMatchObject({
-      source_key: "mock",
-      comic_id: "mock-comic-1",
-      title: "History Title",
-      cover: "mock://cover/history",
-      episode_id: "chapter-1",
-      page: 2,
-    });
+    ]) {
+      expect((await app.inject(request)).statusCode).toBe(404);
+    }
+  });
 
+  it("reports cache stats", async () => {
     const cache = await app.inject({ method: "GET", url: "/api/v1/settings/cache" });
     expect(cache.statusCode).toBe(200);
     expect(cache.json()).toMatchObject({ files: expect.any(Number), bytes: expect.any(Number) });

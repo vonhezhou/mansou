@@ -53,7 +53,7 @@
 
 - 选型 SQLite 访问层，建议 Drizzle ORM 或 Kysely，也可先用轻量 SQL 封装。
 - 设计并实现数据库迁移机制。
-- 建立 `sources`、`source_settings`、`plugin_data`、`history`、`favorites`、`downloads`、`download_items`、`cache_entries`、`app_settings` 表。
+- 建立 `sources`、`source_settings`、`plugin_data`、`favorites`、`downloads`、`download_items`、`cache_entries`、`app_settings` 表。
 - 将 PoC 的 `SourceDataStore`、Cookie Store、下载任务 JSON 持久化迁移到 storage 层。
 - 编写旧 JSON 数据导入脚本，允许从 PoC `data` 目录迁移。
 - 增加备份和恢复命令的基础实现。
@@ -124,14 +124,13 @@
 - 增加下载任务 SSE/WebSocket 推送，减少轮询。
 - 完善图片缓存策略：最大容量、LRU 清理、手动清理、缓存统计。
 - 阅读器增加预加载窗口、失败重试、缩放、适应宽度、阅读方向设置。
-- 保存历史：当前章节、页码、进度、最近阅读时间。
 - 支持本地下载库浏览和从下载文件阅读。
 
 验收标准：
 
 - 服务重启后下载任务可以恢复到可理解状态，并能重试未完成任务。
 - 图片缓存不会无限增长。
-- 阅读历史在刷新页面和重启服务后仍存在。
+- 章节预览不记录阅读历史；旧数据库中的历史数据保留，新数据库不再创建历史表。
 
 建议周期：8 到 12 天。
 

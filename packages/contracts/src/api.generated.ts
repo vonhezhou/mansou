@@ -556,38 +556,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/library/history": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: operations["listHistory"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/library/history/{sourceKey}/{comicId}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: operations["getHistory"];
-    put: operations["saveHistory"];
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/v1/settings/cache": {
     parameters: {
       query?: never;
@@ -983,17 +951,6 @@ export interface components {
         };
         error?: string;
       }[];
-    };
-    HistoryItem: {
-      id: string;
-      source_key: string;
-      comic_id: string;
-      title?: string;
-      cover?: string;
-      episode_id?: string;
-      page: number;
-      progress: number;
-      updated_at: string;
     };
     CacheStats: {
       files: number;
@@ -2035,80 +1992,6 @@ export interface operations {
         };
       };
       404: components["responses"]["Error"];
-    };
-  };
-  listHistory: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HistoryItem"][];
-        };
-      };
-    };
-  };
-  getHistory: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        sourceKey: string;
-        comicId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HistoryItem"] | null;
-        };
-      };
-    };
-  };
-  saveHistory: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        sourceKey: string;
-        comicId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": {
-          episodeId?: string;
-          page?: number;
-          progress?: number;
-        };
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HistoryItem"];
-        };
-      };
     };
   };
   getCacheStats: {

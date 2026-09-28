@@ -1,6 +1,5 @@
 export const navigationItems = [
   { key: "search", label: "搜索" },
-  { key: "history", label: "历史" },
   { key: "downloads", label: "下载中心" },
   { key: "sources", label: "源管理" },
 ] as const;
