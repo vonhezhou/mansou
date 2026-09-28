@@ -1,0 +1,2188 @@
+// Generated from openapi.yaml. Do not edit.
+export interface paths {
+  "/health": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Health check */
+    get: operations["getHealthLegacy"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/health": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Health check */
+    get: operations["getHealth"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/openapi.json": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** OpenAPI document */
+    get: operations["getOpenApi"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/source-repository": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List repository sources */
+    get: operations["getSourceRepository"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/source-repository/refresh": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Refresh repository index */
+    post: operations["refreshSourceRepository"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sources": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List installed sources */
+    get: operations["listSources"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sources/available": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List available repository sources */
+    get: operations["listAvailableSources"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sources/installed": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List installed sources */
+    get: operations["listInstalledSources"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sources/metadata": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List persisted source metadata */
+    get: operations["listSourceMetadata"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sources/install": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Install source */
+    post: operations["installSource"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sources/reload": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Reload installed source scripts */
+    post: operations["reloadSources"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sources/{sourceKey}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get source */
+    get: operations["getSource"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sources/{sourceKey}/enabled": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: operations["setSourceEnabled"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sources/{sourceKey}/search-options": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["getSourceSearchOptions"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sources/{sourceKey}/settings": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["getSourceSettings"];
+    put: operations["updateSourceSettings"];
+    post?: never;
+    delete: operations["clearSourceSettings"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sources/{sourceKey}/cookies": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["listSourceCookies"];
+    put: operations["importSourceCookies"];
+    post?: never;
+    delete: operations["clearSourceCookies"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/search": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["aggregatedSearch"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/search/{sourceKey}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["searchSource"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/comics/{sourceKey}/{comicId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["getComicDetails"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/comics/{sourceKey}/detail": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["getComicDetailsByQuery"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/comics/{sourceKey}/{comicId}/episodes/{episodeId}/pages": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["getEpisodePages"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/comics/{sourceKey}/pages": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["getEpisodePagesByQuery"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/image": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["getImage"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/downloads": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["listDownloads"];
+    put?: never;
+    post: operations["createDownload"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/downloads/events": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["subscribeDownloads"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/downloads/{taskId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["getDownload"];
+    put?: never;
+    post?: never;
+    delete: operations["deleteDownload"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/downloads/{taskId}/items": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["listDownloadItems"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/downloads/{taskId}/items/retry": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["retryDownloadImage"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/downloads/{taskId}/items/retry-failed": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["retryFailedDownloadImages"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/downloads/{taskId}/cancel": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["cancelDownload"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/downloads/{taskId}/pause": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["pauseDownload"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/downloads/{taskId}/resume": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["resumeDownload"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/downloads/{taskId}/rerun": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["rerunDownload"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/downloads/{taskId}/cbz": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["exportDownloadCbz"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/library/history": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["listHistory"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/library/history/{sourceKey}/{comicId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["getHistory"];
+    put: operations["saveHistory"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/settings/cache": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["getCacheStats"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/settings/cache/images": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: operations["clearImageCache"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/settings/cache/images/prune": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["pruneImageCache"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/debug/runtime/compatibility": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["getRuntimeCompatibility"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/debug/runtime/diagnostics": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["getRuntimeDiagnostics"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/debug/{sourceKey}/search": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["debugSearch"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/debug/{sourceKey}/comics/{comicId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["debugComicDetails"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/debug/{sourceKey}/comics/{comicId}/episodes/{episodeId}/pages": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["debugEpisodePages"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/debug/{sourceKey}/image": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["debugImage"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+}
+export type webhooks = Record<string, never>;
+export interface components {
+  schemas: {
+    Ok: {
+      ok: boolean;
+    };
+    Health: {
+      ok: boolean;
+      name: string;
+      dataDir: string;
+      proxy?: string | null;
+      noProxy: string[];
+    };
+    ApiError: {
+      error: {
+        code: string;
+        message: string;
+        details?: unknown;
+        requestId?: string;
+      };
+    };
+    RepositorySource: {
+      key?: string;
+      name?: string;
+      version?: string;
+      url?: string;
+      filename?: string;
+      fileName?: string;
+    } & {
+      [key: string]: unknown;
+    };
+    SourceRepository: {
+      url: string;
+      sources: components["schemas"]["RepositorySource"][];
+    };
+    SourceSummary: {
+      key: string;
+      name: string;
+      version?: string;
+      url?: string;
+      filePath?: string;
+      hasSearch?: boolean;
+      hasComic?: boolean;
+    };
+    SourceMetadata: {
+      key: string;
+      name: string;
+      version?: string;
+      enabled: number;
+      script_path?: string;
+      script_url?: string;
+      hash?: string;
+      installed_at?: string;
+      updated_at?: string;
+    };
+    SourceSettings: {
+      schema: {
+        [key: string]: unknown;
+      };
+      values: {
+        [key: string]: unknown;
+      };
+    };
+    Comic: {
+      sourceKey?: string;
+      id: string;
+      title: string;
+      cover?: string;
+      subtitle?: string;
+      tags?: string[];
+      description?: string;
+      language?: string;
+      stars?: number;
+    } & {
+      [key: string]: unknown;
+    };
+    SearchResult: {
+      comics: components["schemas"]["Comic"][];
+      maxPage?: number;
+      next?: string | null;
+    };
+    AggregatedSearchItem: {
+      sourceKey: string;
+      sourceName: string;
+      result?: components["schemas"]["SearchResult"];
+      error?: string;
+    };
+    ComicDetails: components["schemas"]["Comic"] &
+      ({
+        comicId?: string;
+        chapters?: {
+          [key: string]: string;
+        };
+        thumbnails?: string[];
+      } & {
+        [key: string]: unknown;
+      });
+    EpisodePages: {
+      images: string[];
+    };
+    CreateDownloadRequest: {
+      sourceKey: string;
+      comicId: string;
+      episodeId?: string;
+      all?: boolean;
+    };
+    DownloadLog: {
+      time: string;
+      phase: string;
+      message: string;
+    };
+    DownloadTask: {
+      id: string;
+      sourceKey: string;
+      comicId: string;
+      episodeId: string;
+      all?: boolean;
+      title?: string;
+      /** @enum {string} */
+      status: "queued" | "running" | "paused" | "completed" | "failed" | "cancelled";
+      phase: string;
+      total: number;
+      completed: number;
+      error?: string;
+      errorCode?: string;
+      recovered?: boolean;
+      current?: string;
+      outputDir?: string;
+      logs: components["schemas"]["DownloadLog"][];
+      createdAt: string;
+      updatedAt: string;
+    } & {
+      [key: string]: unknown;
+    };
+    DownloadItem: {
+      id: string;
+      task_id: string;
+      image_key: string;
+      file_path?: string;
+      status: string;
+      retry_count: number;
+      error?: string;
+      error_code?: string;
+      updated_at: string;
+    };
+    RetryFailedDownloadImagesResult: {
+      task: components["schemas"]["DownloadTask"] | null;
+      retried: number;
+      results: {
+        imageKey: string;
+        ok: boolean;
+        result?: {
+          [key: string]: unknown;
+        };
+        error?: string;
+      }[];
+    };
+    HistoryItem: {
+      id: string;
+      source_key: string;
+      comic_id: string;
+      title?: string;
+      cover?: string;
+      episode_id?: string;
+      page: number;
+      progress: number;
+      updated_at: string;
+    };
+    CacheStats: {
+      files: number;
+      bytes: number;
+    };
+    RuntimeCompatibilityItem: {
+      area: string;
+      api: string;
+      status: string;
+      note?: string;
+    };
+    RuntimeDiagnostic: {
+      time: string;
+      sourceKey?: string;
+      operation: string;
+      code: string;
+      message: string;
+    };
+    RuntimeDiagnostics: {
+      isolation: string;
+      loadedSources: components["schemas"]["SourceSummary"][];
+      failedLoads: components["schemas"]["RuntimeDiagnostic"][];
+      recentErrors: components["schemas"]["RuntimeDiagnostic"][];
+      sourceConcurrency: {
+        sourceKey: string;
+        active: number;
+        queued: number;
+      }[];
+    };
+    DebugResult: {
+      ok: boolean;
+      name: string;
+      durationMs: number;
+      summary?: unknown;
+      error?: string;
+      hint?: string;
+      stack?: string[];
+    } & {
+      [key: string]: unknown;
+    };
+  };
+  responses: {
+    /** @description API error */
+    Error: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ApiError"];
+      };
+    };
+  };
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
+}
+export type $defs = Record<string, never>;
+export interface operations {
+  getHealthLegacy: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Health"];
+        };
+      };
+    };
+  };
+  getHealth: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Health"];
+        };
+      };
+    };
+  };
+  getOpenApi: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  getSourceRepository: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceRepository"];
+        };
+      };
+    };
+  };
+  refreshSourceRepository: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            sources: components["schemas"]["RepositorySource"][];
+          };
+        };
+      };
+    };
+  };
+  listSources: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceSummary"][];
+        };
+      };
+    };
+  };
+  listAvailableSources: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RepositorySource"][];
+        };
+      };
+    };
+  };
+  listInstalledSources: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceSummary"][];
+        };
+      };
+    };
+  };
+  listSourceMetadata: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceMetadata"][];
+        };
+      };
+    };
+  };
+  installSource: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          source: string;
+        };
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+      400: components["responses"]["Error"];
+    };
+  };
+  reloadSources: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  getSource: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceSummary"] | null;
+        };
+      };
+    };
+  };
+  setSourceEnabled: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          enabled: boolean;
+        };
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceMetadata"];
+        };
+      };
+      404: components["responses"]["Error"];
+    };
+  };
+  getSourceSearchOptions: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          }[];
+        };
+      };
+    };
+  };
+  getSourceSettings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceSettings"];
+        };
+      };
+    };
+  };
+  updateSourceSettings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          values: {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceSettings"];
+        };
+      };
+    };
+  };
+  clearSourceSettings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceSettings"];
+        };
+      };
+    };
+  };
+  listSourceCookies: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          }[];
+        };
+      };
+    };
+  };
+  importSourceCookies: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: uri */
+          url: string;
+          cookies?: (
+            | string
+            | {
+                [key: string]: unknown;
+              }
+          )[];
+          text?: string;
+        };
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          }[];
+        };
+      };
+    };
+  };
+  clearSourceCookies: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Ok"];
+        };
+      };
+    };
+  };
+  aggregatedSearch: {
+    parameters: {
+      query: {
+        keyword: string;
+        sources?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AggregatedSearchItem"][];
+        };
+      };
+      400: components["responses"]["Error"];
+    };
+  };
+  searchSource: {
+    parameters: {
+      query: {
+        keyword: string;
+        page?: string;
+        next?: string;
+        options?: string;
+      };
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SearchResult"];
+        };
+      };
+      400: components["responses"]["Error"];
+    };
+  };
+  getComicDetails: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+        comicId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ComicDetails"];
+        };
+      };
+    };
+  };
+  getComicDetailsByQuery: {
+    parameters: {
+      query: {
+        comicId: string;
+      };
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ComicDetails"];
+        };
+      };
+    };
+  };
+  getEpisodePages: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+        comicId: string;
+        episodeId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EpisodePages"];
+        };
+      };
+    };
+  };
+  getEpisodePagesByQuery: {
+    parameters: {
+      query: {
+        comicId: string;
+        episodeId: string;
+      };
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EpisodePages"];
+        };
+      };
+    };
+  };
+  getImage: {
+    parameters: {
+      query: {
+        sourceKey: string;
+        imageKey: string;
+        comicId?: string;
+        episodeId?: string;
+        thumbnail?: boolean;
+        access_token?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Image bytes */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "image/*": string;
+          "application/octet-stream": string;
+        };
+      };
+    };
+  };
+  listDownloads: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadTask"][];
+        };
+      };
+    };
+  };
+  createDownload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateDownloadRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadTask"];
+        };
+      };
+    };
+  };
+  subscribeDownloads: {
+    parameters: {
+      query?: {
+        access_token?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Server-sent events stream */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getDownload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        taskId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadTask"];
+        };
+      };
+      404: components["responses"]["Error"];
+    };
+  };
+  deleteDownload: {
+    parameters: {
+      query?: {
+        files?: boolean;
+      };
+      header?: never;
+      path: {
+        taskId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadTask"];
+        };
+      };
+      404: components["responses"]["Error"];
+    };
+  };
+  listDownloadItems: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        taskId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadItem"][];
+        };
+      };
+      404: components["responses"]["Error"];
+    };
+  };
+  retryDownloadImage: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        taskId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          imageKey: string;
+        };
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            task: components["schemas"]["DownloadTask"];
+            item: components["schemas"]["DownloadItem"];
+          };
+        };
+      };
+      404: components["responses"]["Error"];
+    };
+  };
+  retryFailedDownloadImages: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        taskId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RetryFailedDownloadImagesResult"];
+        };
+      };
+      404: components["responses"]["Error"];
+    };
+  };
+  cancelDownload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        taskId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadTask"];
+        };
+      };
+      404: components["responses"]["Error"];
+    };
+  };
+  pauseDownload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        taskId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadTask"];
+        };
+      };
+      404: components["responses"]["Error"];
+    };
+  };
+  resumeDownload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        taskId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadTask"];
+        };
+      };
+      404: components["responses"]["Error"];
+    };
+  };
+  rerunDownload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        taskId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadTask"];
+        };
+      };
+      404: components["responses"]["Error"];
+    };
+  };
+  exportDownloadCbz: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        taskId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            taskId: string;
+            path: string;
+          };
+        };
+      };
+      404: components["responses"]["Error"];
+    };
+  };
+  listHistory: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HistoryItem"][];
+        };
+      };
+    };
+  };
+  getHistory: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+        comicId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HistoryItem"] | null;
+        };
+      };
+    };
+  };
+  saveHistory: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+        comicId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          episodeId?: string;
+          page?: number;
+          progress?: number;
+        };
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HistoryItem"];
+        };
+      };
+    };
+  };
+  getCacheStats: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CacheStats"];
+        };
+      };
+    };
+  };
+  clearImageCache: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CacheStats"];
+        };
+      };
+    };
+  };
+  pruneImageCache: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CacheStats"];
+        };
+      };
+    };
+  };
+  getRuntimeCompatibility: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            items: components["schemas"]["RuntimeCompatibilityItem"][];
+          };
+        };
+      };
+    };
+  };
+  getRuntimeDiagnostics: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RuntimeDiagnostics"];
+        };
+      };
+    };
+  };
+  debugSearch: {
+    parameters: {
+      query?: {
+        keyword?: string;
+        page?: string;
+      };
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DebugResult"];
+        };
+      };
+    };
+  };
+  debugComicDetails: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+        comicId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DebugResult"];
+        };
+      };
+    };
+  };
+  debugEpisodePages: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+        comicId: string;
+        episodeId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DebugResult"];
+        };
+      };
+    };
+  };
+  debugImage: {
+    parameters: {
+      query: {
+        imageKey: string;
+        comicId?: string;
+        episodeId?: string;
+      };
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DebugResult"];
+        };
+      };
+    };
+  };
+}

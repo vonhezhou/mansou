@@ -61,3 +61,6 @@ export type ComicDetails = z.infer<typeof comicDetailsSchema>;
 export type EpisodePages = z.infer<typeof episodePagesSchema>;
 export type DownloadTask = z.infer<typeof downloadTaskSchema>;
 export type ApiError = z.infer<typeof apiErrorSchema>;
+
+export { openApiDocument } from "./openapi.generated.js";
+export type { paths, components, operations } from "./api.generated.js";
