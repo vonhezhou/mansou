@@ -1,3 +1,4 @@
+import { Icon } from "../../app/Icon.js";
 import { useState } from "react";
 import { filterDownloadItems, getDownloadProgress } from "../../lib/downloads.js";
 import type { DownloadItem, DownloadTask } from "../../types.js";
@@ -22,7 +23,7 @@ export function DownloadTaskCard(props: DownloadTaskCardProps) {
     <article className="download-card" data-status={props.task.status}>
       <header className="download-card-header">
         <span className="download-icon" aria-hidden="true">
-          ↓
+          <Icon name="download" size={24} />
         </span>
         <div className="download-title">
           <strong>{props.task.title ?? props.task.comicId}</strong>

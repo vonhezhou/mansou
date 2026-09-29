@@ -20,11 +20,14 @@ export function DownloadsView(props: DownloadsViewProps) {
   const groupedDownloads = groupDownloads(filteredDownloads);
 
   return (
-    <section className="panel downloads">
-      <h1>下载</h1>
-      <p className="muted download-destination-note">
-        下载任务在服务器后台运行，完成后可获取 CBZ 文件。
-      </p>
+    <section className="inner-page downloads">
+      <header className="page-title">
+        <div>
+          <span className="eyebrow">DOWNLOAD MANAGER</span>
+          <h1>下载任务</h1>
+          <p>管理服务器上的漫画下载与队列，完成后可获取 CBZ 文件。</p>
+        </div>
+      </header>
       <DownloadSummary downloads={props.downloads} />
       <div className="download-tools">
         <details className="disclosure">
@@ -44,7 +47,7 @@ export function DownloadsView(props: DownloadsViewProps) {
               <input
                 value={sourceFilter}
                 onChange={(event) => setSourceFilter(event.target.value)}
-                placeholder="sourceKey"
+                placeholder="输入来源标识"
               />
             </label>
             <label>

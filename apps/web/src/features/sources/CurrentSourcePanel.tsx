@@ -1,8 +1,10 @@
+import type { Ref } from "react";
 import type { SettingsResponse, SourceMetadata } from "../../types.js";
 import { CookieImportPanel } from "./CookieImportPanel.js";
 import { SourceSettingsPanel } from "./SourceSettingsPanel.js";
 
 type CurrentSourcePanelProps = {
+  selectRef?: Ref<HTMLSelectElement>;
   busy: boolean;
   sourceKey: string;
   sourceMetadata: SourceMetadata[];
@@ -33,6 +35,8 @@ export function CurrentSourcePanel(props: CurrentSourcePanelProps) {
         <label>
           源
           <select
+            ref={props.selectRef}
+            disabled={props.busy}
             value={props.sourceKey}
             onChange={(event) => props.onSourceChange(event.target.value)}
           >

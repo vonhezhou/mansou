@@ -113,6 +113,11 @@ function Workspace({
       busy={refreshing}
       error={error}
       health={health}
+      downloadCount={
+        downloadsState.downloads.filter((task) => ["queued", "running"].includes(task.status))
+          .length
+      }
+      sourceCount={sourcesState.sourceMetadata.length}
       onRefresh={() => {
         void checkHealth();
         void refresh();

@@ -1,4 +1,5 @@
 import type { Comic } from "@venera/contracts";
+import { Icon } from "../../app/Icon.js";
 import { imageUrl } from "../../api/venera.js";
 
 type ComicCardProps = {
@@ -28,8 +29,15 @@ export function ComicCard(props: ComicCardProps) {
         alt=""
         loading="lazy"
       />
-      <strong>{props.comic.title}</strong>
-      <span className="source-label">{props.sourceName ?? props.sourceKey}</span>
+      <span className="comic-card-info">
+        <span className="source-label">{props.sourceName ?? props.sourceKey}</span>
+        <strong>{props.comic.title}</strong>
+        {props.comic.subtitle && <span className="comic-subtitle">{props.comic.subtitle}</span>}
+        <span className="comic-card-foot">
+          查看章节与下载
+          <Icon name="chevron" size={15} />
+        </span>
+      </span>
     </button>
   );
 }

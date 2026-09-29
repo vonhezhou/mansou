@@ -24,28 +24,30 @@ export function SearchView(props: SearchViewProps) {
 
   return (
     <>
-      <SearchControls
-        busy={props.busy}
-        sourceKey={props.sourceKey}
-        sources={props.sources}
-        keyword={props.keyword}
-        searchMode={props.searchMode}
-        aggregateSourceKeys={props.aggregateSourceKeys}
-        onKeywordChange={props.onKeywordChange}
-        onSearchModeChange={props.onSearchModeChange}
-        onSearch={props.onSearch}
-      />
-      <SourcePicker
-        sources={props.sources}
-        searchMode={props.searchMode}
-        sourceKey={props.sourceKey}
-        aggregateSourceKeys={props.aggregateSourceKeys}
-        busy={props.busy}
-        onSourceChange={props.onSourceChange}
-        onToggleAggregateSource={props.onToggleAggregateSource}
-      />
-
+      <section className="search-hero">
+        <SearchControls
+          busy={props.busy}
+          sourceKey={props.sourceKey}
+          sources={props.sources}
+          keyword={props.keyword}
+          searchMode={props.searchMode}
+          aggregateSourceKeys={props.aggregateSourceKeys}
+          onKeywordChange={props.onKeywordChange}
+          onSearchModeChange={props.onSearchModeChange}
+          onSearch={props.onSearch}
+        />
+        <SourcePicker
+          sources={props.sources}
+          searchMode={props.searchMode}
+          sourceKey={props.sourceKey}
+          aggregateSourceKeys={props.aggregateSourceKeys}
+          busy={props.busy}
+          onSourceChange={props.onSourceChange}
+          onToggleAggregateSource={props.onToggleAggregateSource}
+        />
+      </section>
       <SearchResults
+        sourceName={props.sources.find((source) => source.key === props.sourceKey)?.name}
         busy={props.busy}
         sourceKey={props.sourceKey}
         searchMode={props.searchMode}

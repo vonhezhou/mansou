@@ -3,19 +3,20 @@ import type { SourceMetadata } from "../../types.js";
 type InstalledSourcesListProps = {
   busy: boolean;
   sourceMetadata: SourceMetadata[];
+  onConfigureSource: (key: string) => void;
   onUpdateSource: (key: string) => void;
   onSetSourceEnabled: (source: SourceMetadata, enabled: boolean) => void;
 };
 
 export function InstalledSourcesList(props: InstalledSourcesListProps) {
   return (
-    <section className="source-panel">
+    <section className="installed-sources">
       <div className="section-heading">
         <h3>已安装源</h3>
         <span className="count-badge">{props.sourceMetadata.length}</span>
       </div>
       {props.sourceMetadata.length > 0 ? (
-        <div className="source-list">
+        <div className="source-list installed-source-grid">
           {props.sourceMetadata.map((source) => {
             const enabled = source.enabled === true || source.enabled === 1;
             return (
@@ -25,14 +26,26 @@ export function InstalledSourcesList(props: InstalledSourcesListProps) {
                 </span>
                 <div className="source-info">
                   <strong>{source.name}</strong>
-                  <span className="muted">
-                    {source.key}
-                    {source.version ? ` / ${source.version}` : ""}
+                  <span className="muted">{source.key}</span>
+                </div>
+                <button
+                  className="source-switch"
+                  role="switch"
+                  aria-checked={enabled}
+                  aria-label={`${enabled ? "禁用" : "启用"} ${source.name}`}
+                  onClick={() => props.onSetSourceEnabled(source, !enabled)}
+                  disabled={props.busy}
+                >
+                  <span />
+                </button>
+                <div className="source-card-meta">
+                  <span>
+                    版本 <b>{source.version ?? "未提供"}</b>
+                  </span>
+                  <span className={enabled ? "source-enabled" : "muted"}>
+                    {enabled ? "已启用" : "已禁用"}
                   </span>
                 </div>
-                <span className={enabled ? "status-badge online" : "status-badge"}>
-                  {enabled ? "已启用" : "已禁用"}
-                </span>
                 <div className="source-actions">
                   {source.availableVersion && (
                     <button disabled={props.busy} onClick={() => props.onUpdateSource(source.key)}>
@@ -41,10 +54,10 @@ export function InstalledSourcesList(props: InstalledSourcesListProps) {
                   )}
                   <button
                     className="secondary-button"
-                    onClick={() => props.onSetSourceEnabled(source, !enabled)}
                     disabled={props.busy}
+                    onClick={() => props.onConfigureSource(source.key)}
                   >
-                    {enabled ? "禁用" : "启用"}
+                    配置
                   </button>
                 </div>
               </article>

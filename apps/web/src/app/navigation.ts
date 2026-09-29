@@ -1,7 +1,8 @@
 export const navigationItems = [
-  { key: "search", label: "搜索" },
-  { key: "downloads", label: "下载中心" },
-  { key: "sources", label: "源管理" },
+  { key: "search", label: "漫画搜索", icon: "search" },
+  { key: "downloads", label: "下载任务", icon: "download" },
+  { key: "sources", label: "漫画源", icon: "stack" },
+  { key: "settings", label: "系统设置", icon: "settings" },
 ] as const;
 
 export type TabKey = (typeof navigationItems)[number]["key"];

@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { Icon } from "../../app/Icon.js";
 import type { Comic } from "@venera/contracts";
 import type { AggregatedSearchItem } from "../../types.js";
 import { ComicCard } from "./ComicCard.js";
@@ -5,6 +7,7 @@ import { ComicCard } from "./ComicCard.js";
 type SearchResultsProps = {
   busy: boolean;
   sourceKey: string;
+  sourceName?: string;
   searchMode: "single" | "aggregate";
   aggregateResultLayout: "grouped" | "flat";
   results: Comic[];
@@ -19,6 +22,7 @@ type SearchResultsProps = {
 };
 
 export function SearchResults(props: SearchResultsProps) {
+  const [layout, setLayout] = useState<"grid" | "list">("grid");
   const aggregateCount = props.aggregatedResults.reduce(
     (count, item) => count + (item.result?.comics.length ?? 0),
     0,
@@ -33,21 +37,83 @@ export function SearchResults(props: SearchResultsProps) {
 
   return (
     <section
-      className={`search-results${props.hasSearched ? " has-results" : ""}`}
+      className={`search-results ${layout === "list" ? "list-layout" : ""}`}
       aria-busy={props.busy}
     >
-      {!props.hasSearched && (
+      <header className="result-toolbar">
+        <div className="result-heading">
+          <h2>{props.hasSearched ? "搜索结果" : "开始探索"}</h2>
+          {props.hasSearched && (
+            <span className="muted" role="status">
+              已加载 {props.searchMode === "aggregate" ? aggregateCount : props.results.length}{" "}
+              个结果
+            </span>
+          )}
+        </div>
+        <div className="result-view-controls">
+          {props.searchMode === "aggregate" && props.hasSearched && (
+            <div className="segmented-control" role="group" aria-label="结果分组">
+              <button
+                aria-pressed={props.aggregateResultLayout === "grouped"}
+                className={props.aggregateResultLayout === "grouped" ? "active" : ""}
+                onClick={() => props.onAggregateResultLayoutChange("grouped")}
+              >
+                按源分组
+              </button>
+              <button
+                aria-pressed={props.aggregateResultLayout === "flat"}
+                className={props.aggregateResultLayout === "flat" ? "active" : ""}
+                onClick={() => props.onAggregateResultLayoutChange("flat")}
+              >
+                全部平铺
+              </button>
+            </div>
+          )}
+          <div className="segmented-control view-toggle" role="group" aria-label="结果视图">
+            <button
+              aria-label="网格视图"
+              title="网格视图"
+              aria-pressed={layout === "grid"}
+              className={layout === "grid" ? "active" : ""}
+              onClick={() => setLayout("grid")}
+            >
+              <Icon name="grid" size={17} />
+            </button>
+            <button
+              aria-label="列表视图"
+              title="列表视图"
+              aria-pressed={layout === "list"}
+              className={layout === "list" ? "active" : ""}
+              onClick={() => setLayout("list")}
+            >
+              <Icon name="list" size={18} />
+            </button>
+          </div>
+        </div>
+      </header>
+      {props.busy &&
+        (props.searchMode === "aggregate" ? aggregateCount === 0 : props.results.length === 0) && (
+          <p className="muted" role="status">
+            正在搜索，请稍候…
+          </p>
+        )}
+      {!props.hasSearched && !props.busy && (
         <div className="empty-state">
+          <span className="empty-icon">
+            <Icon name="search" size={28} />
+          </span>
           <h2>从一本漫画开始</h2>
           <p className="muted">输入名称，搜索你已启用的漫画源。</p>
         </div>
       )}
-      {props.hasSearched && props.searchMode === "single" && props.results.length === 0 && (
-        <p className="muted">没有找到结果，可以更换关键词或源。</p>
-      )}
-      {props.hasSearched && props.searchMode === "aggregate" && aggregateCount === 0 && (
-        <p className="muted">聚合搜索没有找到结果，或所有源均失败。</p>
-      )}
+      {props.hasSearched &&
+        !props.busy &&
+        props.searchMode === "single" &&
+        props.results.length === 0 && <p className="muted">没有找到结果，可以更换关键词或源。</p>}
+      {props.hasSearched &&
+        !props.busy &&
+        props.searchMode === "aggregate" &&
+        aggregateCount === 0 && <p className="muted">聚合搜索没有找到结果，或所有源均失败。</p>}
       {props.searchMode === "single" && (
         <>
           <div className="cards">
@@ -56,6 +122,7 @@ export function SearchResults(props: SearchResultsProps) {
                 comic={comic}
                 key={comic.id}
                 sourceKey={props.sourceKey}
+                sourceName={props.sourceName}
                 onOpenComic={props.onOpenComic}
                 busy={props.busy}
               />
@@ -75,29 +142,6 @@ export function SearchResults(props: SearchResultsProps) {
             </div>
           )}
         </>
-      )}
-      {props.searchMode === "aggregate" && props.hasSearched && (
-        <div className="result-toolbar">
-          <h2>
-            搜索结果 <span className="count-badge">{aggregateCount}</span>
-          </h2>
-          <div className="segmented-control">
-            <button
-              aria-pressed={props.aggregateResultLayout === "grouped"}
-              className={props.aggregateResultLayout === "grouped" ? "active" : ""}
-              onClick={() => props.onAggregateResultLayoutChange("grouped")}
-            >
-              按源分组
-            </button>
-            <button
-              aria-pressed={props.aggregateResultLayout === "flat"}
-              className={props.aggregateResultLayout === "flat" ? "active" : ""}
-              onClick={() => props.onAggregateResultLayoutChange("flat")}
-            >
-              全部平铺
-            </button>
-          </div>
-        </div>
       )}
       {props.searchMode === "aggregate" &&
         props.aggregateResultLayout === "flat" &&
