@@ -13,7 +13,6 @@ let testServer: Server;
 let baseUrl: string;
 
 const originalDataDir = config.dataDir;
-const originalIsolation = config.pluginIsolation;
 
 beforeAll(async () => {
   testServer = createServer((request, response) => {
@@ -34,7 +33,6 @@ beforeAll(async () => {
   baseUrl = `http://127.0.0.1:${address.port}`;
 
   config.dataDir = await mkdtemp(path.join(os.tmpdir(), "venera-web-worker-api-test-"));
-  config.pluginIsolation = "worker";
   const module = await import("../src/app.js");
   const built = await module.buildApp();
   app = built.app;
@@ -48,7 +46,6 @@ afterAll(async () => {
     testServer.close((error) => (error ? reject(error) : resolve())),
   );
   config.dataDir = originalDataDir;
-  config.pluginIsolation = originalIsolation;
 });
 
 describe("api v1 mock source with worker isolation", () => {
@@ -134,7 +131,7 @@ describe("api v1 mock source with worker isolation", () => {
     expect(dataSave.statusCode).toBe(200);
     expect(dataSave.json().comics[0].title).toBe("saved");
 
-    await context.runtime.loadInstalled();
+    await context.sources.loadInstalled();
     const dataRead = await app.inject({
       method: "GET",
       url: "/api/v1/search/mock?keyword=data-read&page=1",

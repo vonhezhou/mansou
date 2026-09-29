@@ -7,5 +7,21 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./version": "./dist/adapters/venera/version.js"
+  },
+  "types": "./dist/index.d.ts",
+  "dependencies": {
+    "@venera/storage": "workspace:*",
+    "cheerio": "^1.0.0",
+    "sharp": "^0.35.4",
+    "tough-cookie": "^5.0.0",
+    "undici": "^7.2.3",
+    "@venera/core": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2"
   }
 }

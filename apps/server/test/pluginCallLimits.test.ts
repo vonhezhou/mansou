@@ -3,12 +3,14 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { config } from "../src/config/config.js";
-import { SourceRuntime } from "../src/runtime/sourceRuntime.js";
+import { TestSourceRuntime as SourceRuntime } from "./helpers/runtime.js";
 
 const originalTimeout = config.pluginCallTimeoutMs;
 const originalConcurrency = config.pluginSourceConcurrency;
 
-afterEach(() => {
+const runtimes: SourceRuntime[] = [];
+afterEach(async () => {
+  await Promise.all(runtimes.splice(0).map((runtime) => runtime.close()));
   config.pluginCallTimeoutMs = originalTimeout;
   config.pluginSourceConcurrency = originalConcurrency;
 });
@@ -21,26 +23,34 @@ async function writeSource(script: string) {
 }
 
 describe("plugin call limits", () => {
-  it("times out long-running plugin calls", async () => {
-    config.pluginCallTimeoutMs = 10;
+  it("terminates a synchronous infinite loop and recovers after reload", async () => {
+    config.pluginCallTimeoutMs = 2000;
     const runtime = new SourceRuntime();
+    runtimes.push(runtime);
     await runtime.loadScript(
       await writeSource(`class Limited extends ComicSource {
       key = "limited";
       name = "Limited";
-      search = { load: async () => new Promise((resolve) => setTimeout(() => resolve({ comics: [] }), 100)) };
+      search = { load: async () => { while (true) {} } };
     }`),
     );
 
     await expect(runtime.search("limited", "x")).rejects.toThrow(
-      "Plugin call timed out: limited.search.load",
+      "Plugin call timed out: limited.search",
     );
+    await runtime.loadScript(
+      await writeSource(`class Recovered extends ComicSource {
+      key = "limited"; name = "Recovered"; search = { load: async () => ({comics: []}) };
+    }`),
+    );
+    expect((await runtime.search("limited", "x")).comics).toEqual([]);
   });
 
   it("limits concurrent calls per source", async () => {
     config.pluginCallTimeoutMs = 1000;
     config.pluginSourceConcurrency = 1;
     const runtime = new SourceRuntime();
+    runtimes.push(runtime);
     await runtime.loadScript(
       await writeSource(`class Limited extends ComicSource {
       key = "limited";

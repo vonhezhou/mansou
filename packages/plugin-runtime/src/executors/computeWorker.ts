@@ -1,19 +1,21 @@
 import vm from "node:vm";
 import { parentPort, workerData } from "node:worker_threads";
 import { createStorage } from "@venera/storage";
-import { config } from "../config/config.js";
-import { SourceDataStore } from "./dataStore.js";
-import { SourceCookieStore } from "./cookieStore.js";
-import { createRuntimeApi } from "./runtimeApi.js";
+import { createNetwork } from "../host/network.js";
+import { SourceDataStore } from "../host/dataStore.js";
+import { SourceCookieStore } from "../host/cookieStore.js";
+import { createRuntimeApi } from "../adapters/venera/runtimeApi.js";
 
 try {
-  config.appVersion = workerData.appVersion;
-  config.locale = workerData.locale;
+  const config = workerData.config;
+  const network = createNetwork(config);
   const storage = createStorage(workerData.dataDir);
   const api = await createRuntimeApi(
     workerData.sourceKey,
     new SourceDataStore(storage),
-    new SourceCookieStore(storage),
+    new SourceCookieStore(storage, config.dataDir),
+    config,
+    network.fetch,
   );
   const context = vm.createContext({
     ...api,

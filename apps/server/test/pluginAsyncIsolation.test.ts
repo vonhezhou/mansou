@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { SourceRuntime } from "../src/runtime/sourceRuntime.js";
+import { TestSourceRuntime as SourceRuntime } from "./helpers/runtime.js";
 
 describe("plugin async task isolation", () => {
   it("captures detached plugin async failures without process-level unhandled rejections", async () => {
@@ -14,6 +14,7 @@ describe("plugin async task isolation", () => {
         key = "async_bad";
         name = "Async Bad";
         version = "1.0.0";
+        search = { load: async () => ({comics: []}) };
         async init() {
           setTimeout(async () => { throw new Error("timer failed"); }, 0);
           new Promise((_resolve, reject) => reject(new Error("promise failed")));
@@ -24,20 +25,16 @@ describe("plugin async task isolation", () => {
     );
 
     const unhandled = vi.fn();
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const runtime = new SourceRuntime();
     process.on("unhandledRejection", unhandled);
     try {
-      const runtime = new SourceRuntime();
       await runtime.loadScript(sourceFile);
       await new Promise((resolve) => setTimeout(resolve, 50));
       expect(unhandled).not.toHaveBeenCalled();
-      expect(warn).toHaveBeenCalledWith(
-        expect.stringContaining("[async_bad] plugin async task failed"),
-        expect.anything(),
-      );
+      expect((await runtime.search("async_bad", "x")).comics).toEqual([]);
     } finally {
       process.off("unhandledRejection", unhandled);
-      warn.mockRestore();
+      await runtime.close();
     }
   });
 });

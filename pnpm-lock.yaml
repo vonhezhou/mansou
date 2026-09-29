@@ -139,24 +139,21 @@ importers:
       '@venera/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@venera/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@venera/plugin-runtime':
+        specifier: workspace:*
+        version: link:../../packages/plugin-runtime
       '@venera/storage':
         specifier: workspace:*
         version: link:../../packages/storage
-      cheerio:
-        specifier: ^1.0.0
-        version: 1.2.0
       cookie:
         specifier: ^2.0.1
         version: 2.0.1
       fastify:
         specifier: ^5.2.1
         version: 5.8.5
-      sharp:
-        specifier: ^0.35.4
-        version: 0.35.4(@types/node@22.19.19)
-      tough-cookie:
-        specifier: ^5.0.0
-        version: 5.1.2
       undici:
         specifier: ^7.2.3
         version: 7.25.0
@@ -170,6 +167,9 @@ importers:
       '@types/yazl':
         specifier: ^3.3.1
         version: 3.3.1
+      sharp:
+        specifier: ^0.35.4
+        version: 0.35.4(@types/node@22.19.19)
       tsx:
         specifier: ^4.19.2
         version: 4.22.3
@@ -181,7 +181,7 @@ importers:
         version: link:../../packages/contracts
       '@vitejs/plugin-react':
         specifier: ^6.0.2
-        version: 6.0.2(vite@8.0.14(@types/node@22.19.19)(esbuild@0.28.0)(tsx@4.22.3))
+        version: 6.0.2(vite@8.0.14(@types/node@22.19.19)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.1))
       react:
         specifier: ^19.2.6
         version: 19.2.6
@@ -190,7 +190,7 @@ importers:
         version: 19.2.6(react@19.2.6)
       vite:
         specifier: ^8.0.14
-        version: 8.0.14(@types/node@22.19.19)(esbuild@0.28.0)(tsx@4.22.3)
+        version: 8.0.14(@types/node@22.19.19)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.1)
     devDependencies:
       '@types/react':
         specifier: ^19.2.15
@@ -217,7 +217,30 @@ importers:
 
   packages/core: {}
 
-  packages/plugin-runtime: {}
+  packages/plugin-runtime:
+    dependencies:
+      '@venera/core':
+        specifier: workspace:*
+        version: link:../core
+      '@venera/storage':
+        specifier: workspace:*
+        version: link:../storage
+      cheerio:
+        specifier: ^1.0.0
+        version: 1.2.0
+      sharp:
+        specifier: ^0.35.4
+        version: 0.35.4(@types/node@22.19.19)
+      tough-cookie:
+        specifier: ^5.0.0
+        version: 5.1.2
+      undici:
+        specifier: ^7.2.3
+        version: 7.25.0
+    devDependencies:
+      tsx:
+        specifier: ^4.19.2
+        version: 4.22.3
 
   packages/shared: {}
 
@@ -3268,10 +3291,10 @@ snapshots:
       '@typescript-eslint/types': 8.59.4
       eslint-visitor-keys: 5.0.1
 
-  '@vitejs/plugin-react@6.0.2(vite@8.0.14(@types/node@22.19.19)(esbuild@0.28.0)(tsx@4.22.3))':
+  '@vitejs/plugin-react@6.0.2(vite@8.0.14(@types/node@22.19.19)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.1))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
-      vite: 8.0.14(@types/node@22.19.19)(esbuild@0.28.0)(tsx@4.22.3)
+      vite: 8.0.14(@types/node@22.19.19)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.1)
 
   '@vitest/expect@2.1.9':
     dependencies:
@@ -4455,7 +4478,7 @@ snapshots:
       fsevents: 2.3.3
       lightningcss: 1.32.0
 
-  vite@8.0.14(@types/node@22.19.19)(esbuild@0.28.0)(tsx@4.22.3):
+  vite@8.0.14(@types/node@22.19.19)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.1):
     dependencies:
       lightningcss: 1.32.0
       picomatch: 4.0.4
@@ -4467,6 +4490,7 @@ snapshots:
       esbuild: 0.28.0
       fsevents: 2.3.3
       tsx: 4.22.3
+      yaml: 2.9.1
 
   vitest@2.1.9(@types/node@22.19.19)(jsdom@29.1.1)(lightningcss@1.32.0)(supports-color@7.2.0):
     dependencies:

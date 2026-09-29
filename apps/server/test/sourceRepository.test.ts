@@ -6,8 +6,8 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { config } from "../src/config/config.js";
 import { paths } from "../src/storage/paths.js";
-import { SourceRepositoryService } from "../src/services/sourceRepository.js";
-import { isNewerVersion } from "../src/runtime/version.js";
+import { SourceRepositoryService } from "../src/repositories/sourceRepository.js";
+import { isNewerVersion } from "@venera/plugin-runtime/version";
 
 const repository = new SourceRepositoryService();
 const originalConfig = { ...config };

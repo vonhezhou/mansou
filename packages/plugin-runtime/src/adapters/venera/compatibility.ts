@@ -9,6 +9,8 @@ export const runtimeCompatibility = [
     api: "config onResponse / onLoadFailed / modifyImage script",
     status: "implemented",
   },
+  { area: "Settings", api: "input/select/switch/callback validation", status: "implemented" },
+  { area: "Account", api: "password/cookie login and logout", status: "implemented" },
   { area: "Runtime", api: "compute (worker)", status: "implemented" },
   { area: "Network", api: "fetchBytes", status: "implemented" },
   { area: "Network", api: "sendRequest", status: "implemented" },
@@ -31,7 +33,7 @@ export const runtimeCompatibility = [
   { area: "Html", api: "HtmlElement nodes/parent/siblings", status: "implemented" },
   {
     area: "UI",
-    api: "dialogs/login/webview",
+    api: "dialogs/webview",
     status: "missing",
     note: "Requires a browser interaction protocol.",
   },
@@ -39,6 +41,6 @@ export const runtimeCompatibility = [
     area: "Sandbox",
     api: "isolated runtime",
     status: "partial",
-    note: "Current adapter still uses Node vm; stronger isolation remains under evaluation.",
+    note: "Plugins run in Workers with VM contexts. Neither is an OS security sandbox.",
   },
 ] as const;

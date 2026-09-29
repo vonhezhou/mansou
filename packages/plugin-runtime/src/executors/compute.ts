@@ -1,10 +1,15 @@
 import { Worker } from "node:worker_threads";
-import { config } from "../config/config.js";
+import type { RuntimeOptions } from "../options.js";
 
 let active = 0;
 const queue: Array<() => void> = [];
 
-export async function compute(sourceKey: string, func: string, args: unknown[]) {
+export async function compute(
+  sourceKey: string,
+  func: string,
+  args: unknown[],
+  config: RuntimeOptions,
+) {
   if (typeof func !== "string") throw new Error("Function must be a string");
   if (active >= 4) await new Promise<void>((resolve) => queue.push(resolve));
   else active++;
@@ -20,6 +25,7 @@ export async function compute(sourceKey: string, func: string, args: unknown[]) 
         sourceKey,
         func,
         args,
+        config,
         dataDir: config.dataDir,
         appVersion: config.appVersion,
         locale: config.locale,

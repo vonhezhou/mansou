@@ -1,4 +1,7 @@
 export type PluginErrorCode =
+  | "SOURCE_CAPABILITY_UNSUPPORTED"
+  | "SOURCE_SETTINGS_INVALID"
+  | "SOURCE_LOGIN_FAILED"
   | "PLUGIN_API_MISSING"
   | "PLUGIN_TIMEOUT"
   | "PLUGIN_NETWORK_ERROR"
@@ -7,6 +10,15 @@ export type PluginErrorCode =
   | "IMAGE_REJECTED";
 
 export class PluginRuntimeError extends Error {
+  get statusCode() {
+    return this.code === "SOURCE_SETTINGS_INVALID"
+      ? 400
+      : this.code === "SOURCE_LOGIN_FAILED"
+        ? 422
+        : this.code === "SOURCE_CAPABILITY_UNSUPPORTED"
+          ? 400
+          : 500;
+  }
   constructor(
     public readonly code: PluginErrorCode,
     message: string,

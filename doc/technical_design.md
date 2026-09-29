@@ -1,5 +1,7 @@
 # Venera Web 技术设计
 
+> 当前 server 实现以 [server_architecture.md](server_architecture.md) 为准。本文保留项目总体规划；阅读器、历史、收藏等早期扩展设想不属于当前搜索、聚合搜索、章节预览和下载的实施范围。
+
 ## 1. 背景与目标
 
 `venera` 是 Flutter 漫画阅读应用，核心能力包括通过 JavaScript 插件扩展漫画源、聚合搜索、在线浏览、详情页、阅读器、收藏、历史、下载、图片缓存、账号与 Cookie 管理。`venera_web_poc` 已经验证了在 Node.js/TypeScript 环境中复用 Venera 插件的可行性：通过 Fastify 暴露 HTTP API，通过 Node `vm` 加载插件脚本，并提供 `ComicSource`、`Network`、`Html`、`Data`、`Log`、`App`、`Convert` 等兼容层。
@@ -56,7 +58,7 @@ venera_web
 │   ├── server          # Fastify API、任务调度、静态资源托管
 │   └── web             # Web 前端应用
 ├── packages
-│   ├── contracts       # API DTO、Zod schema、共享类型
+│   ├── contracts       # OpenAPI YAML、生成的 HTTP 类型
 │   ├── plugin-runtime  # Venera 插件兼容运行时
 │   ├── core            # 漫画源、搜索、详情、阅读、收藏等领域服务
 │   ├── storage         # SQLite/文件存储、迁移、仓储接口
@@ -115,8 +117,8 @@ Fastify API Gateway
 
 职责：
 
-- 定义共享 DTO、Zod schema、错误码、分页模型。
-- 从 schema 生成 OpenAPI 或作为 OpenAPI 的源数据。
+- 在 OpenAPI YAML 中定义 HTTP DTO、错误码与分页模型。
+- 以 `packages/contracts/openapi.yaml` 为 HTTP 契约唯一来源，生成 TypeScript 类型和运行时 OpenAPI 文档。
 - 统一前后端类型，避免前端手写接口类型。
 
 核心模型：
@@ -139,8 +141,8 @@ Fastify API Gateway
 
 运行时策略：
 
-- 首版可沿用 Node `vm`，但应封装为 `RuntimeAdapter`，避免业务服务直接依赖 `vm`。
-- 中期评估 `isolated-vm`、Worker Thread 或独立子进程，用于更强隔离和资源限制。
+- 已实现项目统一的 `SourceProvider` 协议；VeneraAdapter 处理兼容，Worker 执行器处理运行，业务服务不依赖插件原始实例。
+- 中期评估 `isolated-vm` 或独立子进程，用于更强隔离和资源限制。
 - 每个源维护独立上下文、Cookie Jar、Data 命名空间和配置。
 - 运行时 API 必须按 `venera/doc/js_api.md` 建立兼容清单，标记 `implemented`、`partial`、`missing`、`not applicable`。
 
@@ -317,7 +319,7 @@ GET /api/v1/images/:sourceKey?imageKey=...&comicId=...&episodeId=...&thumbnail=f
 - 先整体复制 PoC 可运行代码，保持 API 主路径可用。
 - 引入 monorepo 结构和共享 contracts，逐步拆分 `server.ts`。
 - 将文件 JSON 状态迁移到 SQLite，保留旧数据导入工具。
-- 将 `SourceRuntime` 拆分为运行时适配器、插件注册表、兼容 API、数据归一化。
+- 已将 `SourceRuntime` 拆分为 server 业务服务、PluginManager、VeneraAdapter、宿主能力和 Worker 执行器。
 - 引入正式 Web 前端，替换 `public` 最小 UI。
 - 建立 mock 源测试和真实源兼容矩阵，按矩阵补齐运行时 API。
 

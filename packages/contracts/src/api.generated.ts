@@ -252,6 +252,70 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/sources/{sourceKey}/auth": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["getSourceAuth"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sources/{sourceKey}/auth/login": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["loginSource"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sources/{sourceKey}/auth/logout": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["logoutSource"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sources/{sourceKey}/settings/{settingKey}/invoke": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["invokeSourceSetting"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/sources/{sourceKey}/cookies": {
     parameters: {
       query?: never;
@@ -838,6 +902,19 @@ export interface components {
       filePath?: string;
       hasSearch?: boolean;
       hasComic?: boolean;
+      capabilities?: {
+        search: boolean;
+        details: boolean;
+        pages: boolean;
+        settings: boolean;
+        authentication: boolean;
+      };
+      searchOptions?: {
+        label: string;
+        type?: string;
+        options: string[];
+        default?: unknown;
+      }[];
     };
     SourceMetadata: {
       key: string;
@@ -850,9 +927,44 @@ export interface components {
       installed_at?: string;
       updated_at?: string;
     };
+    SourceAuth: {
+      loggedIn: boolean;
+      methods: ("password" | "cookies")[];
+      cookieFields: string[];
+      /** @enum {string} */
+      webview: "unavailable" | "unsupported";
+      registerUrl?: string;
+    };
+    SourceLogin:
+      | {
+          /** @enum {string} */
+          method: "password";
+          username: string;
+          password: string;
+        }
+      | {
+          /** @enum {string} */
+          method: "cookies";
+          values: string[];
+        };
+    SourceSettingDefinition: {
+      title?: string;
+      /** @enum {string} */
+      type?: "input" | "select" | "switch" | "callback";
+      default?: unknown;
+      options?: (
+        | string
+        | {
+            value: unknown;
+            text?: string;
+          }
+      )[];
+      validator?: string | null;
+      buttonText?: string;
+    };
     SourceSettings: {
       schema: {
-        [key: string]: unknown;
+        [key: string]: components["schemas"]["SourceSettingDefinition"];
       };
       values: {
         [key: string]: unknown;
@@ -1426,6 +1538,155 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["SourceSettings"];
         };
+      };
+    };
+  };
+  getSourceAuth: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceAuth"];
+        };
+      };
+      /** @description Invalid input or unsupported source capability */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Source login failed */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  loginSource: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SourceLogin"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceAuth"];
+        };
+      };
+      /** @description Invalid input or unsupported source capability */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Source login failed */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  logoutSource: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceAuth"];
+        };
+      };
+      /** @description Invalid input or unsupported source capability */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Source login failed */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  invokeSourceSetting: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+        settingKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceSettings"];
+        };
+      };
+      /** @description Invalid input or unsupported source capability */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Source login failed */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

@@ -360,11 +360,12 @@ describe("api v1 mock source", () => {
   });
 
   it("downloads images whose keys are not valid URLs", async () => {
-    const originalComicPages = context.runtime.comicPages.bind(context.runtime);
+    const provider = context.sources.get("mock");
+    const originalComicPages = provider.comicPages.bind(provider);
     const originalLoadBytes = context.imageProxy.loadBytes.bind(context.imageProxy);
-    context.runtime.comicPages = async (sourceKey, comicId, episodeId) => {
+    provider.comicPages = async (comicId, episodeId) => {
       if (comicId === "plain-image-key") return { images: ["relative/image-key"] };
-      return originalComicPages(sourceKey, comicId, episodeId);
+      return originalComicPages(comicId, episodeId);
     };
     context.imageProxy.loadBytes = async (input, useCache) => {
       if (input.imageKey === "relative/image-key")
@@ -395,7 +396,7 @@ describe("api v1 mock source", () => {
 
       expect(taskBody).toMatchObject({ status: "completed", completed: 1, total: 1 });
     } finally {
-      context.runtime.comicPages = originalComicPages;
+      provider.comicPages = originalComicPages;
       context.imageProxy.loadBytes = originalLoadBytes;
     }
   });

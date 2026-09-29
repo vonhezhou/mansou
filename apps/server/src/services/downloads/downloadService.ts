@@ -1,14 +1,15 @@
 import path from "node:path";
-import { access, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { access, rm } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { createReadStream, createWriteStream } from "node:fs";
-import yazl from "yazl";
+import { createReadStream } from "node:fs";
 import type { StorageDatabase } from "@venera/storage";
-import { paths } from "../storage/paths.js";
-import { SourceRuntime } from "../runtime/sourceRuntime.js";
-import { ImageProxyService } from "./imageProxy.js";
-import { ensureDir, readJson, safeFilename, writeJson } from "../utils/fs.js";
-import { config } from "../config/config.js";
+import { paths } from "../../storage/paths.js";
+import type { SourceRegistry } from "@venera/core";
+import { zipDirectory } from "./archive.js";
+import { writeImage } from "./downloadFiles.js";
+import { ImageProxyService } from "../imageProxy.js";
+import { ensureDir, readJson, safeFilename, writeJson } from "../../utils/fs.js";
+import { config } from "../../config/config.js";
 
 type DownloadStatus = "queued" | "running" | "paused" | "completed" | "failed" | "cancelled";
 type DownloadPhase =
@@ -50,7 +51,7 @@ export class DownloadService {
   private readonly listeners = new Set<(tasks: DownloadTask[]) => void>();
 
   constructor(
-    private readonly runtime: SourceRuntime,
+    private readonly sources: SourceRegistry,
     private readonly imageProxy: ImageProxyService,
     private readonly storage?: StorageDatabase,
   ) {}
@@ -285,7 +286,7 @@ export class DownloadService {
       };
     }
 
-    const details = await this.runtime.comicDetails(task.sourceKey, task.comicId);
+    const details = await this.sources.get(task.sourceKey).comicDetails(task.comicId);
     const title = details.title || task.comicId;
     const chapters = details.chapters as Record<string, string> | undefined;
     const episodeIds =
@@ -307,7 +308,7 @@ export class DownloadService {
         : path.join(comicDir, safeFilename(chapters?.[episodeIds[0]] ?? episodeIds[0]));
 
     for (const episodeId of episodeIds) {
-      const pages = await this.runtime.comicPages(task.sourceKey, task.comicId, episodeId);
+      const pages = await this.sources.get(task.sourceKey).comicPages(task.comicId, episodeId);
       const index = pages.images.indexOf(imageKey);
       if (index < 0) continue;
       const chapterDir =
@@ -372,7 +373,7 @@ export class DownloadService {
       this.update(task, { phase: "loading_details" });
       this.addLog(task, "loading_details", "Loading comic details");
       this.throwIfCancelled(task);
-      const details = await this.runtime.comicDetails(task.sourceKey, task.comicId);
+      const details = await this.sources.get(task.sourceKey).comicDetails(task.comicId);
       this.throwIfCancelled(task);
       const title = details.title || task.comicId;
       const chapters = details.chapters as Record<string, string> | undefined;
@@ -399,7 +400,7 @@ export class DownloadService {
         this.addLog(task, "loading_pages", `Loading pages for ${episodeId}`);
         chapterPages.push({
           episodeId,
-          pages: await this.runtime.comicPages(task.sourceKey, task.comicId, episodeId),
+          pages: await this.sources.get(task.sourceKey).comicPages(task.comicId, episodeId),
         });
       }
       const total = chapterPages.reduce((sum, item) => sum + item.pages.images.length, 0);
@@ -577,10 +578,7 @@ export class DownloadService {
           { sourceKey: task.sourceKey, comicId: task.comicId, episodeId, imageKey },
           true,
         );
-        const ext = extensionFromContentType(image.contentType, imageKey);
-        const file = path.join(outputDir, `${String(index + 1).padStart(4, "0")}${ext}`);
-        await writeFile(file, image.data);
-        return file;
+        return await writeImage(outputDir, index, imageKey, image);
       } catch (error) {
         lastError = error;
         const classified = classifyDownloadError(error);
@@ -649,52 +647,4 @@ function classifyDownloadError(error: unknown) {
   if (/cancelled/i.test(message)) return { code: "CANCELLED", message };
   if (/too large/i.test(message)) return { code: "IMAGE_TOO_LARGE", message };
   return { code: "DOWNLOAD_ERROR", message };
-}
-
-function extensionFromContentType(contentType: string, imageKey: string) {
-  if (contentType.includes("jpeg")) return ".jpg";
-  if (contentType.includes("png")) return ".png";
-  if (contentType.includes("webp")) return ".webp";
-  if (contentType.includes("gif")) return ".gif";
-  if (contentType.includes("svg")) return ".svg";
-  const pathname = urlPathname(imageKey);
-  const match = pathname.match(/\.[a-zA-Z0-9]+$/);
-  return match?.[0] ?? ".bin";
-}
-
-function urlPathname(value: string) {
-  try {
-    return new URL(value).pathname;
-  } catch {
-    return value;
-  }
-}
-
-async function zipDirectory(sourceDir: string, outputFile: string) {
-  const zip = new yazl.ZipFile();
-  const output = createWriteStream(outputFile);
-  const done = new Promise<void>((resolve, reject) => {
-    output.on("close", resolve);
-    output.on("error", reject);
-    zip.outputStream.on("error", reject);
-  });
-  await addDirectoryToZip(zip, sourceDir, "");
-  zip.end();
-  zip.outputStream.pipe(output);
-  await done;
-}
-
-async function addDirectoryToZip(zip: yazl.ZipFile, dir: string, prefix: string) {
-  const entries = await readdir(dir);
-  for (const entry of entries.sort()) {
-    if (entry.endsWith(".cbz") || entry === "metadata.json") continue;
-    const fullPath = path.join(dir, entry);
-    const relativePath = prefix ? `${prefix}/${entry}` : entry;
-    const info = await stat(fullPath);
-    if (info.isDirectory()) {
-      await addDirectoryToZip(zip, fullPath, relativePath);
-    } else if (info.isFile()) {
-      zip.addFile(fullPath, relativePath);
-    }
-  }
 }

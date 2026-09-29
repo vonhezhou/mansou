@@ -7,7 +7,7 @@ export async function registerSearchRoutes(app: FastifyInstance, context: RouteC
     const query = z
       .object({ keyword: z.string().min(1), sources: z.string().optional() })
       .parse(request.query);
-    return context.runtime.aggregatedSearch(
+    return context.search.aggregatedSearch(
       query.keyword,
       query.sources
         ?.split(",")
@@ -26,7 +26,7 @@ export async function registerSearchRoutes(app: FastifyInstance, context: RouteC
         options: z.string().optional(),
       })
       .parse(request.query);
-    return context.runtime.search(
+    return context.search.search(
       params.sourceKey,
       query.keyword,
       query.next ?? query.page,

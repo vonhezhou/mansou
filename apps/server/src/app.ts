@@ -5,16 +5,17 @@ import { registerAuthRoutes } from "./routes/auth.js";
 import Fastify from "fastify";
 import { createStorage } from "@venera/storage";
 import { ZodError } from "zod";
-import { PluginRuntimeError } from "./runtime/errors.js";
+import { PluginRuntimeError } from "@venera/plugin-runtime";
 import { ApiError } from "./routes/errors.js";
-import { DownloadService } from "./services/downloadService.js";
+import { DownloadService } from "./services/downloads/downloadService.js";
 import { ImageProxyService } from "./services/imageProxy.js";
-import { SourceRepositoryService } from "./services/sourceRepository.js";
-import { SourceCookieStore } from "./runtime/cookieStore.js";
-import { SourceDataStore } from "./runtime/dataStore.js";
-import { SourceRuntime } from "./runtime/sourceRuntime.js";
+import { SourceRepositoryService } from "./repositories/sourceRepository.js";
+import { PluginManager } from "@venera/plugin-runtime";
+import { SourceService } from "./services/sourceService.js";
+import { SearchService } from "./services/searchService.js";
 import { config } from "./config/config.js";
 import { ensureDir } from "./utils/fs.js";
+import { ImageCache } from "./storage/imageCache.js";
 import { paths } from "./storage/paths.js";
 import { registerComicRoutes } from "./routes/comics.js";
 import { registerDebugRoutes } from "./routes/debug.js";
@@ -48,15 +49,25 @@ export async function buildApp(authConfig: AuthConfig = readAuthConfig()) {
   const auth = new AuthService(storage, authConfig);
   registerAuthHook(app, auth);
   const repository = new SourceRepositoryService();
-  const dataStore = new SourceDataStore(storage);
-  const cookieStore = new SourceCookieStore(storage);
-  const runtime = new SourceRuntime(repository, dataStore, cookieStore);
-  const imageProxy = new ImageProxyService(runtime);
-  const downloads = new DownloadService(runtime, imageProxy, storage);
-  const context: RouteContext = { repository, runtime, imageProxy, downloads, storage, auth };
+  const sources = new SourceService(new PluginManager({ ...config }), repository, storage);
+  const search = new SearchService(sources);
+  const imageProxy = new ImageProxyService(
+    sources,
+    new ImageCache(paths.imageCache, config.imageCacheMaxBytes),
+  );
+  const downloads = new DownloadService(sources, imageProxy, storage);
+  const context: RouteContext = {
+    repository,
+    sources,
+    search,
+    imageProxy,
+    downloads,
+    storage,
+    auth,
+  };
 
   app.addHook("onClose", async () => {
-    await runtime.close();
+    await sources.close();
     storage.close();
   });
 
@@ -125,6 +136,6 @@ export async function initializeApp(context: RouteContext) {
     ensureDir(paths.imageCache),
     ensureDir(paths.downloads),
   ]);
-  await context.runtime.loadInstalled();
+  await context.sources.loadInstalled();
   await context.downloads.init();
 }

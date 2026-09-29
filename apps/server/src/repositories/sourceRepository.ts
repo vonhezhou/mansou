@@ -1,5 +1,5 @@
 import path from "node:path";
-import { isNewerVersion } from "../runtime/version.js";
+import { isNewerVersion } from "@venera/plugin-runtime/version";
 import { readdir, readFile, writeFile, rename, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import crypto from "node:crypto";

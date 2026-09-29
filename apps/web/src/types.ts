@@ -61,10 +61,9 @@ export type RetryFailedDownloadImagesResult = {
   results: Array<{ imageKey: string; ok: boolean; result?: unknown; error?: string }>;
 };
 export type CacheStats = { files: number; bytes: number };
-export type SettingsResponse = {
-  schema: Record<string, { default?: unknown }>;
-  values: Record<string, unknown>;
-};
+export type SettingsResponse = import("@venera/contracts").components["schemas"]["SourceSettings"];
+export type SourceAuth = import("@venera/contracts").components["schemas"]["SourceAuth"];
+export type SourceLogin = import("@venera/contracts").components["schemas"]["SourceLogin"];
 export type SourceMetadata = {
   availableVersion?: string;
   key: string;

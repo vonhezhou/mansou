@@ -1,11 +1,5 @@
-import crypto from "node:crypto";
-import path from "node:path";
-import { readdir, readFile, rm, stat, utimes, writeFile } from "node:fs/promises";
-import { paths } from "../storage/paths.js";
-import { config } from "../config/config.js";
-import { ensureDir } from "../utils/fs.js";
-import { SourceRuntime } from "../runtime/sourceRuntime.js";
-
+import type { SourceRegistry } from "@venera/core";
+import { ImageCache } from "../storage/imageCache.js";
 type ImageProxyInput = {
   sourceKey: string;
   comicId?: string;
@@ -15,7 +9,10 @@ type ImageProxyInput = {
 };
 
 export class ImageProxyService {
-  constructor(private readonly runtime: SourceRuntime) {}
+  constructor(
+    private readonly sources: SourceRegistry,
+    private readonly cache: ImageCache,
+  ) {}
 
   async load(input: ImageProxyInput) {
     return this.loadBytes(input, true);
@@ -27,24 +24,14 @@ export class ImageProxyService {
       return { data, contentType: "image/svg+xml; charset=utf-8", cached: false };
     }
 
-    const cachePath = this.cachePath(input);
     if (useCache) {
-      try {
-        const data = await readFile(cachePath);
-        const now = new Date();
-        await utimes(cachePath, now, now).catch(() => undefined);
-        return { data, contentType: this.detectContentType(data), cached: true };
-      } catch {
-        // cache miss
-      }
+      const data = await this.cache.read(input);
+      if (data) return { data, contentType: this.detectContentType(data), cached: true };
     }
-
-    const { data, contentType } = await this.runtime.loadImageBytes(input.sourceKey, input);
-    if (useCache) {
-      await ensureDir(path.dirname(cachePath));
-      await writeFile(cachePath, data);
-      await this.enforceCacheLimit();
-    }
+    const result = await this.sources.get(input.sourceKey).loadImageBytes(input);
+    const data = Buffer.from(result.data);
+    const contentType = result.contentType;
+    if (useCache) await this.cache.write(input, data);
     return {
       data,
       contentType:
@@ -55,41 +42,14 @@ export class ImageProxyService {
     };
   }
 
-  async cacheStats() {
-    const files = await listFiles(paths.imageCache);
-    let bytes = 0;
-    for (const file of files) bytes += (await stat(file)).size;
-    return { files: files.length, bytes };
+  cacheStats() {
+    return this.cache.cacheStats();
   }
-
-  async enforceCacheLimit() {
-    const maxBytes = config.imageCacheMaxBytes;
-    if (maxBytes <= 0) return this.cacheStats();
-    const files = await listFiles(paths.imageCache);
-    const entries = await Promise.all(
-      files.map(async (file) => {
-        const info = await stat(file);
-        return { file, size: info.size, atimeMs: info.atimeMs };
-      }),
-    );
-    let total = entries.reduce((sum, entry) => sum + entry.size, 0);
-    for (const entry of entries.sort((a, b) => a.atimeMs - b.atimeMs)) {
-      if (total <= maxBytes) break;
-      await rm(entry.file, { force: true });
-      total -= entry.size;
-    }
-    return this.cacheStats();
+  enforceCacheLimit() {
+    return this.cache.enforceCacheLimit();
   }
-
-  async clearCache() {
-    await rm(paths.imageCache, { recursive: true, force: true });
-    await ensureDir(paths.imageCache);
-    return this.cacheStats();
-  }
-
-  private cachePath(input: ImageProxyInput) {
-    const hash = crypto.createHash("sha256").update(JSON.stringify(input)).digest("hex");
-    return path.join(paths.imageCache, `${hash}.bin`);
+  clearCache() {
+    return this.cache.clearCache();
   }
 
   private detectContentType(data: Uint8Array) {
@@ -100,21 +60,6 @@ export class ImageProxyService {
     if (data[0] === 0x52 && data[1] === 0x49 && data[2] === 0x46 && data[3] === 0x46)
       return "image/webp";
     return "application/octet-stream";
-  }
-}
-
-async function listFiles(dir: string): Promise<string[]> {
-  try {
-    const entries = await readdir(dir, { withFileTypes: true });
-    const nested = await Promise.all(
-      entries.map((entry) => {
-        const fullPath = path.join(dir, entry.name);
-        return entry.isDirectory() ? listFiles(fullPath) : [fullPath];
-      }),
-    );
-    return nested.flat();
-  } catch {
-    return [];
   }
 }
 

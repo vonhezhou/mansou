@@ -1,11 +1,11 @@
 import * as cheerio from "cheerio";
 import crypto from "node:crypto";
 import { types } from "node:util";
-import { compute } from "./compute.js";
-import { config } from "../config/config.js";
-import { SourceDataStore } from "./dataStore.js";
-import { fetchWithProxy } from "../utils/fetch.js";
-import { SourceCookieStore } from "./cookieStore.js";
+import { compute } from "../../executors/compute.js";
+import type { RuntimeOptions } from "../../options.js";
+import { SourceDataStore } from "../../host/dataStore.js";
+
+import { SourceCookieStore } from "../../host/cookieStore.js";
 
 type RequestOptions = {
   headers?: Record<string, string>;
@@ -105,14 +105,163 @@ function cryptAes(
   return result;
 }
 
+class HtmlElement {
+  constructor(
+    private readonly $: cheerio.CheerioAPI,
+    private readonly selection: cheerio.Cheerio<unknown>,
+  ) {}
+
+  querySelector(selector: string) {
+    const found = (
+      this.selection as unknown as {
+        find: (selector: string) => { first: () => cheerio.Cheerio<unknown>; length: number };
+      }
+    )
+      .find(selector)
+      .first();
+    return found.length === 0 ? null : new HtmlElement(this.$, found);
+  }
+
+  querySelectorAll(selector: string) {
+    const self = (this.selection as unknown as { is: (selector: string) => boolean }).is(selector)
+      ? [new HtmlElement(this.$, this.selection)]
+      : [];
+    const found = (
+      this.selection as unknown as { find: (selector: string) => cheerio.Cheerio<unknown> }
+    ).find(selector);
+    return [
+      ...self,
+      ...found.toArray().map((node) => new HtmlElement(this.$, this.$(node as never))),
+    ];
+  }
+
+  getElementById(id: string) {
+    return this.querySelector(`#${id}`);
+  }
+
+  get text() {
+    return (this.selection as unknown as { text: () => string }).text();
+  }
+
+  get attributes() {
+    const node = this.selection.get(0) as { attribs?: Record<string, string> } | undefined;
+    return node?.attribs ?? {};
+  }
+
+  get children() {
+    const children = (
+      this.selection as unknown as { children: () => cheerio.Cheerio<unknown> }
+    ).children();
+    return children.toArray().map((node) => new HtmlElement(this.$, this.$(node as never)));
+  }
+
+  get nodes() {
+    const node = this.selection.get(0) as { children?: unknown[] } | undefined;
+    return (node?.children ?? []).map((child) => new HtmlNode(this.$, child));
+  }
+
+  get parent(): HtmlElement | null {
+    const parent = (
+      this.selection as unknown as { parent: () => cheerio.Cheerio<unknown> }
+    ).parent();
+    return parent.length === 0 ? null : new HtmlElement(this.$, parent);
+  }
+
+  get innerHtml() {
+    return (this.selection as unknown as { html: () => string | null }).html() ?? "";
+  }
+
+  get classNames() {
+    return (this.attributes.class ?? "").split(/\s+/).filter(Boolean);
+  }
+
+  get id() {
+    return this.attributes.id ?? null;
+  }
+
+  get localName() {
+    const node = this.selection.get(0) as { tagName?: string; name?: string } | undefined;
+    return node?.tagName ?? node?.name ?? "";
+  }
+
+  get previousSibling(): HtmlElement | null {
+    const sibling = (this.selection as unknown as { prev: () => cheerio.Cheerio<unknown> }).prev();
+    return sibling.length === 0 ? null : new HtmlElement(this.$, sibling);
+  }
+
+  get nextSibling(): HtmlElement | null {
+    const sibling = (this.selection as unknown as { next: () => cheerio.Cheerio<unknown> }).next();
+    return sibling.length === 0 ? null : new HtmlElement(this.$, sibling);
+  }
+}
+
+class HtmlNode {
+  constructor(
+    private readonly $: cheerio.CheerioAPI,
+    private readonly node: unknown,
+  ) {}
+
+  get type() {
+    const node = this.node as { type?: string };
+    if (node.type === "text" || node.type === "comment") return node.type;
+    if (node.type === "tag") return "element";
+    if (node.type === "root") return "document";
+    return node.type ?? "unknown";
+  }
+
+  get text() {
+    const node = this.node as { data?: string };
+    return node.data ?? this.$(this.node as never).text();
+  }
+
+  toElement() {
+    return this.type === "element" ? new HtmlElement(this.$, this.$(this.node as never)) : null;
+  }
+}
+
+class HtmlDocument {
+  private readonly $: cheerio.CheerioAPI;
+
+  constructor(html: string) {
+    this.$ = cheerio.load(html);
+  }
+
+  querySelector(selector: string) {
+    const found = this.$(selector).first();
+    return found.length === 0 ? null : new HtmlElement(this.$, found);
+  }
+
+  querySelectorAll(selector: string) {
+    const found = this.$(selector);
+    return found.toArray().map((node) => new HtmlElement(this.$, this.$(node as never)));
+  }
+
+  getElementById(id: string) {
+    return this.querySelector(`#${id}`);
+  }
+
+  dispose() {}
+}
+
+type WrappedNode = {
+  text: () => string;
+  html: () => string | null;
+  attr: (name: string) => string | undefined;
+  length: number;
+  eq: (index: number) => WrappedNode;
+  find: (selector: string) => WrappedNode;
+  map: (fn: (node: WrappedNode, index: number) => unknown) => unknown[];
+  toArray: () => WrappedNode[];
+};
 export async function createRuntimeApi(
   sourceKey: string,
   dataStore: SourceDataStore,
   cookieStore: SourceCookieStore,
+  config: RuntimeOptions,
+  fetchWithProxy: typeof fetch,
 ) {
-  const jar = await cookieStore.getJar(sourceKey);
-
   async function request(url: string, options: RequestOptions = {}) {
+    const jar = await cookieStore.getJar(sourceKey);
     options = normalizeRequestOptions(options);
     const requestUrl = appendQuery(url.startsWith("//") ? `https:${url}` : url, options.query);
     const headers = new Headers(options.headers ?? {});
@@ -213,6 +362,7 @@ export async function createRuntimeApi(
         data: data ?? normalizeRequestOptions(options).data,
       }),
     setCookies: async (url: string, cookies: string[] | Record<string, string>) => {
+      const jar = await cookieStore.getJar(sourceKey);
       if (Array.isArray(cookies)) {
         for (const cookie of cookies) await jar.setCookie(cookie, url);
       } else {
@@ -221,23 +371,13 @@ export async function createRuntimeApi(
       }
       await cookieStore.save(sourceKey);
     },
-    getCookies: async (url: string) => jar.getCookies(url),
+    getCookies: async (url: string) => (await cookieStore.getJar(sourceKey)).getCookies(url),
     deleteCookies: async () => cookieStore.clear(sourceKey),
   };
 
   const Html = {
     parse: (html: string) => {
       const $ = cheerio.load(html);
-      type WrappedNode = {
-        text: () => string;
-        html: () => string | null;
-        attr: (name: string) => string | undefined;
-        length: number;
-        eq: (index: number) => WrappedNode;
-        find: (selector: string) => WrappedNode;
-        map: (fn: (node: WrappedNode, index: number) => unknown) => unknown[];
-        toArray: () => WrappedNode[];
-      };
       const wrap = (selection: cheerio.Cheerio<unknown>): WrappedNode => {
         const anySelection = selection as unknown as {
           text: () => string;
@@ -263,148 +403,6 @@ export async function createRuntimeApi(
       return Object.assign((selector: string) => wrap($(selector)), { $ });
     },
   };
-
-  class HtmlElement {
-    constructor(
-      private readonly $: cheerio.CheerioAPI,
-      private readonly selection: cheerio.Cheerio<unknown>,
-    ) {}
-
-    querySelector(selector: string) {
-      const found = (
-        this.selection as unknown as {
-          find: (selector: string) => { first: () => cheerio.Cheerio<unknown>; length: number };
-        }
-      )
-        .find(selector)
-        .first();
-      return found.length === 0 ? null : new HtmlElement(this.$, found);
-    }
-
-    querySelectorAll(selector: string) {
-      const self = (this.selection as unknown as { is: (selector: string) => boolean }).is(selector)
-        ? [new HtmlElement(this.$, this.selection)]
-        : [];
-      const found = (
-        this.selection as unknown as { find: (selector: string) => cheerio.Cheerio<unknown> }
-      ).find(selector);
-      return [
-        ...self,
-        ...found.toArray().map((node) => new HtmlElement(this.$, this.$(node as never))),
-      ];
-    }
-
-    getElementById(id: string) {
-      return this.querySelector(`#${id}`);
-    }
-
-    get text() {
-      return (this.selection as unknown as { text: () => string }).text();
-    }
-
-    get attributes() {
-      const node = this.selection.get(0) as { attribs?: Record<string, string> } | undefined;
-      return node?.attribs ?? {};
-    }
-
-    get children() {
-      const children = (
-        this.selection as unknown as { children: () => cheerio.Cheerio<unknown> }
-      ).children();
-      return children.toArray().map((node) => new HtmlElement(this.$, this.$(node as never)));
-    }
-
-    get nodes() {
-      const node = this.selection.get(0) as { children?: unknown[] } | undefined;
-      return (node?.children ?? []).map((child) => new HtmlNode(this.$, child));
-    }
-
-    get parent(): HtmlElement | null {
-      const parent = (
-        this.selection as unknown as { parent: () => cheerio.Cheerio<unknown> }
-      ).parent();
-      return parent.length === 0 ? null : new HtmlElement(this.$, parent);
-    }
-
-    get innerHtml() {
-      return (this.selection as unknown as { html: () => string | null }).html() ?? "";
-    }
-
-    get classNames() {
-      return (this.attributes.class ?? "").split(/\s+/).filter(Boolean);
-    }
-
-    get id() {
-      return this.attributes.id ?? null;
-    }
-
-    get localName() {
-      const node = this.selection.get(0) as { tagName?: string; name?: string } | undefined;
-      return node?.tagName ?? node?.name ?? "";
-    }
-
-    get previousSibling(): HtmlElement | null {
-      const sibling = (
-        this.selection as unknown as { prev: () => cheerio.Cheerio<unknown> }
-      ).prev();
-      return sibling.length === 0 ? null : new HtmlElement(this.$, sibling);
-    }
-
-    get nextSibling(): HtmlElement | null {
-      const sibling = (
-        this.selection as unknown as { next: () => cheerio.Cheerio<unknown> }
-      ).next();
-      return sibling.length === 0 ? null : new HtmlElement(this.$, sibling);
-    }
-  }
-
-  class HtmlNode {
-    constructor(
-      private readonly $: cheerio.CheerioAPI,
-      private readonly node: unknown,
-    ) {}
-
-    get type() {
-      const node = this.node as { type?: string };
-      if (node.type === "text" || node.type === "comment") return node.type;
-      if (node.type === "tag") return "element";
-      if (node.type === "root") return "document";
-      return node.type ?? "unknown";
-    }
-
-    get text() {
-      const node = this.node as { data?: string };
-      return node.data ?? this.$(this.node as never).text();
-    }
-
-    toElement() {
-      return this.type === "element" ? new HtmlElement(this.$, this.$(this.node as never)) : null;
-    }
-  }
-
-  class HtmlDocument {
-    private readonly $: cheerio.CheerioAPI;
-
-    constructor(html: string) {
-      this.$ = cheerio.load(html);
-    }
-
-    querySelector(selector: string) {
-      const found = this.$(selector).first();
-      return found.length === 0 ? null : new HtmlElement(this.$, found);
-    }
-
-    querySelectorAll(selector: string) {
-      const found = this.$(selector);
-      return found.toArray().map((node) => new HtmlElement(this.$, this.$(node as never)));
-    }
-
-    getElementById(id: string) {
-      return this.querySelector(`#${id}`);
-    }
-
-    dispose() {}
-  }
 
   const Data = {
     load: (key: string) => dataStore.load(sourceKey, key),
@@ -465,7 +463,7 @@ export async function createRuntimeApi(
   };
 
   return {
-    compute: (func: string, ...args: unknown[]) => compute(sourceKey, func, args),
+    compute: (func: string, ...args: unknown[]) => compute(sourceKey, func, args, config),
     Network,
     Http: Network,
     HTML: Html,

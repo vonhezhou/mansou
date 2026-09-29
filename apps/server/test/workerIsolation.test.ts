@@ -1,19 +1,13 @@
 import { mkdtemp, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
-import { config } from "../src/config/config.js";
-import { SourceRuntime } from "../src/runtime/sourceRuntime.js";
-
-const originalIsolation = config.pluginIsolation;
-
-afterEach(() => {
-  config.pluginIsolation = originalIsolation;
-});
+import { describe, expect, it } from "vitest";
+import { TestSourceRuntime as SourceRuntime } from "./helpers/runtime.js";
 
 describe("worker plugin isolation", () => {
-  it("loads and invokes a source in a worker when enabled", async () => {
-    config.pluginIsolation = "worker";
+  it("loads and invokes a source in a worker by default", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "venera-worker-source-"));
     const sourceFile = path.join(dir, "worker_mock.js");
     await writeFile(
@@ -50,17 +44,26 @@ describe("worker plugin isolation", () => {
     expect((await runtime.comicPages("worker_mock", "comic-1", "one")).images).toEqual([
       "mock://worker/1",
     ]);
-    await expect(
-      runtime.imageLoadingConfig("worker_mock", "https://example.test/1.jpg", "comic-1", "one"),
-    ).resolves.toMatchObject({
-      url: "https://example.test/1.jpg",
-      headers: { referer: "comic-1/one" },
+    expect(runtime.searchOptions("worker_mock")).toEqual([]);
+    const server = createServer((request, response) => {
+      response.setHeader("content-type", "application/json");
+      response.end(JSON.stringify(request.headers));
     });
-    await expect(
-      runtime.imageLoadingConfig("worker_mock", "https://example.test/thumb.jpg", "", null, true),
-    ).resolves.toMatchObject({
-      url: "https://example.test/thumb.jpg",
-      headers: { "x-thumbnail": "yes" },
-    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const imageKey = `http://127.0.0.1:${(server.address() as AddressInfo).port}/image`;
+      const source = runtime.get("worker_mock");
+      const image = await source.loadImageBytes({ imageKey, comicId: "comic-1", episodeId: "one" });
+      expect(JSON.parse(Buffer.from(image.data).toString())).toMatchObject({
+        referer: "comic-1/one",
+      });
+      const thumb = await source.loadImageBytes({ imageKey, thumbnail: true });
+      expect(JSON.parse(Buffer.from(thumb.data).toString())).toMatchObject({
+        "x-thumbnail": "yes",
+      });
+    } finally {
+      await runtime.close();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 });

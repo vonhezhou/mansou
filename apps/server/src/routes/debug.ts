@@ -1,13 +1,13 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { runtimeCompatibility } from "../runtime/compatibility.js";
-import { classifyPluginError } from "../runtime/errors.js";
+import { runtimeCompatibility } from "@venera/plugin-runtime";
+import { classifyPluginError } from "@venera/plugin-runtime";
 import type { RouteContext } from "./types.js";
 
 export async function registerDebugRoutes(app: FastifyInstance, context: RouteContext) {
   app.get("/debug/runtime/compatibility", async () => ({ items: runtimeCompatibility }));
 
-  app.get("/debug/runtime/diagnostics", async () => context.runtime.diagnostics());
+  app.get("/debug/runtime/diagnostics", async () => context.sources.diagnostics());
 
   app.get("/debug/:sourceKey/search", async (request) => {
     const params = z.object({ sourceKey: z.string() }).parse(request.params);
@@ -15,14 +15,14 @@ export async function registerDebugRoutes(app: FastifyInstance, context: RouteCo
       .object({ keyword: z.string().default("test"), page: z.string().optional() })
       .parse(request.query);
     return debugRun(params.sourceKey, "search", () =>
-      context.runtime.search(params.sourceKey, query.keyword, query.page),
+      context.search.search(params.sourceKey, query.keyword, query.page),
     );
   });
 
   app.get("/debug/:sourceKey/comics/:comicId", async (request) => {
     const params = z.object({ sourceKey: z.string(), comicId: z.string() }).parse(request.params);
     return debugRun(params.sourceKey, "detail", () =>
-      context.runtime.comicDetails(params.sourceKey, params.comicId),
+      context.sources.comicDetails(params.sourceKey, params.comicId),
     );
   });
 
@@ -31,7 +31,7 @@ export async function registerDebugRoutes(app: FastifyInstance, context: RouteCo
       .object({ sourceKey: z.string(), comicId: z.string(), episodeId: z.string() })
       .parse(request.params);
     return debugRun(params.sourceKey, "pages", () =>
-      context.runtime.comicPages(params.sourceKey, params.comicId, params.episodeId),
+      context.sources.comicPages(params.sourceKey, params.comicId, params.episodeId),
     );
   });
 

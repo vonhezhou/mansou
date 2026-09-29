@@ -27,7 +27,9 @@ const sources = splitList(
   args.source ?? args.sources ?? args._[0] ?? "baozi,Komiic,comick,manga_dex,ykmh",
 );
 const keyword = args.keyword ?? "one";
-const isolation = args.isolation ?? config.pluginIsolation;
+const isolation = "worker";
+if (args.isolation !== undefined)
+  throw new Error("--isolation has been removed; plugins always run in Workers.");
 const output = args.output;
 const format = args.format ?? (output?.endsWith(".md") ? "markdown" : "json");
 const verifyDownload = args.download === "true" || args.download === true;
@@ -35,12 +37,10 @@ const downloadTimeoutMs = Number(args.downloadTimeoutMs ?? 180000);
 
 if (args.help || sources.length === 0) {
   console.log(
-    "Usage: VENERA_DATA_DIR=/tmp/venera-compat pnpm --filter @venera/server compat:worker -- --source=baozi,comick --keyword=one --download=true --output=result.md --format=markdown",
+    "Usage: VENERA_DATA_DIR=/tmp/venera-compat pnpm --filter @venera/server compat -- --source=baozi,comick --keyword=one --download=true --output=result.md --format=markdown",
   );
   process.exit(args.help ? 0 : 1);
 }
-
-config.pluginIsolation = isolation;
 
 const result = await run();
 const rendered =

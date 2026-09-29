@@ -10,6 +10,8 @@ import type {
   RetryFailedDownloadImagesResult,
   SearchResult,
   SettingsResponse,
+  SourceAuth,
+  SourceLogin,
   Source,
   SourceMetadata,
 } from "../types.js";
@@ -54,6 +56,19 @@ export const veneraApi = {
       method: "PUT",
       body: JSON.stringify({ enabled }),
     }),
+  getSourceAuth: (key: string) => api<SourceAuth>(`/sources/${encodeURIComponent(key)}/auth`),
+  loginSource: (key: string, input: SourceLogin) =>
+    api<SourceAuth>(`/sources/${encodeURIComponent(key)}/auth/login`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  logoutSource: (key: string) =>
+    api<SourceAuth>(`/sources/${encodeURIComponent(key)}/auth/logout`, { method: "POST" }),
+  invokeSourceSetting: (key: string, setting: string) =>
+    api<SettingsResponse>(
+      `/sources/${encodeURIComponent(key)}/settings/${encodeURIComponent(setting)}/invoke`,
+      { method: "POST" },
+    ),
   getSourceSettings: (sourceKey: string) =>
     api<SettingsResponse>(`/sources/${encodeURIComponent(sourceKey)}/settings`),
   updateSourceSettings: (sourceKey: string, values: Record<string, unknown>) =>

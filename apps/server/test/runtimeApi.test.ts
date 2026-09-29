@@ -1,12 +1,27 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import crypto from "node:crypto";
 import vm from "node:vm";
 import { config } from "../src/config/config.js";
 import { createServer, type Server } from "node:http";
 import { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { SourceCookieStore } from "../src/runtime/cookieStore.js";
-import { SourceDataStore } from "../src/runtime/dataStore.js";
-import { createRuntimeApi } from "../src/runtime/runtimeApi.js";
+import { SourceCookieStore } from "../../../packages/plugin-runtime/src/host/cookieStore.js";
+import { SourceDataStore } from "../../../packages/plugin-runtime/src/host/dataStore.js";
+import { createRuntimeApi as createApi } from "../../../packages/plugin-runtime/src/adapters/venera/runtimeApi.js";
+import { createNetwork } from "../../../packages/plugin-runtime/src/host/network.js";
+import { createStorage } from "@venera/storage";
+const dataDir = mkdtempSync(path.join(os.tmpdir(), "venera-api-test-"));
+const storage = createStorage(dataDir);
+const network = createNetwork(config);
+const createRuntimeApi = (key: string, data: SourceDataStore, cookies: SourceCookieStore) =>
+  createApi(key, data, cookies, { ...config, dataDir }, network.fetch);
+afterAll(async () => {
+  storage.close();
+  await network.close();
+  rmSync(dataDir, { recursive: true, force: true });
+});
 
 let server: Server;
 let baseUrl: string;
@@ -36,8 +51,8 @@ describe("runtime api compatibility", () => {
   it("supports documented Network request helpers", async () => {
     const { Network } = await createRuntimeApi(
       "mock",
-      new SourceDataStore(),
-      new SourceCookieStore(),
+      new SourceDataStore(storage),
+      new SourceCookieStore(storage, dataDir),
     );
     const text = await Network.sendRequest("PATCH", `${baseUrl}/text`, {}, Buffer.from("ok"));
     expect(text.body).toBe("PATCH:/text:6f6b");
@@ -49,8 +64,8 @@ describe("runtime api compatibility", () => {
   it("supports documented Convert hash, hmac and aes helpers", async () => {
     const { Convert } = await createRuntimeApi(
       "mock",
-      new SourceDataStore(),
-      new SourceCookieStore(),
+      new SourceDataStore(storage),
+      new SourceCookieStore(storage, dataDir),
     );
     expect(Convert.hexEncode(Convert.sha512("abc"))).toBe(
       "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a" +
@@ -71,8 +86,8 @@ describe("runtime api compatibility", () => {
   it("matches AES standard vectors without padding, including feedback segment sizes", async () => {
     const { Convert } = await createRuntimeApi(
       "mock",
-      new SourceDataStore(),
-      new SourceCookieStore(),
+      new SourceDataStore(storage),
+      new SourceCookieStore(storage, dataDir),
     );
     const key = Buffer.from("2b7e151628aed2a6abf7158809cf4f3c", "hex");
     const iv = Buffer.from("000102030405060708090a0b0c0d0e0f", "hex");
@@ -107,29 +122,30 @@ describe("runtime api compatibility", () => {
   it("runs compute asynchronously, rejects invalid code and terminates runaway work", async () => {
     const { compute } = await createRuntimeApi(
       "mock",
-      new SourceDataStore(),
-      new SourceCookieStore(),
+      new SourceDataStore(storage),
+      new SourceCookieStore(storage, dataDir),
     );
     expect(await compute("async (a, b) => a + b", 2, 5)).toBe(7);
     expect(await compute("value => Convert.hexEncode(Convert.sha256(value))", "abc")).toBe(
       crypto.createHash("sha256").update("abc").digest("hex"),
     );
     await expect(compute("42")).rejects.toThrow("does not evaluate to a function");
-    const timeout = config.pluginCallTimeoutMs;
-    config.pluginCallTimeoutMs = 500;
-    try {
-      await expect(compute("() => { while (true) {} }")).rejects.toThrow(/timed out/);
-    } finally {
-      config.pluginCallTimeoutMs = timeout;
-    }
+    const limited = await createApi(
+      "mock",
+      new SourceDataStore(storage),
+      new SourceCookieStore(storage, dataDir),
+      { ...config, dataDir, pluginCallTimeoutMs: 500 },
+      network.fetch,
+    );
+    await expect(limited.compute("() => { while (true) {} }")).rejects.toThrow(/timed out/);
     expect(await compute("() => 1")).toBe(1);
   });
 
   it("supports HtmlElement nodes, parent and sibling helpers", async () => {
     const { HtmlDocument } = await createRuntimeApi(
       "mock",
-      new SourceDataStore(),
-      new SourceCookieStore(),
+      new SourceDataStore(storage),
+      new SourceCookieStore(storage, dataDir),
     );
     const doc = new HtmlDocument("<main><p id='a'>one</p>text<p id='b'>two</p></main>");
     const first = doc.getElementById("a");
@@ -141,7 +157,11 @@ describe("runtime api compatibility", () => {
 
   it("exposes APP as an App compatibility alias", async () => {
     const { App, APP, app, Http, Network, Storage, Data, HTML, Html, Console, Log } =
-      await createRuntimeApi("mock", new SourceDataStore(), new SourceCookieStore());
+      await createRuntimeApi(
+        "mock",
+        new SourceDataStore(storage),
+        new SourceCookieStore(storage, dataDir),
+      );
     expect(APP).toBe(App);
     expect(app).toBe(App);
     expect(Http).toBe(Network);

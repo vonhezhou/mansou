@@ -1,7 +1,7 @@
 import { types } from "node:util";
-import type { VeneraComicSource } from "../types/source.js";
-import { config } from "../config/config.js";
-import { fetchWithProxy } from "../utils/fetch.js";
+import type { VeneraComicSource } from "./types.js";
+import type { RuntimeOptions } from "../../options.js";
+
 import { modifyImageWithScript } from "./pluginImage.js";
 
 export type SourceImageInput = {
@@ -31,7 +31,12 @@ function imageBytes(value: unknown): Buffer<ArrayBuffer> {
   throw new Error("Invalid onResponse result: expected image bytes");
 }
 
-async function fetchImage(imageKey: string, options: LoadingConfig) {
+async function fetchImage(
+  imageKey: string,
+  options: LoadingConfig,
+  config: RuntimeOptions,
+  fetchWithProxy: typeof fetch,
+) {
   const url = String(options.url ?? imageKey);
   const parsed = new URL(url.startsWith("//") ? `https:${url}` : url);
   if (!["http:", "https:"].includes(parsed.protocol))
@@ -55,7 +60,7 @@ async function fetchImage(imageKey: string, options: LoadingConfig) {
   });
 }
 
-async function readBytes(response: Response) {
+async function readBytes(response: Response, config: RuntimeOptions) {
   if (!response.ok) {
     await response.body?.cancel();
     throw new Error(`Failed to load image: ${response.status} ${response.statusText}`);
@@ -83,11 +88,13 @@ async function readBytes(response: Response) {
   return Buffer.concat(chunks);
 }
 
-// Keep callbacks local to this request and this VM/Worker; never serialize closures.
+// Keep callbacks local to this request and this Worker’s VM context; never serialize closures.
 export async function loadSourceImage(
   source: VeneraComicSource,
   input: SourceImageInput,
   globals: Record<string, unknown>,
+  config: RuntimeOptions,
+  fetchWithProxy: typeof fetch,
 ) {
   const { imageKey, comicId = "", episodeId = null, thumbnail = false } = input;
   const owner =
@@ -102,7 +109,7 @@ export async function loadSourceImage(
   let options = loadingConfig(await loader?.call(owner, imageKey, comicId, episodeId));
   for (let attempt = 0; ; attempt++) {
     try {
-      let response = await fetchImage(imageKey, options);
+      let response = await fetchImage(imageKey, options, config, fetchWithProxy);
       // Preserve the pre-existing Web extension, without confusing it with Flutter's byte hook.
       const legacyResponse = source.comic?.onResponse ?? source.onResponse;
       if (!response.ok && attempt === 0 && legacyResponse) {
@@ -116,17 +123,17 @@ export async function loadSourceImage(
         if (Object.keys(retry).length) {
           await response.body?.cancel();
           options = { ...options, ...retry };
-          response = await fetchImage(imageKey, options);
+          response = await fetchImage(imageKey, options, config, fetchWithProxy);
         }
       }
-      let data = await readBytes(response);
+      let data = await readBytes(response, config);
       if (options.onResponse)
         data = imageBytes(await options.onResponse(Uint8Array.from(data).buffer));
       let contentType = response.headers.get("content-type") ?? "application/octet-stream";
       if (options.modifyImage != null) {
         if (typeof options.modifyImage !== "string")
           throw new Error("modifyImage must be a script string");
-        data = await modifyImageWithScript(data, options.modifyImage, globals);
+        data = await modifyImageWithScript(data, options.modifyImage, globals, config);
         contentType = "image/png";
       } else {
         const legacyModify = source.comic?.modifyImage ?? source.modifyImage;

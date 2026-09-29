@@ -1,13 +1,15 @@
 import path from "node:path";
 import { Cookie, CookieJar, SerializedCookieJar } from "tough-cookie";
 import type { StorageDatabase } from "@venera/storage";
-import { paths } from "../storage/paths.js";
-import { ensureDir, readJson, safeFilename, writeJson } from "../utils/fs.js";
+import { ensureDir, readJson, safeFilename, writeJson } from "./fs.js";
 
 export class SourceCookieStore {
   private readonly jars = new Map<string, CookieJar>();
 
-  constructor(private readonly storage?: StorageDatabase) {}
+  constructor(
+    private readonly storage: StorageDatabase,
+    readonly dataDir: string,
+  ) {}
 
   async getJar(sourceKey: string) {
     const cached = this.jars.get(sourceKey);
@@ -55,18 +57,23 @@ export class SourceCookieStore {
   }
 
   async clear(sourceKey: string) {
-    const jar = new CookieJar();
-    this.jars.set(sourceKey, jar);
+    const jar = await this.getJar(sourceKey);
+    await jar.removeAllCookies();
     if (this.storage) {
       this.storage.setCookieJar(sourceKey, jar.serializeSync());
       return;
     }
-    await ensureDir(paths.cookies);
+    await ensureDir(path.join(this.dataDir, "cookies"));
     await writeJson(this.filePath(sourceKey), jar.serializeSync());
   }
 
+  async restore(sourceKey: string, snapshot: SerializedCookieJar | undefined) {
+    this.jars.set(sourceKey, snapshot ? CookieJar.deserializeSync(snapshot) : new CookieJar());
+    await this.save(sourceKey);
+  }
+
   private filePath(sourceKey: string) {
-    return path.join(paths.cookies, `${safeFilename(sourceKey)}.json`);
+    return path.join(path.join(this.dataDir, "cookies"), `${safeFilename(sourceKey)}.json`);
   }
 }
 
@@ -102,7 +109,14 @@ function parseCookieText(text: string) {
     .filter(Boolean);
   if (lines.length === 1 && /^cookie:/i.test(lines[0]))
     return splitCookieHeader(lines[0].replace(/^cookie:\s*/i, ""));
-  if (lines.length === 1 && lines[0].includes(";") && !/expires=/i.test(lines[0]))
+  if (
+    lines.length === 1 &&
+    lines[0].includes(";") &&
+    !/^set-cookie:/i.test(lines[0]) &&
+    !/;\s*(?:expires|max-age|domain|path|samesite)\s*=|;\s*(?:secure|httponly)(?:;|$)/i.test(
+      lines[0],
+    )
+  )
     return splitCookieHeader(lines[0]);
   return lines.flatMap((line) => {
     if (line.startsWith("#")) return [];

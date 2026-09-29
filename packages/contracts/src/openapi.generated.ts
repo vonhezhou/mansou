@@ -323,6 +323,81 @@ export const openApiDocument = {
         },
       },
     },
+    "/api/v1/sources/{sourceKey}/auth": {
+      get: {
+        operationId: "getSourceAuth",
+        tags: ["sources"],
+        parameters: [{ name: "sourceKey", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/SourceAuth" } },
+            },
+          },
+          "400": { description: "Invalid input or unsupported source capability" },
+          "422": { description: "Source login failed" },
+        },
+      },
+    },
+    "/api/v1/sources/{sourceKey}/auth/login": {
+      post: {
+        operationId: "loginSource",
+        tags: ["sources"],
+        parameters: [{ name: "sourceKey", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/SourceLogin" } } },
+        },
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/SourceAuth" } },
+            },
+          },
+          "400": { description: "Invalid input or unsupported source capability" },
+          "422": { description: "Source login failed" },
+        },
+      },
+    },
+    "/api/v1/sources/{sourceKey}/auth/logout": {
+      post: {
+        operationId: "logoutSource",
+        tags: ["sources"],
+        parameters: [{ name: "sourceKey", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/SourceAuth" } },
+            },
+          },
+          "400": { description: "Invalid input or unsupported source capability" },
+          "422": { description: "Source login failed" },
+        },
+      },
+    },
+    "/api/v1/sources/{sourceKey}/settings/{settingKey}/invoke": {
+      post: {
+        operationId: "invokeSourceSetting",
+        tags: ["sources"],
+        parameters: [
+          { name: "sourceKey", in: "path", required: true, schema: { type: "string" } },
+          { name: "settingKey", in: "path", required: true, schema: { type: "string" } },
+        ],
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/SourceSettings" } },
+            },
+          },
+          "400": { description: "Invalid input or unsupported source capability" },
+          "422": { description: "Source login failed" },
+        },
+      },
+    },
     "/api/v1/sources/{sourceKey}/cookies": {
       get: {
         operationId: "listSourceCookies",
@@ -1155,6 +1230,30 @@ export const openApiDocument = {
           filePath: { type: "string" },
           hasSearch: { type: "boolean" },
           hasComic: { type: "boolean" },
+          capabilities: {
+            type: "object",
+            required: ["search", "details", "pages", "settings", "authentication"],
+            properties: {
+              search: { type: "boolean" },
+              details: { type: "boolean" },
+              pages: { type: "boolean" },
+              settings: { type: "boolean" },
+              authentication: { type: "boolean" },
+            },
+          },
+          searchOptions: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["label", "options"],
+              properties: {
+                label: { type: "string" },
+                type: { type: "string" },
+                options: { type: "array", items: { type: "string" } },
+                default: {},
+              },
+            },
+          },
         },
         required: ["key", "name"],
       },
@@ -1173,10 +1272,68 @@ export const openApiDocument = {
         },
         required: ["key", "name", "enabled"],
       },
+      SourceAuth: {
+        type: "object",
+        required: ["loggedIn", "methods", "cookieFields", "webview"],
+        properties: {
+          loggedIn: { type: "boolean" },
+          methods: { type: "array", items: { type: "string", enum: ["password", "cookies"] } },
+          cookieFields: { type: "array", items: { type: "string" } },
+          webview: { type: "string", enum: ["unavailable", "unsupported"] },
+          registerUrl: { type: "string" },
+        },
+      },
+      SourceLogin: {
+        oneOf: [
+          {
+            type: "object",
+            required: ["method", "username", "password"],
+            properties: {
+              method: { type: "string", enum: ["password"] },
+              username: { type: "string", minLength: 1 },
+              password: { type: "string", minLength: 1, writeOnly: true },
+            },
+          },
+          {
+            type: "object",
+            required: ["method", "values"],
+            properties: {
+              method: { type: "string", enum: ["cookies"] },
+              values: { type: "array", items: { type: "string" } },
+            },
+          },
+        ],
+      },
+      SourceSettingDefinition: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          type: { type: "string", enum: ["input", "select", "switch", "callback"] },
+          default: {},
+          options: {
+            type: "array",
+            items: {
+              oneOf: [
+                { type: "string" },
+                {
+                  type: "object",
+                  required: ["value"],
+                  properties: { value: {}, text: { type: "string" } },
+                },
+              ],
+            },
+          },
+          validator: { type: ["string", "null"] },
+          buttonText: { type: "string" },
+        },
+      },
       SourceSettings: {
         type: "object",
         properties: {
-          schema: { type: "object", additionalProperties: true },
+          schema: {
+            type: "object",
+            additionalProperties: { $ref: "#/components/schemas/SourceSettingDefinition" },
+          },
           values: { type: "object", additionalProperties: true },
         },
         required: ["schema", "values"],

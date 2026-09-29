@@ -62,7 +62,7 @@
 兼容验证 CLI 用法：
 
 ```bash
-VENERA_DATA_DIR=/tmp/venera-compat pnpm --filter @venera/server compat manga_dex,baozi --isolation=worker --keyword=one
+VENERA_DATA_DIR=/tmp/venera-compat pnpm --filter @venera/server compat manga_dex,baozi --keyword=one
 ```
 
 CLI 默认输出 JSON；使用 `--output=result.md --format=markdown` 可输出 Markdown 表格。
@@ -73,7 +73,7 @@ CLI 默认输出 JSON；使用 `--output=result.md --format=markdown` 可输出 
 
 ### 全局 API / 别名
 
-插件 VM 与 Worker 隔离模式均提供以下兼容别名：
+插件在 Worker 内提供以下兼容别名：
 
 | API                                 | 兼容关系                      | 说明                                    |
 | ----------------------------------- | ----------------------------- | --------------------------------------- |
@@ -133,6 +133,14 @@ Worker 隔离模式下已验证以下一致性：
 | Worker 调用 `Data.save` 后重载源                   | 重载后仍可通过 `Data.load` 读取。 |
 | 主进程更新 source settings 后 Worker `loadSetting` | 后续插件调用可读取新设置。        |
 
-注意：Cookie jar 在 Worker 初始化时会被缓存；server 在 `importCookies` / `clearCookies` 后会重载对应 Worker，确保 Cookie 变更立即对 Worker 内 `Network.request` 可见。
+当前实现：Cookie 管理由统一源协议在插件执行环境内完成，`importCookies` / `clearCookies` 直接更新正在使用的 Cookie jar，不再重载 Worker。所有插件统一在 Worker 内运行。
 
 覆盖测试：`apps/server/test/apiWorkerIsolation.test.ts` 的 Cookie/Data/settings 一致性回归用例。
+
+## 2026-09-29 统一源接口迁移
+
+运行时代码已迁入 `packages/plugin-runtime`，目录和调用边界见 [server_architecture.md](server_architecture.md)。Worker 内使用 VeneraAdapter，修正了 Worker 搜索选项丢失、能力被一律标记为支持，以及聚合搜索筛选依赖原始插件函数的问题。
+
+设置新增按定义校验和 callback 调用；账号新增密码登录、Cookie 字段校验、退出与状态查询。网页登录明确标记 unsupported。历史真实源矩阵是当时的验证记录，本次未联网重新验证所有源，不代表这些源当前全部可用。
+
+当前仅支持 Worker 执行，内部保留 VM 上下文。上文 2026-05-25 记录中的 VM 模式和 `VENERA_PLUGIN_ISOLATION` 是历史配置，现已移除；兼容检查使用 `compat`，不再接受 `--isolation`。

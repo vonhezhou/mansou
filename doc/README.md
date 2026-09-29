@@ -1,6 +1,7 @@
 # 文档入口
 
 - `technical_design.md`：技术设计。
+- `server_architecture.md`：当前 server 结构、统一源接口、Venera 适配器与执行容器边界。
 - `execution_plan.md`：阶段执行计划。
 - `deployment.md`：NAS/VPS、Docker、HTTPS 反向代理和备份说明。
 - `source_compatibility.md`：真实源兼容矩阵和验证流程。

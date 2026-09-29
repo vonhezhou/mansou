@@ -1,13 +1,21 @@
-import { config } from "../config/config.js";
-import type { SourceDataStore } from "./dataStore.js";
+import type { SourceDataStore } from "../../host/dataStore.js";
 
 type Settings = Record<string, Record<string, unknown>>;
 const definitions = new WeakMap<object, Settings>();
+const actions = new WeakMap<object, Map<string, () => unknown>>();
 
 // Snapshot before init: source scripts may replace schema entries with runtime values.
 export function captureSettings(source: { settings?: unknown }) {
   const entries = Object.entries(source.settings ?? {}).filter(
     ([, value]) => value && typeof value === "object" && !Array.isArray(value),
+  );
+  actions.set(
+    source,
+    new Map(
+      entries
+        .filter(([, value]) => typeof (value as Record<string, unknown>).callback === "function")
+        .map(([key, value]) => [key, (value as { callback: () => unknown }).callback.bind(value)]),
+    ),
   );
   definitions.set(source, JSON.parse(JSON.stringify(Object.fromEntries(entries))));
 }
@@ -16,7 +24,7 @@ export function sourceSettingsSchema(source: object): Settings {
   return structuredClone(definitions.get(source) ?? {});
 }
 
-export function createComicSourceBase(dataStore: SourceDataStore) {
+export function createComicSourceBase(dataStore: SourceDataStore, locale: string) {
   return class ComicSource {
     static sources: Record<string, unknown> = {};
     key = "";
@@ -47,9 +55,13 @@ export function createComicSourceBase(dataStore: SourceDataStore) {
     }
 
     translate(key: string) {
-      return this.translation[config.locale]?.[key] ?? key;
+      return this.translation[locale]?.[key] ?? key;
     }
 
     init() {}
   };
+}
+
+export function settingAction(source: object, key: string) {
+  return actions.get(source)?.get(key);
 }

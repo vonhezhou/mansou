@@ -175,3 +175,15 @@ data: [{"id":"task-id","status":"running"}]
 - 服务端保留 heartbeat：`: heartbeat`，当前间隔为 30 秒。
 - 浏览器 EventSource 使用同源 Cookie；其他客户端可携带 Bearer Token。
 - 凭据失效时发送 `event: auth-expired`、`data: {}` 后关闭连接；空闲连接每秒检查一次，重连重新鉴权。
+
+## 源设置与账号
+
+源账号独立于本站 `/api/v1/auth/*` 管理员认证。
+
+- `GET /api/v1/sources/{sourceKey}/auth`：支持的登录方式与当前状态，不返回密码。
+- `POST /api/v1/sources/{sourceKey}/auth/login`：提交 `{method:"password",username,password}`，或 `{method:"cookies",values:[...]}`；Cookie 值顺序由状态接口的 `cookieFields` 指定。
+- `POST /api/v1/sources/{sourceKey}/auth/logout`：执行源退出并清除本地账号状态与 Cookie。
+- `POST /api/v1/sources/{sourceKey}/settings/{settingKey}/invoke`：执行设置按钮回调，返回最新设置。
+- 原有设置 GET/PUT/DELETE 路径保留；PUT 按字段定义校验整批值，失败返回 400 且不部分写入。
+
+登录失败返回 422 与 `SOURCE_LOGIN_FAILED`，不透出插件原始登录错误。当前 `webview` 可为 `unavailable` 或 `unsupported`，尚不执行网页登录。完整请求和响应类型以 OpenAPI YAML 为准。

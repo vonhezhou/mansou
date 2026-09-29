@@ -1,5 +1,6 @@
 import type { Ref } from "react";
 import type { SettingsResponse, SourceMetadata } from "../../types.js";
+import { SourceAccountPanel } from "./SourceAccountPanel.js";
 import { CookieImportPanel } from "./CookieImportPanel.js";
 import { SourceSettingsPanel } from "./SourceSettingsPanel.js";
 
@@ -53,6 +54,7 @@ export function CurrentSourcePanel(props: CurrentSourcePanelProps) {
       </div>
       <div className="current-source-sections">
         <SourceSettingsPanel
+          key={props.sourceKey}
           busy={props.busy}
           sourceKey={props.sourceKey}
           sourceSettingsKey={props.sourceSettingsKey}
@@ -62,6 +64,9 @@ export function CurrentSourcePanel(props: CurrentSourcePanelProps) {
           onSaveSourceSettings={props.onSaveSourceSettings}
           onResetSourceSettings={props.onResetSourceSettings}
         />
+        {props.sourceKey && (
+          <SourceAccountPanel key={props.sourceKey} sourceKey={props.sourceKey} />
+        )}
         <CookieImportPanel
           busy={props.busy}
           sourceKey={props.sourceKey}
