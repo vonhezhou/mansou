@@ -4,7 +4,10 @@ import { z } from "zod";
 import { notFound } from "./errors.js";
 import type { RouteContext } from "./types.js";
 
-export async function registerDownloadRoutes(app: FastifyInstance, context: RouteContext) {
+export async function registerDownloadRoutes(
+  app: FastifyInstance,
+  context: Pick<RouteContext, "auth" | "downloads">,
+) {
   const streams = new Set<import("node:http").ServerResponse>();
   app.addHook("preClose", async () => {
     for (const stream of streams) stream.end();
@@ -67,7 +70,7 @@ export async function registerDownloadRoutes(app: FastifyInstance, context: Rout
     const params = z.object({ taskId: z.string() }).parse(request.params);
     if (!context.downloads.find(params.taskId))
       throw notFound("DOWNLOAD_NOT_FOUND", "Download task not found");
-    return context.storage.listDownloadItems(params.taskId);
+    return context.downloads.items(params.taskId);
   });
 
   app.post("/downloads/:taskId/rerun", async (request) => {
@@ -135,7 +138,14 @@ export async function registerDownloadRoutes(app: FastifyInstance, context: Rout
 
   app.delete("/downloads/:taskId", async (request) => {
     const params = z.object({ taskId: z.string() }).parse(request.params);
-    const query = z.object({ files: z.coerce.boolean().optional() }).parse(request.query);
+    const query = z
+      .object({
+        files: z
+          .enum(["true", "false"])
+          .transform((value) => value === "true")
+          .optional(),
+      })
+      .parse(request.query);
     const task = await context.downloads.delete(params.taskId, query.files ?? false);
     if (!task) throw notFound("DOWNLOAD_NOT_FOUND", "Download task not found");
     return task;

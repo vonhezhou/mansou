@@ -87,6 +87,12 @@ export class PluginManager implements SourceRegistry {
       })),
     };
   }
+  async unload(key: string) {
+    const entry = this.entries.get(key);
+    if (!entry) return;
+    this.entries.delete(key);
+    await this.dispose(entry);
+  }
   async close() {
     const entries = [...this.entries.values()];
     this.entries.clear();

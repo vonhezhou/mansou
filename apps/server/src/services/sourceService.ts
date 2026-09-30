@@ -1,4 +1,5 @@
 import path from "node:path";
+import { AppError } from "../errors.js";
 import type {
   SourceRegistry,
   SourceProvider,
@@ -12,6 +13,8 @@ import { SourceRepositoryService } from "../repositories/sourceRepository.js";
 
 /** Application workflows; no Venera objects or executor details enter this service. */
 export class SourceService implements SourceRegistry {
+  private pending: Promise<unknown> = Promise.resolve();
+  private closing = false;
   private reloadPromise?: Promise<Array<SourceMetadata & { filePath: string }>>;
   constructor(
     private readonly manager: PluginManager,
@@ -33,10 +36,10 @@ export class SourceService implements SourceRegistry {
     }));
   }
   loadScript(filePath: string) {
-    return this.manager.load(filePath);
+    return this.mutate(() => this.manager.load(filePath));
   }
   loadInstalled() {
-    return (this.reloadPromise ??= this.reload().finally(() => {
+    return (this.reloadPromise ??= this.mutate(() => this.reload()).finally(() => {
       this.reloadPromise = undefined;
     }));
   }
@@ -45,22 +48,25 @@ export class SourceService implements SourceRegistry {
     await this.manager.close();
     const loaded: Array<SourceMetadata & { filePath: string }> = [];
     for (const filePath of scripts) {
-      const metadata = this.storage.getSource(path.basename(filePath, ".js")) as {
-        enabled?: number;
-      } | null;
+      const metadata =
+        this.storage.listSources().find((source) => source.script_path === filePath) ??
+        this.storage.getSource(path.basename(filePath, ".js"));
       if (metadata?.enabled === 0) continue;
       try {
-        loaded.push(await this.loadScript(filePath));
+        loaded.push(await this.manager.load(filePath));
       } catch {
         /* Manager records load errors for the diagnostics endpoint. */
       }
     }
     return loaded;
   }
-  async install(source: string) {
+  install(source: string) {
+    return this.mutate(() => this.installSource(source));
+  }
+  private async installSource(source: string) {
     let loaded!: SourceMetadata & { filePath: string };
     const installed = await this.repository.installSource(source, async (filePath) => {
-      loaded = await this.loadScript(filePath);
+      loaded = await this.manager.load(filePath);
     });
     this.storage.upsertSource({
       key: loaded.key,
@@ -71,19 +77,30 @@ export class SourceService implements SourceRegistry {
       hash: installed.hash,
       enabled: true,
     });
-    const metadata = this.storage.getSource(loaded.key) as { enabled?: number } | null;
-    if (metadata?.enabled === 0) await this.loadInstalled();
+    const metadata = this.storage.getSource(loaded.key);
+    if (metadata?.enabled === 0) await this.manager.unload(loaded.key);
     return { installed, loaded: { key: loaded.key, name: loaded.name, version: loaded.version } };
   }
-  async setEnabled(key: string, enabled: boolean) {
-    const source = this.storage.setSourceEnabled(key, enabled);
-    if (source) await this.loadInstalled();
-    return source;
+  setEnabled(key: string, enabled: boolean) {
+    return this.mutate(async () => {
+      const source = this.storage.getSource(key);
+      if (!source) return null;
+      if (enabled) {
+        if (!this.manager.list().some((loaded) => loaded.key === key)) {
+          const scripts = await this.repository.listInstalledScripts();
+          const filePath =
+            scripts.find((file) => file === source.script_path) ??
+            scripts.find((file) => path.basename(file, ".js") === key);
+          if (!filePath)
+            throw new AppError("SOURCE_NOT_FOUND", "Installed source script not found");
+          await this.manager.load(filePath);
+        }
+      } else await this.manager.unload(key);
+      return this.storage.setSourceEnabled(key, enabled);
+    });
   }
   metadata() {
-    return this.repository.withAvailableUpdates(
-      this.storage.listSources() as Array<{ key: string; version?: string }>,
-    );
+    return this.repository.withAvailableUpdates(this.storage.listSources());
   }
   searchOptions(key: string) {
     this.get(key);
@@ -136,7 +153,15 @@ export class SourceService implements SourceRegistry {
   diagnostics() {
     return this.manager.diagnostics();
   }
-  close() {
-    return this.manager.close();
+  private mutate<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.closing) return Promise.reject(new AppError("APP_CLOSING", "Service is closing"));
+    const result = this.pending.then(operation);
+    this.pending = result.catch(() => undefined);
+    return result;
+  }
+  async close() {
+    this.closing = true;
+    await this.pending;
+    await this.manager.close();
   }
 }

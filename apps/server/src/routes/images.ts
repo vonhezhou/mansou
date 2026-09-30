@@ -2,7 +2,10 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { RouteContext } from "./types.js";
 
-export async function registerImageRoutes(app: FastifyInstance, context: RouteContext) {
+export async function registerImageRoutes(
+  app: FastifyInstance,
+  context: Pick<RouteContext, "imageProxy">,
+) {
   app.get("/image", async (request, reply) => {
     const query = z
       .object({

@@ -2,7 +2,10 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { RouteContext } from "./types.js";
 
-export async function registerSourceRoutes(app: FastifyInstance, context: RouteContext) {
+export async function registerSourceRoutes(
+  app: FastifyInstance,
+  context: Pick<RouteContext, "repository" | "sources">,
+) {
   app.get("/sources/available", async () => context.repository.getAvailableSources());
   app.get("/sources/metadata", async () => context.sources.metadata());
   app.get("/sources/installed", async () => context.sources.all());

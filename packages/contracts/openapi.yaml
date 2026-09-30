@@ -741,6 +741,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DownloadTask"
+        "409":
+          $ref: "#/components/responses/DownloadConflict"
+        "503":
+          $ref: "#/components/responses/Error"
   /api/v1/downloads/events:
     get:
       operationId: subscribeDownloads
@@ -792,6 +796,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/DownloadTask"
         "404":
+          $ref: "#/components/responses/Error"
+        "503":
           $ref: "#/components/responses/Error"
   /api/v1/downloads/{taskId}/items:
     get:
@@ -854,6 +860,10 @@ paths:
                   - item
         "404":
           $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/DownloadConflict"
+        "503":
+          $ref: "#/components/responses/Error"
   /api/v1/downloads/{taskId}/items/retry-failed:
     post:
       operationId: retryFailedDownloadImages
@@ -873,6 +883,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/RetryFailedDownloadImagesResult"
         "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/DownloadConflict"
+        "503":
           $ref: "#/components/responses/Error"
   /api/v1/downloads/{taskId}/cancel:
     post:
@@ -894,6 +908,10 @@ paths:
                 $ref: "#/components/schemas/DownloadTask"
         "404":
           $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/DownloadConflict"
+        "503":
+          $ref: "#/components/responses/Error"
   /api/v1/downloads/{taskId}/pause:
     post:
       operationId: pauseDownload
@@ -913,6 +931,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/DownloadTask"
         "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/DownloadConflict"
+        "503":
           $ref: "#/components/responses/Error"
   /api/v1/downloads/{taskId}/resume:
     post:
@@ -934,6 +956,10 @@ paths:
                 $ref: "#/components/schemas/DownloadTask"
         "404":
           $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/DownloadConflict"
+        "503":
+          $ref: "#/components/responses/Error"
   /api/v1/downloads/{taskId}/rerun:
     post:
       operationId: rerunDownload
@@ -953,6 +979,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/DownloadTask"
         "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/DownloadConflict"
+        "503":
           $ref: "#/components/responses/Error"
   /api/v1/downloads/{taskId}/cbz:
     post:
@@ -981,6 +1011,34 @@ paths:
                   - taskId
                   - path
         "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/DownloadConflict"
+        "503":
+          $ref: "#/components/responses/Error"
+    get:
+      operationId: downloadCbz
+      tags:
+        - downloads
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: CBZ archive
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/DownloadConflict"
+        "503":
           $ref: "#/components/responses/Error"
   /api/v1/settings/cache:
     get:
@@ -1376,6 +1434,12 @@ components:
       scheme: bearer
       description: Opaque API token for non-browser clients.
   responses:
+    DownloadConflict:
+      description: Download is busy, being deleted, or not completed for CBZ export.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
     Error:
       description: API error
       content:

@@ -3,15 +3,23 @@ import { isNewerVersion } from "@venera/plugin-runtime/version";
 import { readdir, readFile, writeFile, rename, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import crypto from "node:crypto";
-import { config } from "../config/config.js";
-import { paths } from "../storage/paths.js";
+import type { AppConfig } from "../config/config.js";
+import type { AppPaths } from "../storage/paths.js";
 import type { RepositorySource } from "../types/source.js";
 import { ensureDir, readJson, safeFilename, writeJson } from "../utils/fs.js";
-import { fetchWithProxy } from "../utils/fetch.js";
 
 export class SourceRepositoryService {
+  constructor(
+    private readonly config: Pick<AppConfig, "sourceListUrl" | "sourceCdnBaseUrl">,
+    private readonly paths: AppPaths,
+    private readonly fetch: typeof globalThis.fetch,
+  ) {}
+  get url() {
+    return this.config.sourceListUrl;
+  }
+
   async refreshRepository() {
-    const response = await fetchWithProxy(config.sourceListUrl, {
+    const response = await this.fetch(this.config.sourceListUrl, {
       headers: { "user-agent": "venera-web-poc", "accept-encoding": "identity" },
     });
     if (!response.ok) {
@@ -30,15 +38,15 @@ export class SourceRepositoryService {
         (item.filename == null || typeof item.filename === "string") &&
         (item.fileName == null || typeof item.fileName === "string"),
     );
-    await writeJson(paths.repositoryIndex, list);
+    await writeJson(this.paths.repositoryIndex, list);
     return list;
   }
 
   async getAvailableSources() {
-    return readJson<RepositorySource[]>(paths.repositoryIndex, []);
+    return readJson<RepositorySource[]>(this.paths.repositoryIndex, []);
   }
 
-  async withAvailableUpdates<T extends { key: string; version?: string }>(installed: T[]) {
+  async withAvailableUpdates<T extends { key: string; version?: string | null }>(installed: T[]) {
     const list = await this.getAvailableSources();
     return installed.map((source) => {
       const candidate = list.find((item) => item.key === source.key);
@@ -69,7 +77,7 @@ export class SourceRepositoryService {
     }
 
     const scriptUrl = this.resolveScriptUrl(item);
-    const response = await fetchWithProxy(scriptUrl, {
+    const response = await this.fetch(scriptUrl, {
       headers: { "user-agent": "venera-web-poc", "accept-encoding": "identity" },
     });
     if (!response.ok) {
@@ -82,9 +90,9 @@ export class SourceRepositoryService {
     if (!script.includes("extends ComicSource")) {
       throw new Error(`Downloaded source script is invalid: ${scriptUrl}`);
     }
-    await ensureDir(paths.scripts);
+    await ensureDir(this.paths.scripts);
     const fileName = this.resolveScriptFileName(item);
-    const filePath = path.join(paths.scripts, fileName);
+    const filePath = path.join(this.paths.scripts, fileName);
     const previous = existsSync(filePath) ? await readFile(filePath) : undefined;
     const stagedPath = `${filePath}.${crypto.randomUUID()}.tmp`;
     try {
@@ -111,16 +119,16 @@ export class SourceRepositoryService {
   }
 
   async listInstalledScripts() {
-    await ensureDir(paths.scripts);
-    const files = await readdir(paths.scripts);
+    await ensureDir(this.paths.scripts);
+    const files = await readdir(this.paths.scripts);
     const installed = files
       .filter((file) => file.endsWith(".js"))
-      .map((file) => path.join(paths.scripts, file));
+      .map((file) => path.join(this.paths.scripts, file));
     if (
       !installed.some((file) => path.basename(file) === "mock.js") &&
-      existsSync(paths.bundledMockSource)
+      existsSync(this.paths.bundledMockSource)
     ) {
-      installed.push(paths.bundledMockSource);
+      installed.push(this.paths.bundledMockSource);
     }
     return installed;
   }
@@ -130,12 +138,12 @@ export class SourceRepositoryService {
   }
 
   private resolveScriptUrl(item: RepositorySource) {
-    if (item.url) return new URL(item.url, config.sourceListUrl).toString();
+    if (item.url) return new URL(item.url, this.config.sourceListUrl).toString();
     const filename = item.filename ?? item.fileName;
     if (!filename) {
       throw new Error(`Source has neither url nor filename: ${item.name}`);
     }
-    return new URL(filename, config.sourceCdnBaseUrl || config.sourceListUrl).toString();
+    return new URL(filename, this.config.sourceCdnBaseUrl || this.config.sourceListUrl).toString();
   }
 
   private resolveScriptFileName(item: RepositorySource) {

@@ -1,5 +1,5 @@
 import { ProxyAgent } from "undici";
-import { config } from "../config/config.js";
+import type { AppConfig } from "../config/config.js";
 
 function normalizeProxyUrl(proxy: string) {
   if (!proxy) return "";
@@ -13,42 +13,48 @@ function normalizeProxyUrl(proxy: string) {
   return url.toString();
 }
 
-const proxyUrl = normalizeProxyUrl(config.proxy);
-const proxyDispatcher = proxyUrl ? new ProxyAgent(proxyUrl) : undefined;
+export function createHttpClient(
+  config: Pick<AppConfig, "proxy" | "noProxy" | "requestTimeoutMs">,
+) {
+  const proxyUrl = normalizeProxyUrl(config.proxy);
+  const proxyDispatcher = proxyUrl ? new ProxyAgent(proxyUrl) : undefined;
 
-function noProxyRules() {
-  return config.noProxy
-    .split(",")
-    .map((rule) => rule.trim())
-    .filter(Boolean);
-}
+  function noProxyRules() {
+    return config.noProxy
+      .split(",")
+      .map((rule) => rule.trim())
+      .filter(Boolean);
+  }
 
-function shouldBypassProxy(input: string | URL | Request) {
-  if (!proxyDispatcher) return true;
-  const url = input instanceof Request ? new URL(input.url) : new URL(input.toString());
-  const hostname = url.hostname.toLowerCase();
-  return noProxyRules().some((rule) => {
-    const normalized = rule.toLowerCase();
-    if (normalized === "*") return true;
-    if (normalized.startsWith(".")) return hostname.endsWith(normalized);
-    return hostname === normalized || hostname.endsWith(`.${normalized}`);
-  });
-}
+  function shouldBypassProxy(input: string | URL | Request) {
+    if (!proxyDispatcher) return true;
+    const url = input instanceof Request ? new URL(input.url) : new URL(input.toString());
+    const hostname = url.hostname.toLowerCase();
+    return noProxyRules().some((rule) => {
+      const normalized = rule.toLowerCase();
+      if (normalized === "*") return true;
+      if (normalized.startsWith(".")) return hostname.endsWith(normalized);
+      return hostname === normalized || hostname.endsWith(`.${normalized}`);
+    });
+  }
 
-export function fetchWithProxy(input: string | URL | Request, init: RequestInit = {}) {
-  const headers = new Headers(init.headers);
-  headers.set("accept-encoding", "identity");
-  return fetch(input, {
-    ...init,
-    headers,
-    dispatcher: shouldBypassProxy(input) ? undefined : proxyDispatcher,
-  } as RequestInit & { dispatcher?: ProxyAgent });
-}
+  function fetchWithProxy(input: string | URL | Request, init: RequestInit = {}) {
+    const headers = new Headers(init.headers);
+    headers.set("accept-encoding", "identity");
+    return fetch(input, {
+      ...init,
+      headers,
+      signal: init.signal
+        ? AbortSignal.any([init.signal, AbortSignal.timeout(config.requestTimeoutMs)])
+        : AbortSignal.timeout(config.requestTimeoutMs),
+      dispatcher: shouldBypassProxy(input) ? undefined : proxyDispatcher,
+    } as RequestInit & { dispatcher?: ProxyAgent });
+  }
 
-export function getProxyUrl() {
-  return proxyUrl || null;
-}
-
-export function getNoProxyRules() {
-  return noProxyRules();
+  return {
+    fetch: fetchWithProxy,
+    close: async () => {
+      await proxyDispatcher?.destroy();
+    },
+  };
 }

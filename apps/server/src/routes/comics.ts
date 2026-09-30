@@ -2,7 +2,10 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { RouteContext } from "./types.js";
 
-export async function registerComicRoutes(app: FastifyInstance, context: RouteContext) {
+export async function registerComicRoutes(
+  app: FastifyInstance,
+  context: Pick<RouteContext, "sources">,
+) {
   app.get("/comics/:sourceKey/detail", async (request) => {
     const params = z.object({ sourceKey: z.string() }).parse(request.params);
     const query = z.object({ comicId: z.string() }).parse(request.query);

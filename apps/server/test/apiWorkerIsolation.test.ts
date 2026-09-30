@@ -5,7 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { config } from "../src/config/config.js";
+import { readConfig } from "../src/config/config.js";
+const config = readConfig();
 
 let app: FastifyInstance;
 let context: Awaited<ReturnType<typeof import("../src/app.js").buildApp>>["context"];
@@ -34,7 +35,7 @@ beforeAll(async () => {
 
   config.dataDir = await mkdtemp(path.join(os.tmpdir(), "venera-web-worker-api-test-"));
   const module = await import("../src/app.js");
-  const built = await module.buildApp();
+  const built = await module.buildApp(undefined, config);
   app = built.app;
   context = built.context;
   await module.initializeApp(context);

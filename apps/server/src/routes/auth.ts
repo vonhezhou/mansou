@@ -1,32 +1,16 @@
 import { registerAuthContract } from "../auth/contract.js";
-import { randomUUID } from "node:crypto";
-import { randomSecret, secretHash } from "../auth/password.js";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { AuthService } from "../auth/service.js";
 import { requireOrigin, requireSession, setSessionCookie } from "../auth/http.js";
-import { ApiError } from "./errors.js";
+import { AppError } from "../errors.js";
 
 export async function registerAuthRoutes(app: FastifyInstance, auth: AuthService) {
   registerAuthContract(app);
   const enabled = () => {
-    if (auth.config.mode !== "required") throw new ApiError(404, "AUTH_DISABLED", "当前未启用鉴权");
+    if (auth.config.mode !== "required") throw new AppError("AUTH_DISABLED", "当前未启用鉴权");
   };
-  app.get("/auth/session", async (request) => {
-    const session = request.identity?.kind === "session" ? request.identity.session : undefined;
-    return {
-      mode: auth.config.mode,
-      authenticated: !!session,
-      initialized: !!auth.storage.auth.admin(),
-      ...(session
-        ? {
-            username: auth.storage.auth.admin()!.username,
-            csrfToken: session.csrfToken,
-            expiresAt: session.expiresAt,
-          }
-        : {}),
-    };
-  });
+  app.get("/auth/session", async (request) => auth.sessionInfo(request.identity));
   app.post("/auth/login", { bodyLimit: 4096 }, async (request, reply) => {
     enabled();
     requireOrigin(request, auth);
@@ -35,8 +19,7 @@ export async function registerAuthRoutes(app: FastifyInstance, auth: AuthService
       .strict()
       .parse(request.body);
     const { secret, session } = await auth.login(request.ip, body.username, body.password);
-    if (request.identity?.kind === "session")
-      auth.storage.auth.deleteSession(request.identity.session.hash);
+    if (request.identity?.kind === "session") auth.logout(request.identity.session);
     setSessionCookie(reply, auth, secret);
     return {
       mode: auth.config.mode,
@@ -49,7 +32,7 @@ export async function registerAuthRoutes(app: FastifyInstance, auth: AuthService
   });
   app.post("/auth/logout", async (request, reply) => {
     enabled();
-    auth.storage.auth.deleteSession(requireSession(request).hash);
+    auth.logout(requireSession(request));
     setSessionCookie(reply, auth, "");
     return { ok: true };
   });
@@ -67,7 +50,7 @@ export async function registerAuthRoutes(app: FastifyInstance, auth: AuthService
   app.get("/auth/tokens", async (request) => {
     enabled();
     requireSession(request);
-    return auth.storage.auth.tokens();
+    return auth.tokens();
   });
   app.post("/auth/tokens", { bodyLimit: 4096 }, async (request) => {
     enabled();
@@ -79,24 +62,13 @@ export async function registerAuthRoutes(app: FastifyInstance, auth: AuthService
       })
       .strict()
       .parse(request.body);
-    if (body.expiresAt != null && body.expiresAt <= Date.now())
-      throw new ApiError(400, "VALIDATION_ERROR", "有效期必须晚于当前时间");
-    const entry = {
-      id: randomUUID(),
-      name: body.name,
-      createdAt: Date.now(),
-      expiresAt: body.expiresAt ?? null,
-    };
-    const token = `venera_${randomSecret()}`;
-    auth.storage.auth.createToken(entry, secretHash(token));
-    return { token, entry };
+    return auth.createToken(body.name, body.expiresAt);
   });
   app.delete("/auth/tokens/:id", async (request) => {
     enabled();
     requireSession(request);
     const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
-    if (!auth.storage.auth.deleteToken(id))
-      throw new ApiError(404, "TOKEN_NOT_FOUND", "Token 不存在");
+    auth.deleteToken(id);
     return { ok: true };
   });
 }

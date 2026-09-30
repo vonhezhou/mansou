@@ -4,9 +4,10 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createStorage } from "@venera/storage";
 import { buildApp } from "../src/app.js";
-import { config } from "../src/config/config.js";
+import { readConfig } from "../src/config/config.js";
 import { readAuthConfig } from "../src/auth/config.js";
 import { secretHash } from "../src/auth/password.js";
+const config = readConfig();
 
 let built: Awaited<ReturnType<typeof buildApp>>;
 let dir: string;
@@ -17,6 +18,7 @@ beforeEach(async () => {
   config.dataDir = dir;
   built = await buildApp(
     readAuthConfig({ AUTH_MODE: "required", AUTH_ORIGIN: "http://localhost" }),
+    config,
   );
   built.context.storage.auth.createAdmin("admin", "unused-test-hash");
   base = await built.app.listen({ port: 0, host: "127.0.0.1" });

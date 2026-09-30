@@ -1,9 +1,11 @@
 import { existsSync } from "node:fs";
 import { copyFile, mkdir, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { createStorage } from "@venera/storage";
-import { config } from "../config/config.js";
-import { paths } from "../storage/paths.js";
+import { createStorage, type DownloadTask } from "@venera/storage";
+import { readConfig } from "../config/config.js";
+import { createPaths } from "../storage/paths.js";
+const config = readConfig();
+const paths = createPaths(config.dataDir);
 
 const command = process.argv[2];
 const target = process.argv[3];
@@ -47,9 +49,7 @@ async function importJsonData() {
       }
     }
     if (existsSync(paths.downloadTasks)) {
-      const tasks = JSON.parse(await readFile(paths.downloadTasks, "utf8")) as Array<
-        Record<string, unknown>
-      >;
+      const tasks = JSON.parse(await readFile(paths.downloadTasks, "utf8")) as DownloadTask[];
       storage.saveDownloads(tasks);
     }
   } finally {

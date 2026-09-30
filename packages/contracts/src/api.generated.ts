@@ -611,7 +611,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    get: operations["downloadCbz"];
     put?: never;
     post: operations["exportDownloadCbz"];
     delete?: never;
@@ -1140,6 +1140,15 @@ export interface components {
     };
   };
   responses: {
+    /** @description Download is busy, being deleted, or not completed for CBZ export. */
+    DownloadConflict: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ApiError"];
+      };
+    };
     /** @description API error */
     Error: {
       headers: {
@@ -1991,6 +2000,8 @@ export interface operations {
           "application/json": components["schemas"]["DownloadTask"];
         };
       };
+      409: components["responses"]["DownloadConflict"];
+      503: components["responses"]["Error"];
     };
   };
   subscribeDownloads: {
@@ -2057,6 +2068,7 @@ export interface operations {
         };
       };
       404: components["responses"]["Error"];
+      503: components["responses"]["Error"];
     };
   };
   listDownloadItems: {
@@ -2112,6 +2124,8 @@ export interface operations {
         };
       };
       404: components["responses"]["Error"];
+      409: components["responses"]["DownloadConflict"];
+      503: components["responses"]["Error"];
     };
   };
   retryFailedDownloadImages: {
@@ -2135,6 +2149,8 @@ export interface operations {
         };
       };
       404: components["responses"]["Error"];
+      409: components["responses"]["DownloadConflict"];
+      503: components["responses"]["Error"];
     };
   };
   cancelDownload: {
@@ -2158,6 +2174,8 @@ export interface operations {
         };
       };
       404: components["responses"]["Error"];
+      409: components["responses"]["DownloadConflict"];
+      503: components["responses"]["Error"];
     };
   };
   pauseDownload: {
@@ -2181,6 +2199,8 @@ export interface operations {
         };
       };
       404: components["responses"]["Error"];
+      409: components["responses"]["DownloadConflict"];
+      503: components["responses"]["Error"];
     };
   };
   resumeDownload: {
@@ -2204,6 +2224,8 @@ export interface operations {
         };
       };
       404: components["responses"]["Error"];
+      409: components["responses"]["DownloadConflict"];
+      503: components["responses"]["Error"];
     };
   };
   rerunDownload: {
@@ -2227,6 +2249,33 @@ export interface operations {
         };
       };
       404: components["responses"]["Error"];
+      409: components["responses"]["DownloadConflict"];
+      503: components["responses"]["Error"];
+    };
+  };
+  downloadCbz: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        taskId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description CBZ archive */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/zip": string;
+        };
+      };
+      404: components["responses"]["Error"];
+      409: components["responses"]["DownloadConflict"];
+      503: components["responses"]["Error"];
     };
   };
   exportDownloadCbz: {
@@ -2253,6 +2302,8 @@ export interface operations {
         };
       };
       404: components["responses"]["Error"];
+      409: components["responses"]["DownloadConflict"];
+      503: components["responses"]["Error"];
     };
   };
   getCacheStats: {

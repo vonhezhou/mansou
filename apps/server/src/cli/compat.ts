@@ -1,7 +1,8 @@
 import { writeFile } from "node:fs/promises";
 import type { FastifyInstance } from "fastify";
-import { config } from "../config/config.js";
+import { readConfig } from "../config/config.js";
 import { buildApp, initializeApp } from "../app.js";
+const config = readConfig();
 
 type CompatResult = {
   source: string;

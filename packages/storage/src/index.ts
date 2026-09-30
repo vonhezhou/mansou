@@ -1,3 +1,11 @@
+import type { DownloadTask, DownloadItem, SourceRecord } from "./records.js";
+export type {
+  DownloadTask,
+  DownloadStatus,
+  DownloadPhase,
+  DownloadItem,
+  SourceRecord,
+} from "./records.js";
 import { AuthStorage } from "./auth.js";
 export type { Admin, Session, ApiToken } from "./auth.js";
 import Database from "better-sqlite3";
@@ -9,10 +17,15 @@ export type StorageDatabase = ReturnType<typeof createStorage>;
 export function createStorage(dataDir: string) {
   mkdirSync(dataDir, { recursive: true });
   const db = new Database(path.join(dataDir, "venera_web.sqlite"));
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
-  migrate(db);
-  return new AppStorage(db);
+  try {
+    db.pragma("journal_mode = WAL");
+    db.pragma("foreign_keys = ON");
+    migrate(db);
+    return new AppStorage(db);
+  } catch (error) {
+    db.close();
+    throw error;
+  }
 }
 
 class AppStorage {
@@ -46,11 +59,15 @@ class AppStorage {
   }
 
   listSources() {
-    return this.db.prepare("select * from sources order by name asc").all();
+    return this.db.prepare("select * from sources order by name asc").all() as SourceRecord[];
   }
 
   getSource(key: string) {
-    return this.db.prepare("select * from sources where key = ?").get(key) ?? null;
+    return (
+      (this.db.prepare("select * from sources where key = ?").get(key) as
+        | SourceRecord
+        | undefined) ?? null
+    );
   }
 
   upsertSource(input: {
@@ -131,10 +148,17 @@ class AppStorage {
     const rows = this.db
       .prepare("select task_json from downloads order by created_at asc")
       .all() as Array<{ task_json: string }>;
-    return rows.map((row) => JSON.parse(row.task_json));
+    return rows.map((row) => JSON.parse(row.task_json) as DownloadTask);
   }
 
-  saveDownload(task: Record<string, unknown>) {
+  getDownload(id: string): DownloadTask | null {
+    const row = this.db.prepare("select task_json from downloads where id = ?").get(id) as
+      | { task_json: string }
+      | undefined;
+    return row ? (JSON.parse(row.task_json) as DownloadTask) : null;
+  }
+
+  saveDownload(task: DownloadTask) {
     this.db
       .prepare(
         "insert into downloads(id, source_key, comic_id, episode_id, status, task_json, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set source_key = excluded.source_key, comic_id = excluded.comic_id, episode_id = excluded.episode_id, status = excluded.status, task_json = excluded.task_json, updated_at = excluded.updated_at",
@@ -152,10 +176,13 @@ class AppStorage {
   }
 
   deleteDownload(id: string) {
-    this.db.prepare("delete from downloads where id = ?").run(id);
+    this.db.transaction(() => {
+      this.deleteDownloadItems(id);
+      this.db.prepare("delete from downloads where id = ?").run(id);
+    })();
   }
 
-  saveDownloads(tasks: Array<Record<string, unknown>>) {
+  saveDownloads(tasks: DownloadTask[]) {
     const insert = this.db.prepare(
       "insert into downloads(id, source_key, comic_id, episode_id, status, task_json, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?) on conflict(id) do update set source_key = excluded.source_key, comic_id = excluded.comic_id, episode_id = excluded.episode_id, status = excluded.status, task_json = excluded.task_json, updated_at = excluded.updated_at",
     );
@@ -211,16 +238,16 @@ class AppStorage {
 
   getDownloadItem(taskId: string, imageKey: string) {
     return (
-      this.db
+      (this.db
         .prepare("select * from download_items where task_id = ? and image_key = ?")
-        .get(taskId, imageKey) ?? null
+        .get(taskId, imageKey) as DownloadItem | undefined) ?? null
     );
   }
 
   listDownloadItems(taskId: string) {
     return this.db
       .prepare("select * from download_items where task_id = ? order by id asc")
-      .all(taskId);
+      .all(taskId) as DownloadItem[];
   }
 
   deleteDownloadItems(taskId: string) {

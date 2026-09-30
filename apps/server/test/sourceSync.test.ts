@@ -6,10 +6,11 @@ import path from "node:path";
 import sharp from "sharp";
 import { createStorage } from "@venera/storage";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { config } from "../src/config/config.js";
+import { readConfig } from "../src/config/config.js";
 import { TestSourceRuntime as SourceRuntime } from "./helpers/runtime.js";
 import { ImageCache } from "../src/storage/imageCache.js";
 import { ImageProxyService } from "../src/services/imageProxy.js";
+const config = readConfig();
 
 let server: Server;
 let baseUrl: string;
@@ -60,7 +61,7 @@ describe(`Flutter source compatibility (${mode})`, () => {
   let proxy: ImageProxyService;
   beforeAll(async () => {
     const storage = createStorage(dir);
-    runtime = new SourceRuntime(storage);
+    runtime = new SourceRuntime(storage, config);
     proxy = new ImageProxyService(
       runtime,
       new ImageCache(path.join(dir, "cache"), config.imageCacheMaxBytes),

@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { parseCookie, stringifySetCookie } from "cookie";
-import { ApiError } from "../routes/errors.js";
+import { AppError } from "../errors.js";
 import { secretHash } from "./password.js";
 import { AuthService, type Identity } from "./service.js";
 
@@ -38,11 +38,11 @@ export function setSessionCookie(reply: FastifyReply, auth: AuthService, secret:
 }
 export function requireOrigin(request: FastifyRequest, auth: AuthService) {
   if (request.headers.origin !== auth.config.origin)
-    throw new ApiError(403, "CSRF_REJECTED", "请求来源不被允许");
+    throw new AppError("CSRF_REJECTED", "请求来源不被允许");
 }
 export function requireSession(request: FastifyRequest) {
   if (request.identity?.kind !== "session")
-    throw new ApiError(403, "SESSION_REQUIRED", "此操作需要管理员浏览器会话");
+    throw new AppError("SESSION_REQUIRED", "此操作需要管理员浏览器会话");
   return request.identity.session;
 }
 export function registerAuthHook(app: FastifyInstance, auth: AuthService) {
@@ -57,21 +57,21 @@ export function registerAuthHook(app: FastifyInstance, auth: AuthService) {
     const authorization = request.headers.authorization;
     if (authorization) {
       const hash = secretHash(authorization.startsWith("Bearer ") ? authorization.slice(7) : "");
-      if (auth.storage.auth.token(hash)) request.identity = { kind: "token", hash };
+      if (auth.hasToken(hash)) request.identity = { kind: "token", hash };
     } else {
       const value = parseCookie(request.headers.cookie ?? "")[sessionCookie(auth)];
-      const session = value ? auth.storage.auth.session(secretHash(value)) : undefined;
+      const session = value ? auth.session(secretHash(value)) : undefined;
       if (session) request.identity = { kind: "session", session };
     }
     if (publicPaths.has(pathname) || pathname.startsWith("/assets/")) return;
-    if (!request.identity) throw new ApiError(401, "UNAUTHORIZED", "请先登录");
+    if (!request.identity) throw new AppError("UNAUTHORIZED", "请先登录");
     if (request.identity.kind === "session" && !safe.has(request.method)) {
       requireOrigin(request, auth);
       if (request.headers["x-csrf-token"] !== request.identity.session.csrfToken)
-        throw new ApiError(403, "CSRF_REJECTED", "请求校验失败，请刷新页面");
+        throw new AppError("CSRF_REJECTED", "请求校验失败，请刷新页面");
     }
   });
-  const cleanup = setInterval(() => auth.storage.auth.pruneSessions(), 60000);
+  const cleanup = setInterval(() => auth.pruneSessions(), 60000);
   cleanup.unref();
   app.addHook("onClose", async () => clearInterval(cleanup));
 }

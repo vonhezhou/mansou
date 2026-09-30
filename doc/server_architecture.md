@@ -27,18 +27,39 @@ flowchart TB
 
 图中的模块运行于同一服务部署中；Worker 是线程，不是独立微服务。Worker 内也使用 VM。每个插件实例拥有自己的 Cookie jar、网络生命周期和 SQLite 连接，连接访问同一个数据库。
 
-- `apps/server/src/app.ts`：应用组装入口，读取配置，创建服务并注入依赖。
+- `apps/server/src/app.ts`：HTTP 组装入口，注册鉴权、错误映射、路由及关闭钩子。
+- `apps/server/src/application.ts`：创建业务服务、数据库和网络客户端，统一管理初始化与关闭。`buildApp(authConfig, config)` 接收配置快照；`readConfig()` 在入口读取并校验环境变量，`createPaths(dataDir)` 为每个应用独立生成路径。业务服务不读取全局配置。
 - `routes/`：解析请求、调用服务、处理 HTTP 状态；源安装与启停流程已移入服务。
 - `services/sourceService.ts`：安装、启停、重载、元数据和按源调用入口。不访问 Venera 原始实例。
 - `services/searchService.ts`：单源搜索与聚合搜索；指定源不存在或某个源失败时，其他源结果仍返回。
 - `services/imageProxy.ts` 与 `storage/imageCache.ts`：分别管理图片代理和文件缓存。缓存命中仍返回原有 Content-Type 探测结果。
-- `services/downloads/`：任务协调、图片文件写入和 CBZ 归档。未为一行转发单独引入 ComicService。
+- `services/downloads/`：`DownloadService` 管理业务命令与状态；`DownloadScheduler` 管理并发和执行句柄；`DownloadRunner` 执行章节解析、图片下载和重试；`DownloadRepository` 负责持久化访问。文件写入与 CBZ 归档保持独立。未为一行转发单独引入 ComicService。
 - `repositories/sourceRepository.ts`：远程仓库索引、脚本下载与文件替换；失败安装保留既有脚本回滚行为。
 - `packages/core`：与 HTTP、Venera 和 Node 执行方式无关的源接口与领域模型。
 - `packages/plugin-runtime`：管理已加载实例、并发、超时和诊断。`adapters/venera` 解释旧插件协议，`executors` 负责调用与线程通信。
 - `packages/contracts`：HTTP 契约；`openapi.yaml` 是唯一契约源文件，生成类型与运行时文档。
 
 依赖方向为 `server → core/plugin-runtime/storage/contracts`；`plugin-runtime → core/storage`。运行时不读取 server 的配置模块、路径模块或服务。应用配置通过 `RuntimeOptions` 注入，Worker 和 compute 子线程接收同一配置快照。
+
+## 应用与下载生命周期
+
+启动流程为配置校验、资源创建、目录初始化、加载源、恢复下载、监听 HTTP。初始化失败会释放资源。收到 SIGINT/SIGTERM 后，Fastify 停止接收请求，preClose 停止下载调度并等待执行结束；HTTP 请求和 SSE 结束后，再关闭源 Worker、网络代理客户端和 SQLite。关闭可重复调用。
+
+SQLite 是下载任务状态的唯一来源，查询返回独立快照。调度器仅持有执行句柄和每次运行独立的 AbortController，不缓存可变任务对象。状态与日志一起落库后再发布事件，订阅者收到快照，不会被后续更新修改。
+
+- `queued/running → paused`：停止当前执行，保留图片记录；`paused/failed → queued`：恢复任务，但等待旧执行释放并发槽后才启动下一次运行。
+- `queued/running/paused → cancelled`：持久化取消状态。旧运行收到取消信号后不能覆盖此状态，也不会把取消记为图片下载失败。
+- 删除：阻止该任务的新操作，停止并等待运行或重试结束，然后按请求清理文件，最后在事务中删除任务及图片记录。同一漫画正在删除时，不允许新建下载。
+- 正常关闭：运行中的任务保存为 `queued`，显式暂停或取消状态保留。重启恢复原有 `queued/running` 任务，并跳过记录为完成且仍存在的图片文件。
+- 单图重试、批量重试和 CBZ 生成也受执行句柄管理。运行或排队中的任务需先暂停才能单图重试；冲突操作返回 `DOWNLOAD_BUSY`（409）。
+
+取消可立即中断重试退避等待；已发往插件的调用仍需等待返回或运行时超时。取消后检查执行信号，不再开始后续写入；正在进行的文件操作结束后才允许删除或关闭数据库。
+
+下载持久化结构与 HTTP 字段保持兼容，服务统一使用 SQLite。旧 JSON 数据仍通过 `storage import-json` 显式导入，不再保留下载服务内的双存储分支。
+
+路由仅依赖所需服务，不直接查询数据库。认证服务封装会话和 Token 操作，应用错误由独立 `AppError` 表达，HTTP 层映射状态码。存储模块显式定义源、任务及图片记录类型。
+
+源安装、启停和全量重载按顺序执行，关闭等待这些操作完成。单源启停只加载或卸载目标实例，保留其他源的 Worker；手动全量重载仍会替换全部已加载实例。
 
 ## 统一源接口
 
@@ -86,3 +107,5 @@ pnpm test
 ```
 
 `apps/server/test/sourceProvider.test.ts` 在 Worker 模式下覆盖能力、搜索选项、设置校验、callback、密码与 Cookie 登录、重载持久化和 Cookie 同步。原有图片回调、下载、鉴权与异步错误隔离测试继续保留。前端 `sourceControls.test.tsx` 覆盖设置控件、登录提交及切换源后凭据清理。
+
+`downloadLifecycle.test.ts` 覆盖暂停、快速恢复、取消后的并发槽释放、运行中删除、重跑、关闭等待、重启恢复和事件快照；`applicationLifecycle.test.ts` 覆盖多实例隔离、初始化失败清理、单源启停和配置校验。

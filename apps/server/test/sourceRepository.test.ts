@@ -4,12 +4,14 @@ import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { config } from "../src/config/config.js";
-import { paths } from "../src/storage/paths.js";
+import { readConfig } from "../src/config/config.js";
+import { createPaths } from "../src/storage/paths.js";
 import { SourceRepositoryService } from "../src/repositories/sourceRepository.js";
 import { isNewerVersion } from "@venera/plugin-runtime/version";
+const config = readConfig();
 
-const repository = new SourceRepositoryService();
+const paths = createPaths(config.dataDir);
+const repository = new SourceRepositoryService(config, paths, fetch);
 const originalConfig = { ...config };
 const originalPaths = { ...paths };
 let server: Server;

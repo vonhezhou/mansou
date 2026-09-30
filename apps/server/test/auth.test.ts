@@ -3,9 +3,10 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.js";
-import { config } from "../src/config/config.js";
+import { readConfig } from "../src/config/config.js";
 import { readAuthConfig } from "../src/auth/config.js";
 import { hashPassword, secretHash } from "../src/auth/password.js";
+const config = readConfig();
 
 const origin = "https://venera.test";
 const options = readAuthConfig({ AUTH_MODE: "required", AUTH_ORIGIN: origin });
@@ -19,7 +20,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   dir = await mkdtemp(path.join(os.tmpdir(), "venera-auth-"));
   config.dataDir = dir;
-  built = await buildApp(options);
+  built = await buildApp(options, config);
 });
 afterEach(async () => {
   await built.app.close();
@@ -131,7 +132,7 @@ describe("session authentication", () => {
     for (const h of [headers, other])
       expect((await built.app.inject({ url: "/api/v1/sources", headers: h })).statusCode).toBe(401);
     await built.app.close();
-    built = await buildApp(options);
+    built = await buildApp(options, config);
     expect(
       (
         await built.app.inject({
@@ -163,7 +164,7 @@ describe("session authentication", () => {
   });
   it("allows business APIs without authentication only in explicit none mode", async () => {
     await built.app.close();
-    built = await buildApp(readAuthConfig({ AUTH_MODE: "none" }));
+    built = await buildApp(readAuthConfig({ AUTH_MODE: "none" }), config);
     expect((await built.app.inject({ url: "/api/v1/sources" })).statusCode).toBe(200);
     expect(
       (

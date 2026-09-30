@@ -1,10 +1,12 @@
 import type { FastifyInstance } from "fastify";
-import { config } from "../config/config.js";
 import type { RouteContext } from "./types.js";
 
-export async function registerSourceRepositoryRoutes(app: FastifyInstance, context: RouteContext) {
+export async function registerSourceRepositoryRoutes(
+  app: FastifyInstance,
+  context: Pick<RouteContext, "repository">,
+) {
   app.get("/source-repository", async () => ({
-    url: config.sourceListUrl,
+    url: context.repository.url,
     sources: await context.repository.getAvailableSources(),
   }));
 

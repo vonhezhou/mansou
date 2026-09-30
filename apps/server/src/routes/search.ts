@@ -2,7 +2,10 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { RouteContext } from "./types.js";
 
-export async function registerSearchRoutes(app: FastifyInstance, context: RouteContext) {
+export async function registerSearchRoutes(
+  app: FastifyInstance,
+  context: Pick<RouteContext, "search">,
+) {
   app.get("/search", async (request) => {
     const query = z
       .object({ keyword: z.string().min(1), sources: z.string().optional() })

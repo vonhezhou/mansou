@@ -4,7 +4,10 @@ import { runtimeCompatibility } from "@venera/plugin-runtime";
 import { classifyPluginError } from "@venera/plugin-runtime";
 import type { RouteContext } from "./types.js";
 
-export async function registerDebugRoutes(app: FastifyInstance, context: RouteContext) {
+export async function registerDebugRoutes(
+  app: FastifyInstance,
+  context: Pick<RouteContext, "imageProxy" | "search" | "sources">,
+) {
   app.get("/debug/runtime/compatibility", async () => ({ items: runtimeCompatibility }));
 
   app.get("/debug/runtime/diagnostics", async () => context.sources.diagnostics());

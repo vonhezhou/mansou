@@ -1,3 +1,4 @@
+import { readConfig, type AppConfig } from "../src/config/config.js";
 import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -6,16 +7,21 @@ import type { FastifyInstance } from "fastify";
 import { resolveAssetPath } from "../src/routes/static.js";
 
 let app: FastifyInstance;
+let config: AppConfig;
 let context: Awaited<ReturnType<typeof import("../src/app.js").buildApp>>["context"];
 let buildApp: typeof import("../src/app.js").buildApp;
 let initializeApp: typeof import("../src/app.js").initializeApp;
 
 beforeAll(async () => {
-  process.env.VENERA_DATA_DIR = await mkdtemp(path.join(os.tmpdir(), "venera-web-test-"));
+  config = {
+    ...readConfig(),
+    dataDir: await mkdtemp(path.join(os.tmpdir(), "venera-web-test-")),
+    downloadRetries: 1,
+  };
   const module = await import("../src/app.js");
   buildApp = module.buildApp;
   initializeApp = module.initializeApp;
-  const built = await buildApp();
+  const built = await buildApp(undefined, config);
   app = built.app;
   context = built.context;
   await initializeApp(context);
@@ -133,7 +139,7 @@ describe("api v1 mock source", () => {
     expect(update.statusCode).toBe(200);
 
     await app.close();
-    const built = await buildApp();
+    const built = await buildApp(undefined, config);
     app = built.app;
     context = built.context;
     await initializeApp(context);
@@ -303,10 +309,7 @@ describe("api v1 mock source", () => {
   });
 
   it("persists classified per-image download failures", async () => {
-    const { config } = await import("../src/config/config.js");
-    const originalRetries = config.downloadRetries;
     const originalLoadBytes = context.imageProxy.loadBytes.bind(context.imageProxy);
-    config.downloadRetries = 1;
     context.imageProxy.loadBytes = async (input, useCache) => {
       if (input.imageKey.endsWith("/3")) throw new Error("Failed to load image: 403 Forbidden");
       return originalLoadBytes(input, useCache);
@@ -355,7 +358,6 @@ describe("api v1 mock source", () => {
       });
     } finally {
       context.imageProxy.loadBytes = originalLoadBytes;
-      config.downloadRetries = originalRetries;
     }
   });
 

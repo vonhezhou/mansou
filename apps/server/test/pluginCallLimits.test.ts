@@ -2,8 +2,9 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { config } from "../src/config/config.js";
+import { readConfig } from "../src/config/config.js";
 import { TestSourceRuntime as SourceRuntime } from "./helpers/runtime.js";
+const config = readConfig();
 
 const originalTimeout = config.pluginCallTimeoutMs;
 const originalConcurrency = config.pluginSourceConcurrency;
@@ -25,7 +26,7 @@ async function writeSource(script: string) {
 describe("plugin call limits", () => {
   it("terminates a synchronous infinite loop and recovers after reload", async () => {
     config.pluginCallTimeoutMs = 2000;
-    const runtime = new SourceRuntime();
+    const runtime = new SourceRuntime(undefined, config);
     runtimes.push(runtime);
     await runtime.loadScript(
       await writeSource(`class Limited extends ComicSource {
@@ -49,7 +50,7 @@ describe("plugin call limits", () => {
   it("limits concurrent calls per source", async () => {
     config.pluginCallTimeoutMs = 1000;
     config.pluginSourceConcurrency = 1;
-    const runtime = new SourceRuntime();
+    const runtime = new SourceRuntime(undefined, config);
     runtimes.push(runtime);
     await runtime.loadScript(
       await writeSource(`class Limited extends ComicSource {

@@ -2,8 +2,9 @@ import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
-import { config } from "../src/config/config.js";
+import { readConfig } from "../src/config/config.js";
 import { buildApp } from "../src/app.js";
+const config = readConfig();
 
 describe("source protocol (worker)", () => {
   let built: Awaited<ReturnType<typeof buildApp>>;
@@ -13,7 +14,7 @@ describe("source protocol (worker)", () => {
   beforeAll(async () => {
     dir = await mkdtemp(path.join(os.tmpdir(), "venera-provider-"));
     config.dataDir = dir;
-    built = await buildApp();
+    built = await buildApp(undefined, config);
     file = path.join(dir, "protocol.js");
     await writeFile(
       file,
