@@ -25,7 +25,7 @@ export function groupDownloads(downloads: DownloadTask[]): DownloadGroup[] {
     {
       key: "failed",
       title: "失败",
-      tasks: downloads.filter((task) => task.status === "failed" || Boolean(task.error)),
+      tasks: downloads.filter((task) => task.status === "failed"),
     },
     {
       key: "done",
@@ -33,12 +33,16 @@ export function groupDownloads(downloads: DownloadTask[]): DownloadGroup[] {
       tasks: downloads.filter((task) => task.status === "done" || task.status === "completed"),
     },
     {
+      key: "paused",
+      title: "已暂停",
+      tasks: downloads.filter((task) => task.status === "paused"),
+    },
+    {
       key: "other",
       title: "其他",
       tasks: downloads.filter(
         (task) =>
-          !["queued", "running", "failed", "done", "completed"].includes(task.status) &&
-          !task.error,
+          !["queued", "running", "failed", "done", "completed", "paused"].includes(task.status),
       ),
     },
   ].filter((group) => group.tasks.length > 0);

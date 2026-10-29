@@ -33,6 +33,19 @@ describe("downloads helpers", () => {
     ).toEqual(["active", "failed", "done", "other"]);
   });
 
+  it("groups paused and cancelled tasks once without treating cancellation as failure", () => {
+    const groups = groupDownloads([
+      task("paused", "paused"),
+      task("cancelled", "cancelled", "Cancelled by user"),
+      task("running", "running", "Previous warning"),
+    ]);
+    expect(groups.map((group) => [group.key, group.tasks.map((item) => item.id)])).toEqual([
+      ["active", ["running"]],
+      ["paused", ["paused"]],
+      ["other", ["cancelled"]],
+    ]);
+  });
+
   it("calculates progress safely", () => {
     expect(getDownloadProgress(task("a", "running"))).toBe(50);
     expect(getDownloadProgress({ ...task("b", "running"), total: 0 })).toBe(0);

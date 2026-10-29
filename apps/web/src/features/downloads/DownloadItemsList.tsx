@@ -19,12 +19,19 @@ export function DownloadItemsList(props: DownloadItemsListProps) {
           <div key={imageKey}>
             <span>{imageKey}</span>
             <span>
-              {item.status}
+              {{ completed: "已下载", failed: "失败", queued: "等待中", running: "下载中" }[
+                item.status
+              ] ?? item.status}
               {item.error ? ` / ${item.error}` : ""}
             </span>
             <button
               onClick={() => props.onRetryDownloadItem(props.task, item)}
-              disabled={props.busy}
+              disabled={props.busy || ["queued", "running"].includes(props.task.status)}
+              title={
+                ["queued", "running"].includes(props.task.status)
+                  ? "请先暂停任务再重试图片"
+                  : undefined
+              }
             >
               重试
             </button>

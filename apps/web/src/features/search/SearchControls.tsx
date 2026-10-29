@@ -47,7 +47,7 @@ export function SearchControls(props: SearchControlsProps) {
         className="search-box"
         onSubmit={(event) => {
           event.preventDefault();
-          if (!props.busy && canSearch) props.onSearch();
+          if (!props.busy && canSearch && props.keyword.trim()) props.onSearch();
         }}
       >
         <Icon name="search" size={22} />
@@ -59,7 +59,7 @@ export function SearchControls(props: SearchControlsProps) {
           placeholder="搜索漫画名称或关键词…"
         />
         <kbd className="keycap">⌘ / Ctrl K</kbd>
-        <button type="submit" disabled={props.busy || !canSearch}>
+        <button type="submit" disabled={props.busy || !canSearch || !props.keyword.trim()}>
           {props.busy ? <LoadingStatus label="处理中…" /> : "搜索"}
         </button>
       </form>

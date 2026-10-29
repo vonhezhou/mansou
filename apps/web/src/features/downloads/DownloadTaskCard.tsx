@@ -1,3 +1,4 @@
+import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { Icon } from "../../app/Icon.js";
 import { useState } from "react";
 import { filterDownloadItems, getDownloadProgress } from "../../lib/downloads.js";
@@ -7,6 +8,8 @@ import type { DownloadAction } from "./types.js";
 
 type DownloadTaskCardProps = {
   busy: boolean;
+  operation?: string;
+  itemError?: string;
   task: DownloadTask;
   items?: DownloadItem[];
   failedItemsOnly: boolean;
@@ -46,12 +49,14 @@ export function DownloadTaskCard(props: DownloadTaskCardProps) {
           {props.task.error}
         </p>
       )}
+      {props.operation && <LoadingStatus label={props.operation} />}
       <footer className="download-card-footer">
         <span className="muted">{formatTime(props.task.createdAt)}</span>
         <div className="task-actions">
           <button
             className="secondary-button"
             aria-expanded={showDetails}
+            disabled={props.busy}
             onClick={() => {
               if (!showDetails) props.onLoadDownloadItems(props.task);
               setShowDetails(!showDetails);
@@ -66,14 +71,30 @@ export function DownloadTaskCard(props: DownloadTaskCardProps) {
             >
               下载到本机
             </button>
-          ) : ["queued", "running"].includes(props.task.status) ? (
+          ) : ["paused", "failed"].includes(props.task.status) ? (
             <button
-              className="secondary-button"
               disabled={props.busy}
-              onClick={() => props.onDownloadAction(props.task, "cancel")}
+              onClick={() => props.onDownloadAction(props.task, "resume")}
             >
-              取消下载
+              {props.task.status === "paused" ? "继续下载" : "重试下载"}
             </button>
+          ) : ["queued", "running"].includes(props.task.status) ? (
+            <>
+              <button
+                className="secondary-button"
+                disabled={props.busy}
+                onClick={() => props.onDownloadAction(props.task, "pause")}
+              >
+                暂停下载
+              </button>
+              <button
+                className="secondary-button"
+                disabled={props.busy}
+                onClick={() => props.onDownloadAction(props.task, "cancel")}
+              >
+                取消下载
+              </button>
+            </>
           ) : (
             <button
               disabled={props.busy}
@@ -97,7 +118,7 @@ export function DownloadTaskCard(props: DownloadTaskCardProps) {
             </div>
             <div>
               <dt>阶段</dt>
-              <dd>{props.task.phase}</dd>
+              <dd>{phaseLabel(props.task.phase)}</dd>
             </div>
             {props.task.outputDir && (
               <div>
@@ -109,6 +130,19 @@ export function DownloadTaskCard(props: DownloadTaskCardProps) {
           {props.task.logs?.length ? (
             <p className="muted">{props.task.logs.at(-1)?.message}</p>
           ) : null}
+          {props.itemError && (
+            <div className="alert" role="alert">
+              <p>{props.itemError}</p>
+              <button disabled={props.busy} onClick={() => props.onLoadDownloadItems(props.task)}>
+                重新加载明细
+              </button>
+            </div>
+          )}
+          {!props.itemError && props.items && items?.length === 0 && (
+            <p className="muted">
+              {props.failedItemsOnly ? "没有失败的图片。" : "还没有图片下载记录。"}
+            </p>
+          )}
           <DownloadItemsList
             busy={props.busy}
             task={props.task}
@@ -116,13 +150,16 @@ export function DownloadTaskCard(props: DownloadTaskCardProps) {
             onRetryDownloadItem={props.onRetryDownloadItem}
           />
           <div className="task-actions">
-            <button
-              className="secondary-button"
-              disabled={props.busy}
-              onClick={() => props.onDownloadAction(props.task, "rerun")}
-            >
-              重跑任务
-            </button>
+            {!["queued", "running"].includes(props.task.status) &&
+              props.items?.some((item) => item.status === "failed") && (
+                <button
+                  className="secondary-button"
+                  disabled={props.busy}
+                  onClick={() => props.onDownloadAction(props.task, "retry-failed")}
+                >
+                  重试失败图片
+                </button>
+              )}
             <button
               className="danger-subtle"
               disabled={props.busy}
@@ -161,6 +198,7 @@ function statusLabel(status: string) {
       {
         queued: "等待中",
         running: "下载中",
+        paused: "已暂停",
         completed: "已完成",
         done: "已完成",
         failed: "失败",
@@ -168,5 +206,23 @@ function statusLabel(status: string) {
         canceled: "已取消",
       } as Record<string, string>
     )[status] ?? status
+  );
+}
+
+function phaseLabel(phase: string) {
+  return (
+    (
+      {
+        queued: "等待执行",
+        loading_details: "正在获取漫画详情",
+        loading_pages: "正在解析章节",
+        downloading_images: "正在下载图片",
+        writing_metadata: "正在保存漫画信息",
+        completed: "已完成",
+        paused: "已暂停",
+        cancelled: "已取消",
+        failed: "下载失败",
+      } as Record<string, string>
+    )[phase] ?? "处理中"
   );
 }

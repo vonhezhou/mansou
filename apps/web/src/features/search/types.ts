@@ -11,6 +11,7 @@ export type SearchViewProps = {
   sources: Source[];
   keyword: string;
   searchMode: "single" | "aggregate";
+  searchQuery?: { sourceKey: string; keyword: string; mode: "single" | "aggregate" } | null;
   aggregateSourceKeys: string[];
   aggregateResultLayout: "grouped" | "flat";
   results: Comic[];

@@ -10,6 +10,7 @@ import type { SearchViewProps } from "./types.js";
 export function SearchView(props: SearchViewProps) {
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const resultSourceKey = props.searchQuery?.sourceKey ?? props.sourceKey;
   const dialogOpen = Boolean(props.details || props.pendingComic);
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -49,10 +50,11 @@ export function SearchView(props: SearchViewProps) {
         />
       </section>
       <SearchResults
-        sourceName={props.sources.find((source) => source.key === props.sourceKey)?.name}
+        sourceName={props.sources.find((source) => source.key === resultSourceKey)?.name}
+        keyword={props.searchQuery?.keyword}
         busy={props.busy}
-        sourceKey={props.sourceKey}
-        searchMode={props.searchMode}
+        sourceKey={resultSourceKey}
+        searchMode={props.searchQuery?.mode ?? props.searchMode}
         aggregateResultLayout={props.aggregateResultLayout}
         results={props.results}
         aggregatedResults={props.aggregatedResults}

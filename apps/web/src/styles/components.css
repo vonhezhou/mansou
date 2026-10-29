@@ -516,3 +516,11 @@ button.danger-subtle:hover:not(:disabled) {
     transform: translateY(0);
   }
 }
+
+.connection-notice {
+  padding: 14px 18px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  background: var(--color-primary-soft);
+}

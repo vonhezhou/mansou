@@ -1,9 +1,20 @@
 import type { CacheStats, DownloadItem, DownloadTask } from "../../types.js";
 
-export type DownloadAction = "cancel" | "rerun" | "download-local" | "delete" | "delete-files";
+export type DownloadAction =
+  | "pause"
+  | "resume"
+  | "cancel"
+  | "rerun"
+  | "download-local"
+  | "delete"
+  | "delete-files"
+  | "retry-failed";
 
 export type DownloadsViewProps = {
   busy: boolean;
+  taskOperations?: Record<string, string>;
+  itemErrors?: Record<string, string>;
+  cacheOperation?: string | null;
   cache: CacheStats | null;
   downloads: DownloadTask[];
   downloadItems: Record<string, DownloadItem[]>;

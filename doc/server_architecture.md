@@ -72,7 +72,7 @@ SQLite 是下载任务状态的唯一来源，查询返回独立快照。调度�
 - `auth/login/logout`：源账号能力、状态、登录与退出。
 - `cookies/importCookies/clearCookies`：当前实例的 Cookie 管理。
 
-不支持的能力返回 `SOURCE_CAPABILITY_UNSUPPORTED`。设置无效返回 `SOURCE_SETTINGS_INVALID`，登录失败返回 `SOURCE_LOGIN_FAILED`。Worker 传递统一错误码，不把错误全部退化为字符串。
+不支持的能力返回 `SOURCE_CAPABILITY_UNSUPPORTED`。设置无效返回 `SOURCE_SETTINGS_INVALID`，登录失败返回 `SOURCE_LOGIN_FAILED`。已识别的拷贝漫画客户端访问限制返回 `SOURCE_ACCESS_RESTRICTED`，业务 HTTP 映射为 403 和固定安全文案；识别条件与复测限制见 [真实源兼容记录](source_compatibility.md#2026-10-29-拷贝漫画访问限制排查)。Worker 传递统一错误码，不把错误全部退化为字符串。
 
 Venera 的 `load/loadNext`、`subTitle`、章节 Map、图片 Hook 别名由适配器转换。图片回调与闭包始终在原执行环境中处理，线程之间只传递最终字节。VeneraAdapter 在 Worker 内通过 VM 加载插件。
 

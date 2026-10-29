@@ -34,6 +34,7 @@ export function DownloadsView(props: DownloadsViewProps) {
           <summary>图片缓存管理</summary>
           <CachePanel
             cache={props.cache}
+            operation={props.cacheOperation}
             onPruneCache={props.onPruneCache}
             onClearCache={props.onClearCache}
           />
@@ -80,7 +81,9 @@ export function DownloadsView(props: DownloadsViewProps) {
           </div>
           {group.tasks.map((task) => (
             <DownloadTaskCard
-              busy={props.busy}
+              busy={props.taskOperations ? Boolean(props.taskOperations[task.id]) : props.busy}
+              operation={props.taskOperations?.[task.id]}
+              itemError={props.itemErrors?.[task.id]}
               key={task.id}
               task={task}
               items={props.downloadItems[task.id]}

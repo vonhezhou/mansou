@@ -8,6 +8,7 @@ type SearchResultsProps = {
   busy: boolean;
   sourceKey: string;
   sourceName?: string;
+  keyword?: string;
   searchMode: "single" | "aggregate";
   aggregateResultLayout: "grouped" | "flat";
   results: Comic[];
@@ -43,6 +44,14 @@ export function SearchResults(props: SearchResultsProps) {
       <header className="result-toolbar">
         <div className="result-heading">
           <h2>{props.hasSearched ? "搜索结果" : "开始探索"}</h2>
+          {props.hasSearched && props.keyword && (
+            <span className="muted">
+              「{props.keyword}」 ·{" "}
+              {props.searchMode === "aggregate"
+                ? "聚合搜索"
+                : (props.sourceName ?? props.sourceKey)}
+            </span>
+          )}
           {props.hasSearched && (
             <span className="muted" role="status">
               已加载 {props.searchMode === "aggregate" ? aggregateCount : props.results.length}{" "}

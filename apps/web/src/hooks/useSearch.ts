@@ -22,6 +22,11 @@ export function useSearch(options: UseSearchOptions) {
   const [aggregateResultLayout, setAggregateResultLayout] = useState<"grouped" | "flat">("flat");
   const [results, setResults] = useState<Comic[]>([]);
   const [aggregatedResults, setAggregatedResults] = useState<AggregatedSearchItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState<{
+    sourceKey: string;
+    keyword: string;
+    mode: "single" | "aggregate";
+  } | null>(null);
   const [searchPage, setSearchPage] = useState(1);
   const [searchNext, setSearchNext] = useState<string | null>(null);
   const [searchMaxPage, setSearchMaxPage] = useState<number | undefined>();
@@ -55,9 +60,16 @@ export function useSearch(options: UseSearchOptions) {
   }
 
   async function search() {
+    const query = {
+      sourceKey: options.sourceKey,
+      keyword: keyword.trim(),
+      mode: "single" as const,
+    };
+    if (!query.keyword) return;
     await options.runWith(setSearching, async () => {
-      const data = await veneraApi.search(options.sourceKey, keyword, { page: 1 });
+      const data = await veneraApi.search(query.sourceKey, query.keyword, { page: 1 });
       startTransition(() => {
+        setSearchQuery(query);
         setResults(data.comics ?? []);
         setAggregatedResults([]);
         setSearchPage(1);
@@ -71,9 +83,16 @@ export function useSearch(options: UseSearchOptions) {
   }
 
   async function aggregatedSearch() {
+    const query = {
+      sourceKey: options.sourceKey,
+      keyword: keyword.trim(),
+      mode: "aggregate" as const,
+    };
+    if (!query.keyword || aggregateSourceKeys.length === 0) return;
     await options.runWith(setSearching, async () => {
-      const data = await veneraApi.aggregatedSearch(keyword, aggregateSourceKeys);
+      const data = await veneraApi.aggregatedSearch(query.keyword, aggregateSourceKeys);
       startTransition(() => {
+        setSearchQuery(query);
         setAggregatedResults(data);
         setResults([]);
         setSearchPage(1);
@@ -92,11 +111,12 @@ export function useSearch(options: UseSearchOptions) {
   }
 
   async function loadMoreResults() {
+    if (!searchQuery || searchQuery.mode !== "single" || !canLoadMore) return;
     await options.runWith(setSearching, async () => {
       const nextPage = searchPage + 1;
       const data = await veneraApi.search(
-        options.sourceKey,
-        keyword,
+        searchQuery.sourceKey,
+        searchQuery.keyword,
         searchNext ? { next: searchNext } : { page: nextPage },
       );
       startTransition(() => {
@@ -270,6 +290,7 @@ export function useSearch(options: UseSearchOptions) {
     results,
     searchBusy,
     searchMaxPage,
+    searchQuery,
     searchMode,
     searchPage,
     selectedEpisodeIds,

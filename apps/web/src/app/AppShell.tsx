@@ -8,6 +8,7 @@ type AppShellProps = {
   activeTab: TabKey;
   busy: boolean;
   error: string | null;
+  notice?: string;
   health: Health | null;
   downloadCount: number;
   sourceCount: number;
@@ -143,6 +144,11 @@ export function AppShell(props: AppShellProps) {
           {navigationItems.map(navButton)}
         </nav>
         <main ref={workspaceRef} id="workspace" className="workspace" tabIndex={-1}>
+          {props.notice && (
+            <p className="workspace-alert connection-notice" role="status">
+              {props.notice}
+            </p>
+          )}
           {props.error && (
             <section className="alert workspace-alert" role="alert">
               {props.error}

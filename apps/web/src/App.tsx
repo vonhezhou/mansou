@@ -38,6 +38,7 @@ function Workspace({
   const [activeTab, setActiveTab] = useState<TabKey>(readInitialTab);
   const [health, setHealth] = useState<Health | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [downloadsReconnecting, setDownloadsReconnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const downloadsState = useDownloads(runWith);
   const sourcesState = useSources(runWith, sourceKey, setSourceKey);
@@ -47,7 +48,7 @@ function Workspace({
     detailSourceKey,
     setSourceKey,
     setDetailSourceKey,
-    setActiveTab,
+    setActiveTab: navigateTo,
     loadDownloads: downloadsState.loadDownloads,
   });
 
@@ -61,7 +62,9 @@ function Workspace({
       events.close();
       window.dispatchEvent(new Event("venera:unauthorized"));
     });
+    events.onopen = () => setDownloadsReconnecting(false);
     events.onerror = () => {
+      setDownloadsReconnecting(true);
       void reloadSession();
     };
     return () => events.close();
@@ -72,8 +75,15 @@ function Workspace({
   }, []);
 
   useEffect(() => {
-    window.location.hash = activeTab;
-  }, [activeTab]);
+    const navigate = () => setActiveTab(readInitialTab());
+    window.addEventListener("hashchange", navigate);
+    return () => window.removeEventListener("hashchange", navigate);
+  }, []);
+
+  function navigateTo(tab: TabKey) {
+    setActiveTab(tab);
+    window.location.hash = tab;
+  }
 
   async function runWith(setLoading: (value: boolean) => void, task: () => Promise<void>) {
     setLoading(true);
@@ -128,7 +138,12 @@ function Workspace({
         void checkHealth();
         void refresh();
       }}
-      onTabChange={setActiveTab}
+      onTabChange={navigateTo}
+      notice={
+        downloadsReconnecting
+          ? "下载状态连接已中断，正在自动重连；当前进度可能不是最新。"
+          : undefined
+      }
       account={
         session.mode === "required" ? (
           <AccountPanel username={session.username ?? "admin"} onSessionChange={reloadSession} />
@@ -146,6 +161,7 @@ function Workspace({
           sources={sourcesState.sources}
           keyword={searchState.keyword}
           searchMode={searchState.searchMode}
+          searchQuery={searchState.searchQuery}
           aggregateSourceKeys={searchState.aggregateSourceKeys}
           aggregateResultLayout={searchState.aggregateResultLayout}
           results={searchState.results}
@@ -213,6 +229,9 @@ function Workspace({
       {activeTab === "downloads" && (
         <DownloadsView
           busy={downloadsBusy}
+          taskOperations={downloadsState.taskOperations}
+          itemErrors={downloadsState.itemErrors}
+          cacheOperation={downloadsState.cacheOperation}
           cache={downloadsState.cache}
           downloads={downloadsState.downloads}
           downloadItems={downloadsState.downloadItems}

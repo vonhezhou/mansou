@@ -9,7 +9,7 @@ let root: Root;
 let container: HTMLDivElement;
 const navigate = vi.fn();
 const changeSource = vi.fn();
-function Harness() {
+function Harness({ sourceKey = "search-source" }: { sourceKey?: string }) {
   state = useSearch({
     runWith: async (setLoading, task) => {
       setLoading(true);
@@ -19,7 +19,7 @@ function Harness() {
         setLoading(false);
       }
     },
-    sourceKey: "search-source",
+    sourceKey,
     detailSourceKey: "detail-source",
     setSourceKey: changeSource,
     setDetailSourceKey: vi.fn(),
@@ -154,3 +154,29 @@ function deferred<T>() {
   });
   return { promise, resolve, reject };
 }
+
+it("loads more using the submitted keyword and source after the controls change", async () => {
+  const search = vi
+    .spyOn(veneraApi, "search")
+    .mockResolvedValueOnce({ comics: [{ id: "one", title: "第一本" }], maxPage: 2 })
+    .mockResolvedValueOnce({ comics: [{ id: "two", title: "第二本" }], maxPage: 2 });
+  await act(async () => state.setKeyword("  原关键词  "));
+  await act(async () => state.submitSearch());
+  await act(async () => state.setKeyword("未提交的新词"));
+  await act(async () => root.render(<Harness sourceKey="another-source" />));
+  await act(async () => state.loadMoreResults());
+  expect(search).toHaveBeenNthCalledWith(2, "search-source", "原关键词", { page: 2 });
+  expect(state.searchQuery).toEqual({
+    keyword: "原关键词",
+    sourceKey: "search-source",
+    mode: "single",
+  });
+  expect(state.results.map((comic) => comic.id)).toEqual(["one", "two"]);
+});
+
+it("does not issue a blank search", async () => {
+  const search = vi.spyOn(veneraApi, "search");
+  await act(async () => state.setKeyword("   "));
+  await act(async () => state.submitSearch());
+  expect(search).not.toHaveBeenCalled();
+});
