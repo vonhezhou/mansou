@@ -1,7 +1,14 @@
 import type { RepositorySource, SettingsResponse, SourceMetadata } from "../../types.js";
 
+export type SourceOperation = {
+  kind: "install" | "update" | "enable" | "disable" | "repository" | "reload";
+  sourceKey?: string;
+  label: string;
+};
+
 export type SourcesViewProps = {
   busy: boolean;
+  operation?: SourceOperation | null;
   sourceKey: string;
   installSource: string;
   availableSources: RepositorySource[];

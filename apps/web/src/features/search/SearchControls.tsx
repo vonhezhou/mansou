@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { Icon } from "../../app/Icon.js";
 import type { Source } from "../../types.js";
 
@@ -59,7 +60,7 @@ export function SearchControls(props: SearchControlsProps) {
         />
         <kbd className="keycap">⌘ / Ctrl K</kbd>
         <button type="submit" disabled={props.busy || !canSearch}>
-          {props.busy ? "处理中…" : "搜索"}
+          {props.busy ? <LoadingStatus label="处理中…" /> : "搜索"}
         </button>
       </form>
       <div className="search-mode-row">

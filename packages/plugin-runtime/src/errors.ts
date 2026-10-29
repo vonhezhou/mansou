@@ -2,6 +2,7 @@ export type PluginErrorCode =
   | "SOURCE_CAPABILITY_UNSUPPORTED"
   | "SOURCE_SETTINGS_INVALID"
   | "SOURCE_LOGIN_FAILED"
+  | "SOURCE_ACCESS_RESTRICTED"
   | "PLUGIN_API_MISSING"
   | "PLUGIN_TIMEOUT"
   | "PLUGIN_NETWORK_ERROR"
@@ -11,13 +12,15 @@ export type PluginErrorCode =
 
 export class PluginRuntimeError extends Error {
   get statusCode() {
-    return this.code === "SOURCE_SETTINGS_INVALID"
-      ? 400
-      : this.code === "SOURCE_LOGIN_FAILED"
-        ? 422
-        : this.code === "SOURCE_CAPABILITY_UNSUPPORTED"
-          ? 400
-          : 500;
+    return this.code === "SOURCE_ACCESS_RESTRICTED"
+      ? 403
+      : this.code === "SOURCE_SETTINGS_INVALID"
+        ? 400
+        : this.code === "SOURCE_LOGIN_FAILED"
+          ? 422
+          : this.code === "SOURCE_CAPABILITY_UNSUPPORTED"
+            ? 400
+            : 500;
   }
   constructor(
     public readonly code: PluginErrorCode,

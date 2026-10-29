@@ -1,3 +1,4 @@
+import { PluginRuntimeError } from "../../errors.js";
 import type { RuntimeOptions } from "../../options.js";
 export function thumbnailToImageUrl(url: string) {
   const imageUrl = url.replace(/\/([0-9]+)t\.([^/.]+)(?:\.webp)?$/, "/$1.$2");
@@ -69,5 +70,23 @@ export async function loadComickPages(
       : [];
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+// 拷贝的 210 同时用于多种业务错误，只识别已确认的客户端访问限制。
+export function checkSourceAccess(sourceKey: string, status: number, body: string) {
+  if (sourceKey !== "copy_manga" || status !== 210) return;
+  let message: unknown;
+  try {
+    message = JSON.parse(body).message;
+  } catch {
+    return;
+  }
+  if (typeof message === "string" && /正版|最新APP/i.test(message)) {
+    throw new PluginRuntimeError(
+      "SOURCE_ACCESS_RESTRICTED",
+      "拷贝漫画上游限制了当前访问。请按官方提示更新正版客户端，并等待约 1 小时后再试。",
+      sourceKey,
+    );
   }
 }

@@ -46,10 +46,12 @@ export class SourceRepositoryService {
     return readJson<RepositorySource[]>(this.paths.repositoryIndex, []);
   }
 
-  async withAvailableUpdates<T extends { key: string; version?: string | null }>(installed: T[]) {
+  async withAvailableUpdates<
+    T extends { key: string; script_url?: string | null; version?: string | null },
+  >(installed: T[]) {
     const list = await this.getAvailableSources();
     return installed.map((source) => {
-      const candidate = list.find((item) => item.key === source.key);
+      const candidate = this.findSourceByKey(list, source.key, source.script_url);
       let availableVersion: string | undefined;
       try {
         if (candidate && isNewerVersion(candidate.version, source.version ?? "0.0.0")) {
@@ -62,16 +64,19 @@ export class SourceRepositoryService {
     });
   }
 
-  async installSource(sourceKeyOrName: string, activate?: (filePath: string) => Promise<void>) {
+  async installSource(
+    sourceKeyOrName: string,
+    activate?: (filePath: string) => Promise<void>,
+    installedScriptUrl?: string | null,
+  ) {
     const list = await this.refreshRepository();
 
-    const item = list.find(
-      (source) =>
-        source.key === sourceKeyOrName ||
-        source.name === sourceKeyOrName ||
-        source.filename === sourceKeyOrName ||
-        source.fileName === sourceKeyOrName,
-    );
+    const item =
+      list.find(
+        (source) => source.filename === sourceKeyOrName || source.fileName === sourceKeyOrName,
+      ) ??
+      this.findSourceByKey(list, sourceKeyOrName, installedScriptUrl) ??
+      list.find((source) => source.name === sourceKeyOrName);
     if (!item) {
       throw new Error(`Source not found in repository: ${sourceKeyOrName}`);
     }
@@ -135,6 +140,26 @@ export class SourceRepositoryService {
 
   async readScript(filePath: string) {
     return readFile(filePath, "utf8");
+  }
+
+  private findSourceByKey(list: RepositorySource[], key: string, scriptUrl?: string | null) {
+    const candidates = list.filter((item) => item.key === key);
+    if (scriptUrl) {
+      try {
+        const filename = path.posix.basename(new URL(scriptUrl).pathname);
+        const variant = candidates.find((item) => {
+          try {
+            return path.posix.basename(new URL(this.resolveScriptUrl(item)).pathname) === filename;
+          } catch {
+            return false;
+          }
+        });
+        if (variant) return variant;
+      } catch {
+        /* Older metadata may not contain a valid script URL. */
+      }
+    }
+    return candidates[0];
   }
 
   private resolveScriptUrl(item: RepositorySource) {

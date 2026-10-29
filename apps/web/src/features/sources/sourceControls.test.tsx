@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { SourceAccountPanel } from "./SourceAccountPanel.js";
 import { SourceSettingsPanel } from "./SourceSettingsPanel.js";
+import { SourceRepositoryPanel } from "./SourceRepositoryPanel.js";
 import { veneraApi } from "../../api/venera.js";
 let root: Root;
 let container: HTMLDivElement;
@@ -27,6 +28,30 @@ async function input(element: HTMLInputElement, value: string) {
     element.dispatchEvent(new Event("input", { bubbles: true }));
   });
 }
+it("offers separate script selections for repository variants sharing the same key", async () => {
+  await render(
+    <SourceRepositoryPanel
+      busy={false}
+      installSource="variant.js"
+      availableSources={[
+        { key: "example", name: "普通版", fileName: "example.js" },
+        { key: "example", name: "多账号版", fileName: "variant.js" },
+      ]}
+      onInstallSourceChange={vi.fn()}
+      onInstallSelectedSource={vi.fn()}
+      onRefreshRepository={vi.fn()}
+      onReloadSources={vi.fn()}
+    />,
+  );
+  const select = container.querySelector("select")!;
+  expect([...select.options].map((option) => option.value)).toEqual([
+    "",
+    "example.js",
+    "variant.js",
+  ]);
+  expect(select.selectedOptions[0].textContent).toContain("多账号版");
+  expect(container.textContent).toContain("2 个可安装源");
+});
 it("submits plugin credentials for the selected source and clears secrets after login", async () => {
   const auth = {
     loggedIn: false,

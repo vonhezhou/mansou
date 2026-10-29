@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio";
 import crypto from "node:crypto";
 import { types } from "node:util";
+import { checkSourceAccess } from "./sourcePatches.js";
 import { compute } from "../../executors/compute.js";
 import type { RuntimeOptions } from "../../options.js";
 import { SourceDataStore } from "../../host/dataStore.js";
@@ -305,6 +306,7 @@ export async function createRuntimeApi(
       const arrayBuffer = await response.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
       const text = new TextDecoder().decode(bytes);
+      checkSourceAccess(sourceKey, response.status, text);
       return {
         status: response.status,
         statusCode: response.status,

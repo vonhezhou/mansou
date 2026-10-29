@@ -95,12 +95,18 @@ function Workspace({
     }
   }
 
+  async function refreshSources() {
+    const loaded = await sourcesState.loadSources();
+    searchState.syncAggregateSources(loaded);
+  }
+
   async function refresh() {
     await runWith(setRefreshing, async () => {
-      const loaded = await sourcesState.loadSources();
-      searchState.syncAggregateSources(loaded);
-      await downloadsState.loadDownloads();
-      await downloadsState.loadCacheStats();
+      await Promise.all([
+        refreshSources(),
+        downloadsState.loadDownloads(),
+        downloadsState.loadCacheStats(),
+      ]);
     });
   }
 
@@ -132,6 +138,9 @@ function Workspace({
       {activeTab === "search" && (
         <SearchView
           busy={searchState.searchBusy}
+          loadingDetails={searchState.loadingDetails}
+          pendingComic={searchState.pendingComic}
+          detailError={searchState.detailError}
           sourceKey={sourceKey}
           detailSourceKey={detailSourceKey}
           sources={sourcesState.sources}
@@ -171,6 +180,7 @@ function Workspace({
       {activeTab === "sources" && (
         <SourcesView
           busy={sourcesBusy}
+          operation={sourcesState.sourceOperation}
           sourceKey={sourceKey}
           installSource={sourcesState.installSource}
           availableSources={sourcesState.availableSources}
@@ -185,13 +195,13 @@ function Workspace({
           onSettingsJsonChange={sourcesState.setSettingsJson}
           onCookieUrlChange={sourcesState.setCookieUrl}
           onCookieTextChange={sourcesState.setCookieText}
-          onInstallSelectedSource={() => void sourcesState.installSelectedSource(refresh)}
-          onUpdateSource={(key) => void sourcesState.updateSource(key, refresh)}
+          onInstallSelectedSource={() => void sourcesState.installSelectedSource(refreshSources)}
+          onUpdateSource={(key) => void sourcesState.updateSource(key, refreshSources)}
           onRefreshRepository={() => void sourcesState.refreshRepository()}
-          onReloadSources={() => void sourcesState.reloadSources(refresh)}
+          onReloadSources={() => void sourcesState.reloadSources(refreshSources)}
           onLoadSourceSettings={() => void sourcesState.loadSourceSettings()}
           onSetSourceEnabled={(source, enabled) =>
-            void sourcesState.setSourceEnabled(source, enabled, refresh)
+            void sourcesState.setSourceEnabled(source, enabled, refreshSources)
           }
           onSaveSourceSettings={() => void sourcesState.saveSourceSettings()}
           onResetSourceSettings={() => void sourcesState.resetSourceSettings()}

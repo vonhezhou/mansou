@@ -3,6 +3,9 @@ import type { AggregatedSearchItem, Details, Source } from "../../types.js";
 
 export type SearchViewProps = {
   busy: boolean;
+  loadingDetails?: boolean;
+  pendingComic?: { comic: Comic; sourceKey: string } | null;
+  detailError?: string | null;
   sourceKey: string;
   detailSourceKey: string;
   sources: Source[];

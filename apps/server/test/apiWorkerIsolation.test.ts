@@ -1,4 +1,4 @@
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { AddressInfo } from "node:net";
 import os from "node:os";
@@ -17,6 +17,15 @@ const originalDataDir = config.dataDir;
 
 beforeAll(async () => {
   testServer = createServer((request, response) => {
+    if (request.url === "/restricted") {
+      response.writeHead(210, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          message: "請下載安裝正版之後等待1小時，限制會自動解除。 upstream-secret",
+        }),
+      );
+      return;
+    }
     if (request.url === "/cookie") {
       response.end(request.headers.cookie ?? "");
       return;
@@ -179,4 +188,26 @@ describe("api v1 mock source with worker isolation", () => {
     expect(modified.statusCode).toBe(200);
     expect(Buffer.from(modified.body).toString("hex")).toBe("030201");
   });
+});
+
+it("preserves a safe upstream restriction through the worker and HTTP error boundary", async () => {
+  const file = path.join(config.dataDir, "copy_manga.js");
+  await writeFile(
+    file,
+    `class RestrictedSource extends ComicSource {
+    key = "copy_manga"; name = "拷贝漫画";
+    comic = { loadInfo: async () => {
+      await Network.get("${baseUrl}/restricted");
+      throw new Error("must not continue after restriction");
+    }};
+  }`,
+  );
+  await context.sources.loadScript(file);
+  const response = await app.inject({ method: "GET", url: "/api/v1/comics/copy_manga/example" });
+  expect(response.statusCode).toBe(403);
+  expect(response.json().error).toMatchObject({
+    code: "SOURCE_ACCESS_RESTRICTED",
+    message: "拷贝漫画上游限制了当前访问。请按官方提示更新正版客户端，并等待约 1 小时后再试。",
+  });
+  expect(response.body).not.toContain("upstream-secret");
 });

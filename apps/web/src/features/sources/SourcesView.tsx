@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { Icon } from "../../app/Icon.js";
 import { CurrentSourcePanel } from "./CurrentSourcePanel.js";
 import { InstalledSourcesList } from "./InstalledSourcesList.js";
@@ -38,6 +39,7 @@ export function SourcesView(props: SourcesViewProps) {
           安装漫画源
         </button>
       </header>
+      {props.operation && <LoadingStatus label={props.operation.label} />}
       <details className="disclosure" ref={repositoryRef}>
         <summary>
           <span className="summary-icon" aria-hidden="true">
@@ -49,6 +51,7 @@ export function SourcesView(props: SourcesViewProps) {
         </summary>
         <SourceRepositoryPanel
           busy={props.busy}
+          operation={props.operation}
           installSource={props.installSource}
           availableSources={props.availableSources}
           onInstallSourceChange={props.onInstallSourceChange}
@@ -59,6 +62,7 @@ export function SourcesView(props: SourcesViewProps) {
       </details>
       <InstalledSourcesList
         busy={props.busy}
+        operation={props.operation}
         sourceMetadata={props.sourceMetadata}
         onSetSourceEnabled={props.onSetSourceEnabled}
         onUpdateSource={props.onUpdateSource}

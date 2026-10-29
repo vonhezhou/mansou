@@ -54,7 +54,7 @@ export function CurrentSourcePanel(props: CurrentSourcePanelProps) {
       </div>
       <div className="current-source-sections">
         <SourceSettingsPanel
-          key={props.sourceKey}
+          key={`settings:${props.sourceKey}`}
           busy={props.busy}
           sourceKey={props.sourceKey}
           sourceSettingsKey={props.sourceSettingsKey}
@@ -65,7 +65,7 @@ export function CurrentSourcePanel(props: CurrentSourcePanelProps) {
           onResetSourceSettings={props.onResetSourceSettings}
         />
         {props.sourceKey && (
-          <SourceAccountPanel key={props.sourceKey} sourceKey={props.sourceKey} />
+          <SourceAccountPanel key={`account:${props.sourceKey}`} sourceKey={props.sourceKey} />
         )}
         <CookieImportPanel
           busy={props.busy}

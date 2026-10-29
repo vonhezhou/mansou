@@ -7,7 +7,7 @@ import { readConfig } from "../src/config/config.js";
 const config = readConfig();
 import { createServer, type Server } from "node:http";
 import { AddressInfo } from "node:net";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { SourceCookieStore } from "../../../packages/plugin-runtime/src/host/cookieStore.js";
 import { SourceDataStore } from "../../../packages/plugin-runtime/src/host/dataStore.js";
 import { createRuntimeApi as createApi } from "../../../packages/plugin-runtime/src/adapters/venera/runtimeApi.js";
@@ -171,4 +171,45 @@ describe("runtime api compatibility", () => {
     expect(Console).toBe(Log);
     expect(APP.version).toBe(App.version);
   });
+});
+
+it("reports the confirmed CopyManga access restriction without exposing upstream response content", async () => {
+  const upstream = vi.fn<typeof fetch>().mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        message: "請到官網更新最新APP，請下載安裝正版之後等待1小時，限制會自動解除。 private-token",
+      }),
+      { status: 210 },
+    ),
+  );
+  const { Network } = await createApi(
+    "copy_manga",
+    new SourceDataStore(storage),
+    new SourceCookieStore(storage, dataDir),
+    config,
+    upstream,
+  );
+  await expect(Network.get("https://example.com/comic")).rejects.toMatchObject({
+    code: "SOURCE_ACCESS_RESTRICTED",
+    statusCode: 403,
+    message: "拷贝漫画上游限制了当前访问。请按官方提示更新正版客户端，并等待约 1 小时后再试。",
+  });
+});
+
+it.each([
+  ["copy_manga", 210, "Expected available in 40 seconds"],
+  ["another_source", 210, "請下載安裝正版之後等待1小時"],
+  ["copy_manga", 200, "請下載安裝正版之後等待1小時"],
+])("preserves other upstream responses (%s, %s)", async (sourceKey, status, message) => {
+  const upstream = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(new Response(JSON.stringify({ message }), { status }));
+  const { Network } = await createApi(
+    sourceKey,
+    new SourceDataStore(storage),
+    new SourceCookieStore(storage, dataDir),
+    config,
+    upstream,
+  );
+  expect(await Network.get("https://example.com/comic")).toMatchObject({ status });
 });

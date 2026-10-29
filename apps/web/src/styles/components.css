@@ -470,3 +470,49 @@ button.danger-subtle:hover:not(:disabled) {
     gap: 12px;
   }
 }
+
+.loading-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.loading-spinner {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: loading-spin 0.75s linear infinite;
+}
+.detail-pending {
+  min-height: 220px;
+  padding: 28px 0;
+}
+.comic-dialog[open] {
+  animation: dialog-enter 0.18s ease-out;
+}
+.comic-dialog .loading-status {
+  color: var(--color-muted);
+}
+.source-switch[aria-busy="true"] > .loading-spinner {
+  border: 2px solid var(--color-muted);
+  border-right-color: transparent;
+}
+@keyframes loading-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+@keyframes dialog-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

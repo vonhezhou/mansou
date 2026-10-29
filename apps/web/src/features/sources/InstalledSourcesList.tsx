@@ -1,7 +1,10 @@
 import type { SourceMetadata } from "../../types.js";
 
+import type { SourceOperation } from "./types.js";
+
 type InstalledSourcesListProps = {
   busy: boolean;
+  operation?: SourceOperation | null;
   sourceMetadata: SourceMetadata[];
   onConfigureSource: (key: string) => void;
   onUpdateSource: (key: string) => void;
@@ -19,6 +22,8 @@ export function InstalledSourcesList(props: InstalledSourcesListProps) {
         <div className="source-list installed-source-grid">
           {props.sourceMetadata.map((source) => {
             const enabled = source.enabled === true || source.enabled === 1;
+            const pending = props.operation?.sourceKey === source.key ? props.operation : null;
+            const switching = pending?.kind === "enable" || pending?.kind === "disable";
             return (
               <article key={source.key}>
                 <span className="source-avatar" aria-hidden="true">
@@ -32,24 +37,31 @@ export function InstalledSourcesList(props: InstalledSourcesListProps) {
                   className="source-switch"
                   role="switch"
                   aria-checked={enabled}
+                  aria-busy={switching}
                   aria-label={`${enabled ? "禁用" : "启用"} ${source.name}`}
                   onClick={() => props.onSetSourceEnabled(source, !enabled)}
                   disabled={props.busy}
                 >
-                  <span />
+                  <span className={switching ? "loading-spinner" : undefined} />
                 </button>
                 <div className="source-card-meta">
                   <span>
                     版本 <b>{source.version ?? "未提供"}</b>
                   </span>
                   <span className={enabled ? "source-enabled" : "muted"}>
-                    {enabled ? "已启用" : "已禁用"}
+                    {switching
+                      ? pending.kind === "enable"
+                        ? "启用中…"
+                        : "禁用中…"
+                      : enabled
+                        ? "已启用"
+                        : "已禁用"}
                   </span>
                 </div>
                 <div className="source-actions">
                   {source.availableVersion && (
                     <button disabled={props.busy} onClick={() => props.onUpdateSource(source.key)}>
-                      更新至 {source.availableVersion}
+                      {pending?.kind === "update" ? "更新中…" : `更新至 ${source.availableVersion}`}
                     </button>
                   )}
                   <button

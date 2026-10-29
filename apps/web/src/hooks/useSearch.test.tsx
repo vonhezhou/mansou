@@ -88,3 +88,69 @@ it("keeps failed downloads visible in the detail dialog", async () => {
   expect(state.details?.id).toBe("comic");
   expect(state.downloadCreateStatus).toContain("失败 1");
 });
+
+it("shows pending details immediately and ignores a response after the dialog is closed", async () => {
+  const response = deferred<Awaited<ReturnType<typeof veneraApi.comicDetails>>>();
+  vi.spyOn(veneraApi, "comicDetails").mockReturnValue(response.promise);
+  let opening: Promise<void>;
+  await act(async () => {
+    opening = state.openComic({ id: "slow", title: "慢请求" });
+  });
+  expect(state.pendingComic?.comic.title).toBe("慢请求");
+  expect(state.loadingDetails).toBe(true);
+  await act(async () => state.closeDetails());
+  expect(state.pendingComic).toBeNull();
+  expect(state.searchBusy).toBe(false);
+  await act(async () => {
+    response.resolve({ id: "slow", title: "慢请求" });
+    await opening;
+  });
+  expect(state.details).toBeNull();
+});
+
+it("keeps a failed detail dialog available for retry without showing an old request over the new one", async () => {
+  const older = deferred<Awaited<ReturnType<typeof veneraApi.comicDetails>>>();
+  const newer = deferred<Awaited<ReturnType<typeof veneraApi.comicDetails>>>();
+  const load = vi
+    .spyOn(veneraApi, "comicDetails")
+    .mockReturnValueOnce(older.promise)
+    .mockReturnValueOnce(newer.promise)
+    .mockResolvedValue({ id: "new", title: "新漫画" });
+  let first: Promise<void>;
+  let second: Promise<void>;
+  await act(async () => {
+    first = state.openComic({ id: "old", title: "旧漫画" });
+  });
+  await act(async () => state.closeDetails());
+  await act(async () => {
+    second = state.openComic({ id: "new", title: "新漫画" });
+  });
+  await act(async () => {
+    older.resolve({ id: "old", title: "旧漫画" });
+    await first;
+  });
+  expect(state.loadingDetails).toBe(true);
+  expect(state.details).toBeNull();
+  await act(async () => {
+    newer.reject(new Error("漫画源暂时限制访问"));
+    await second;
+  });
+  expect(state.detailError).toBe("漫画源暂时限制访问");
+  expect(state.pendingComic?.comic.id).toBe("new");
+  expect(state.loadingDetails).toBe(false);
+  await act(async () => state.openComic(state.pendingComic!.comic, state.pendingComic!.sourceKey));
+  expect(load).toHaveBeenCalledTimes(3);
+  expect(state.details?.id).toBe("new");
+  expect(state.detailError).toBeNull();
+  expect(state.pendingComic).toBeNull();
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
+  return { promise, resolve, reject };
+}

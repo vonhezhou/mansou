@@ -34,6 +34,7 @@ beforeAll(async () => {
           null,
           { name: "bad", version: 3 },
           { name: "Example", key: "example", version, fileName: filename },
+          { name: "Example variant", key: "example", version: "1.5.0", fileName: "variant.js" },
         ]),
       );
     } else
@@ -76,6 +77,24 @@ describe("source updates", () => {
     expect((await repository.installSource("example")).scriptUrl).toBe(
       `${base}/cdn/scripts/new.js`,
     );
+  });
+  it("downloads the selected filename when multiple variants share a source key", async () => {
+    expect((await repository.installSource("variant.js")).scriptUrl).toBe(`${base}/cdn/variant.js`);
+    expect(
+      (await repository.installSource("example", undefined, `${base}/old/variant.js`)).scriptUrl,
+    ).toBe(`${base}/cdn/variant.js`);
+    expect(
+      await repository.withAvailableUpdates([
+        { key: "example", script_url: `${base}/old/variant.js`, version: "1.4.0" },
+      ]),
+    ).toEqual([
+      {
+        key: "example",
+        script_url: `${base}/old/variant.js`,
+        version: "1.4.0",
+        availableVersion: "1.5.0",
+      },
+    ]);
   });
   it("restores the installed script if activation rejects the new version", async () => {
     const current = await repository.installSource("example");

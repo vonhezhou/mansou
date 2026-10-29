@@ -65,9 +65,13 @@ export class SourceService implements SourceRegistry {
   }
   private async installSource(source: string) {
     let loaded!: SourceMetadata & { filePath: string };
-    const installed = await this.repository.installSource(source, async (filePath) => {
-      loaded = await this.manager.load(filePath);
-    });
+    const installed = await this.repository.installSource(
+      source,
+      async (filePath) => {
+        loaded = await this.manager.load(filePath);
+      },
+      this.storage.getSource(source)?.script_url,
+    );
     this.storage.upsertSource({
       key: loaded.key,
       name: loaded.name,

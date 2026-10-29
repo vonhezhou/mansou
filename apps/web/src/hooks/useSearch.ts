@@ -1,4 +1,4 @@
-import { startTransition, useState } from "react";
+import { startTransition, useRef, useState } from "react";
 import type { Comic } from "@venera/contracts";
 import { veneraApi } from "../api/venera.js";
 import type { AggregatedSearchItem, Details, Source } from "../types.js";
@@ -34,6 +34,11 @@ export function useSearch(options: UseSearchOptions) {
   const [downloadCreateStatus, setDownloadCreateStatus] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [pendingComic, setPendingComic] = useState<{ comic: Comic; sourceKey: string } | null>(
+    null,
+  );
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const detailRequest = useRef(0);
   const [previewingChapter, setPreviewingChapter] = useState(false);
   const [countingPages, setCountingPages] = useState(false);
   const [creatingDownload, setCreatingDownload] = useState(false);
@@ -104,17 +109,34 @@ export function useSearch(options: UseSearchOptions) {
   }
 
   async function openComic(comic: Comic, nextSourceKey = options.sourceKey) {
-    await options.runWith(setLoadingDetails, async () => {
-      const data = await veneraApi.comicDetails(nextSourceKey, comic.id);
-      const firstEpisode = Object.keys(data.chapters ?? {})[0] ?? "_default";
-      options.setDetailSourceKey(nextSourceKey);
-      setDetails(data);
-      setEpisodeId(firstEpisode);
-      setSelectedEpisodeIds([]);
-      setEpisodePageCounts({});
-      setPreviewImages([]);
-      setDownloadCreateStatus(null);
-    });
+    const request = ++detailRequest.current;
+    setPendingComic({ comic, sourceKey: nextSourceKey });
+    setDetailError(null);
+    setDetails(null);
+    setPreviewImages([]);
+    options.setDetailSourceKey(nextSourceKey);
+    await options.runWith(
+      (loading) => {
+        if (request === detailRequest.current) setLoadingDetails(loading);
+      },
+      async () => {
+        try {
+          const data = await veneraApi.comicDetails(nextSourceKey, comic.id);
+          // 关闭弹窗或打开另一本漫画后，旧请求不能重新打开或覆盖详情。
+          if (request !== detailRequest.current) return;
+          const firstEpisode = Object.keys(data.chapters ?? {})[0] ?? "_default";
+          setDetails(data);
+          setEpisodeId(firstEpisode);
+          setSelectedEpisodeIds([]);
+          setEpisodePageCounts({});
+          setDownloadCreateStatus(null);
+          setPendingComic(null);
+        } catch (error) {
+          if (request !== detailRequest.current) return;
+          setDetailError(error instanceof Error ? error.message : String(error));
+        }
+      },
+    );
   }
 
   async function previewEpisode(nextEpisodeId = episodeId) {
@@ -196,6 +218,10 @@ export function useSearch(options: UseSearchOptions) {
   }
 
   function closeDetails() {
+    detailRequest.current++;
+    setLoadingDetails(false);
+    setPendingComic(null);
+    setDetailError(null);
     setDetails(null);
     setPreviewImages([]);
     setDownloadCreateStatus(null);
@@ -232,6 +258,9 @@ export function useSearch(options: UseSearchOptions) {
     aggregatedResults,
     canLoadMore,
     details,
+    pendingComic,
+    detailError,
+    loadingDetails,
     downloadCreateStatus,
     episodePageCounts,
     episodeId,

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { SourcePicker } from "./SourcePicker.js";
 import { ChapterPreview } from "./ChapterPreview.js";
 import { ComicDetailsPanel } from "./ComicDetailsPanel.js";
@@ -9,9 +10,10 @@ import type { SearchViewProps } from "./types.js";
 export function SearchView(props: SearchViewProps) {
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const dialogOpen = Boolean(props.details || props.pendingComic);
   useEffect(() => {
     const dialog = dialogRef.current;
-    if (!props.details || !dialog) return;
+    if (!dialogOpen || !dialog) return;
     dialog.showModal();
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -20,7 +22,7 @@ export function SearchView(props: SearchViewProps) {
       document.body.style.overflow = previousOverflow;
       returnFocusRef.current?.focus();
     };
-  }, [props.details]);
+  }, [dialogOpen]);
 
   return (
     <>
@@ -65,11 +67,12 @@ export function SearchView(props: SearchViewProps) {
           props.onOpenComic(comic, sourceKey);
         }}
       />
-      {props.details && (
+      {dialogOpen && (
         <dialog
           ref={dialogRef}
           className="comic-dialog"
           aria-label="漫画详情"
+          aria-busy={props.loadingDetails}
           onCancel={props.onCloseDetails}
         >
           <div className="dialog-header">
@@ -78,29 +81,50 @@ export function SearchView(props: SearchViewProps) {
               关闭
             </button>
           </div>
-          <fieldset disabled={props.busy} className="detail-content">
-            <ComicDetailsPanel
-              detailSourceKey={props.detailSourceKey}
-              details={props.details}
-              episodeId={props.episodeId}
-              selectedEpisodeIds={props.selectedEpisodeIds}
-              episodePageCounts={props.episodePageCounts}
-              downloadCreateStatus={props.downloadCreateStatus}
-              onPreviewEpisode={props.onPreviewEpisode}
-              onCountAllPages={props.onCountAllPages}
-              onToggleSelectedEpisode={props.onToggleSelectedEpisode}
-              onSelectEpisodes={props.onSelectEpisodes}
-              onCreateDownload={props.onCreateDownload}
-            />
-            {props.previewImages.length > 0 && (
-              <ChapterPreview
+          {props.pendingComic && (
+            <div className="detail-pending">
+              <h2>{props.pendingComic.comic.title}</h2>
+              {props.detailError ? (
+                <div className="alert" role="alert">
+                  <p>{props.detailError}</p>
+                  <button
+                    onClick={() =>
+                      props.onOpenComic(props.pendingComic!.comic, props.pendingComic!.sourceKey)
+                    }
+                  >
+                    重试加载详情
+                  </button>
+                </div>
+              ) : (
+                <LoadingStatus label="正在加载漫画详情与章节…" />
+              )}
+            </div>
+          )}
+          {props.details && (
+            <fieldset disabled={props.busy} className="detail-content">
+              <ComicDetailsPanel
                 detailSourceKey={props.detailSourceKey}
                 details={props.details}
                 episodeId={props.episodeId}
-                previewImages={props.previewImages}
+                selectedEpisodeIds={props.selectedEpisodeIds}
+                episodePageCounts={props.episodePageCounts}
+                downloadCreateStatus={props.downloadCreateStatus}
+                onPreviewEpisode={props.onPreviewEpisode}
+                onCountAllPages={props.onCountAllPages}
+                onToggleSelectedEpisode={props.onToggleSelectedEpisode}
+                onSelectEpisodes={props.onSelectEpisodes}
+                onCreateDownload={props.onCreateDownload}
               />
-            )}
-          </fieldset>
+              {props.previewImages.length > 0 && (
+                <ChapterPreview
+                  detailSourceKey={props.detailSourceKey}
+                  details={props.details}
+                  episodeId={props.episodeId}
+                  previewImages={props.previewImages}
+                />
+              )}
+            </fieldset>
+          )}
         </dialog>
       )}
     </>
