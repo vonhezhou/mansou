@@ -1,4 +1,4 @@
-import { startTransition, useRef, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import type { Comic } from "@venera/contracts";
 import { veneraApi } from "../api/venera.js";
 import type { AggregatedSearchItem, Details, Source } from "../types.js";
@@ -8,6 +8,7 @@ type RunWith = (setLoading: (value: boolean) => void, task: () => Promise<void>)
 type UseSearchOptions = {
   runWith: RunWith;
   sourceKey: string;
+  sources?: Source[];
   detailSourceKey: string;
   setSourceKey: (value: string) => void;
   setDetailSourceKey: (value: string) => void;
@@ -38,6 +39,51 @@ export function useSearch(options: UseSearchOptions) {
   const [episodePageCounts, setEpisodePageCounts] = useState<Record<string, number>>({});
   const [downloadCreateStatus, setDownloadCreateStatus] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
+  const [aggregatePendingKeys, setAggregatePendingKeys] = useState<string[]>([]);
+  const searchController = useRef<AbortController | null>(null);
+  const searchRequest = useRef(0);
+  useEffect(
+    () => () => {
+      searchRequest.current++;
+      searchController.current?.abort();
+    },
+    [],
+  );
+
+  async function runSearch(task: (signal: AbortSignal, request: number) => Promise<void>) {
+    const request = ++searchRequest.current;
+    searchController.current?.abort();
+    const controller = new AbortController();
+    searchController.current = controller;
+    await options.runWith(
+      (loading) => {
+        if (request === searchRequest.current) setSearching(loading);
+      },
+      async () => {
+        try {
+          await task(controller.signal, request);
+        } catch (error) {
+          if (!controller.signal.aborted) throw error;
+        } finally {
+          if (request === searchRequest.current) {
+            searchController.current = null;
+            setAggregatePendingKeys([]);
+          }
+        }
+      },
+    );
+  }
+
+  function cancelSearch() {
+    searchRequest.current++;
+    searchController.current?.abort();
+    searchController.current = null;
+    setSearching(false);
+    setAggregatePendingKeys([]);
+    setAggregatedResults((current) =>
+      current.map((item) => (!item.result && !item.error ? { ...item, cancelled: true } : item)),
+    );
+  }
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [pendingComic, setPendingComic] = useState<{ comic: Comic; sourceKey: string } | null>(
     null,
@@ -66,8 +112,9 @@ export function useSearch(options: UseSearchOptions) {
       mode: "single" as const,
     };
     if (!query.keyword) return;
-    await options.runWith(setSearching, async () => {
-      const data = await veneraApi.search(query.sourceKey, query.keyword, { page: 1 });
+    await runSearch(async (signal, request) => {
+      const data = await veneraApi.search(query.sourceKey, query.keyword, { page: 1 }, signal);
+      if (request !== searchRequest.current) return;
       startTransition(() => {
         setSearchQuery(query);
         setResults(data.comics ?? []);
@@ -89,19 +136,48 @@ export function useSearch(options: UseSearchOptions) {
       mode: "aggregate" as const,
     };
     if (!query.keyword || aggregateSourceKeys.length === 0) return;
-    await options.runWith(setSearching, async () => {
-      const data = await veneraApi.aggregatedSearch(query.keyword, aggregateSourceKeys);
-      startTransition(() => {
-        setSearchQuery(query);
-        setAggregatedResults(data);
-        setResults([]);
-        setSearchPage(1);
-        setSearchNext(null);
-        setSearchMaxPage(undefined);
-        setHasSearched(true);
-        setDetails(null);
-        setPreviewImages([]);
-      });
+    const keys = [...new Set(aggregateSourceKeys)];
+    await runSearch(async (signal, request) => {
+      setSearchQuery(query);
+      setAggregatedResults(
+        keys.map((sourceKey) => ({
+          sourceKey,
+          sourceName:
+            options.sources?.find((source) => source.key === sourceKey)?.name ?? sourceKey,
+        })),
+      );
+      setAggregatePendingKeys(keys);
+      setResults([]);
+      setSearchPage(1);
+      setSearchNext(null);
+      setSearchMaxPage(undefined);
+      setHasSearched(true);
+      setDetails(null);
+      setPreviewImages([]);
+      let nextSource = 0;
+      async function worker() {
+        while (nextSource < keys.length && !signal.aborted) {
+          const sourceKey = keys[nextSource++];
+          let patch: Pick<AggregatedSearchItem, "result" | "error">;
+          try {
+            patch = {
+              result: await veneraApi.search(sourceKey, query.keyword, { page: 1 }, signal),
+            };
+          } catch (error) {
+            if (signal.aborted) return;
+            patch = { error: error instanceof Error ? error.message : String(error) };
+          }
+          if (request !== searchRequest.current || signal.aborted) return;
+          startTransition(() =>
+            setAggregatedResults((current) =>
+              current.map((item) => (item.sourceKey === sourceKey ? { ...item, ...patch } : item)),
+            ),
+          );
+          setAggregatePendingKeys((current) => current.filter((key) => key !== sourceKey));
+        }
+      }
+      // 保留浏览器连接给详情、图片和 SSE，避免大量慢源占满所有连接。
+      await Promise.all(Array.from({ length: Math.min(3, keys.length) }, () => worker()));
     });
   }
 
@@ -112,13 +188,15 @@ export function useSearch(options: UseSearchOptions) {
 
   async function loadMoreResults() {
     if (!searchQuery || searchQuery.mode !== "single" || !canLoadMore) return;
-    await options.runWith(setSearching, async () => {
+    await runSearch(async (signal, request) => {
       const nextPage = searchPage + 1;
       const data = await veneraApi.search(
         searchQuery.sourceKey,
         searchQuery.keyword,
         searchNext ? { next: searchNext } : { page: nextPage },
+        signal,
       );
+      if (request !== searchRequest.current) return;
       startTransition(() => {
         setResults((current) => [...current, ...(data.comics ?? [])]);
         setSearchPage(nextPage);
@@ -269,11 +347,12 @@ export function useSearch(options: UseSearchOptions) {
 
   const canLoadMore =
     Boolean(searchNext) || (searchMaxPage !== undefined && searchPage < searchMaxPage);
-  const searchBusy =
-    searching || loadingDetails || previewingChapter || countingPages || creatingDownload;
+  const detailsBusy = loadingDetails || previewingChapter || countingPages || creatingDownload;
+  const searchBusy = searching || detailsBusy;
 
   return {
     aggregateResultLayout,
+    aggregatePendingKeys,
     aggregateSourceKeys,
     aggregatedResults,
     canLoadMore,
@@ -289,6 +368,9 @@ export function useSearch(options: UseSearchOptions) {
     previewImages,
     results,
     searchBusy,
+    detailsBusy,
+    searching,
+    cancelSearch,
     searchMaxPage,
     searchQuery,
     searchMode,

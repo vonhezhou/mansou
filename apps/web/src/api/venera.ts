@@ -91,11 +91,15 @@ export const veneraApi = {
     sourceKey: string,
     keyword: string,
     cursor?: { page?: number; next?: string | null },
+    signal?: AbortSignal,
   ) => {
     const params = new URLSearchParams({ keyword });
     if (cursor?.next) params.set("next", cursor.next);
     else params.set("page", String(cursor?.page ?? 1));
-    return api<SearchResult>(`/search/${encodeURIComponent(sourceKey)}?${params}`);
+    return api<SearchResult>(
+      `/search/${encodeURIComponent(sourceKey)}?${params}`,
+      signal ? { signal } : undefined,
+    );
   },
   aggregatedSearch: (keyword: string, sources?: string[]) => {
     const params = new URLSearchParams({ keyword });

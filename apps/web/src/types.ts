@@ -19,6 +19,7 @@ export type SearchResult = { comics: Comic[]; maxPage?: number; next?: string | 
 export type AggregatedSearchItem = {
   sourceKey: string;
   sourceName: string;
+  cancelled?: boolean;
   result?: SearchResult;
   error?: string;
 };

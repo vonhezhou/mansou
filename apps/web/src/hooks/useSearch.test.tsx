@@ -165,7 +165,13 @@ it("loads more using the submitted keyword and source after the controls change"
   await act(async () => state.setKeyword("未提交的新词"));
   await act(async () => root.render(<Harness sourceKey="another-source" />));
   await act(async () => state.loadMoreResults());
-  expect(search).toHaveBeenNthCalledWith(2, "search-source", "原关键词", { page: 2 });
+  expect(search).toHaveBeenNthCalledWith(
+    2,
+    "search-source",
+    "原关键词",
+    { page: 2 },
+    expect.any(AbortSignal),
+  );
   expect(state.searchQuery).toEqual({
     keyword: "原关键词",
     sourceKey: "search-source",
@@ -179,4 +185,86 @@ it("does not issue a blank search", async () => {
   await act(async () => state.setKeyword("   "));
   await act(async () => state.submitSearch());
   expect(search).not.toHaveBeenCalled();
+});
+
+it("publishes aggregate results as each source finishes and isolates source failures", async () => {
+  const fast = deferred<Awaited<ReturnType<typeof veneraApi.search>>>();
+  const slow = deferred<Awaited<ReturnType<typeof veneraApi.search>>>();
+  vi.spyOn(veneraApi, "search").mockImplementation((key) =>
+    key === "fast" ? fast.promise : slow.promise,
+  );
+  await act(async () => {
+    state.setSearchMode("aggregate");
+    state.setKeyword("漫画");
+    state.toggleAggregateSource("fast");
+    state.toggleAggregateSource("slow");
+  });
+  let pending: Promise<void>;
+  await act(async () => {
+    pending = state.submitSearch();
+  });
+  await act(async () => fast.resolve({ comics: [{ id: "fast-comic", title: "快速结果" }] }));
+  expect(state.aggregatedResults[0].result?.comics[0].id).toBe("fast-comic");
+  expect(state.aggregatePendingKeys).toEqual(["slow"]);
+  expect(state.searching).toBe(true);
+  await act(async () => {
+    slow.reject(new Error("源不可达"));
+    await pending;
+  });
+  expect(state.aggregatedResults[1].error).toBe("源不可达");
+  expect(state.aggregatedResults[0].result?.comics).toHaveLength(1);
+  expect(state.searching).toBe(false);
+});
+
+it("aborts aggregate requests, preserves completed results and ignores late responses", async () => {
+  const slow = deferred<Awaited<ReturnType<typeof veneraApi.search>>>();
+  let signal: AbortSignal | undefined;
+  vi.spyOn(veneraApi, "search").mockImplementation((key, _keyword, _cursor, requestSignal) => {
+    signal = requestSignal;
+    return key === "fast"
+      ? Promise.resolve({ comics: [{ id: "fast", title: "已完成" }] })
+      : slow.promise;
+  });
+  await act(async () => {
+    state.setSearchMode("aggregate");
+    state.setKeyword("漫画");
+    state.toggleAggregateSource("fast");
+    state.toggleAggregateSource("slow");
+  });
+  let pending: Promise<void>;
+  await act(async () => {
+    pending = state.submitSearch();
+  });
+  await act(async () => state.cancelSearch());
+  expect(signal?.aborted).toBe(true);
+  expect(state.searching).toBe(false);
+  expect(state.aggregatePendingKeys).toEqual([]);
+  expect(state.aggregatedResults[0].result?.comics[0].id).toBe("fast");
+  expect(state.aggregatedResults[1].cancelled).toBe(true);
+  await act(async () => {
+    slow.resolve({ comics: [{ id: "late", title: "迟到结果" }] });
+    await pending;
+  });
+  expect(state.aggregatedResults[1].result).toBeUndefined();
+});
+
+it("limits aggregate concurrency and does not start queued sources after cancellation", async () => {
+  const response = deferred<Awaited<ReturnType<typeof veneraApi.search>>>();
+  const search = vi.spyOn(veneraApi, "search").mockReturnValue(response.promise);
+  await act(async () => {
+    state.setSearchMode("aggregate");
+    state.setKeyword("漫画");
+    for (const key of ["a", "b", "c", "d", "e"]) state.toggleAggregateSource(key);
+  });
+  let pending: Promise<void>;
+  await act(async () => {
+    pending = state.submitSearch();
+  });
+  expect(search).toHaveBeenCalledTimes(3);
+  await act(async () => state.cancelSearch());
+  await act(async () => {
+    response.resolve({ comics: [] });
+    await pending;
+  });
+  expect(search).toHaveBeenCalledTimes(3);
 });

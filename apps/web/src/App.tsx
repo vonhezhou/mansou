@@ -45,6 +45,7 @@ function Workspace({
   const searchState = useSearch({
     runWith,
     sourceKey,
+    sources: sourcesState.sources,
     detailSourceKey,
     setSourceKey,
     setDetailSourceKey,
@@ -153,6 +154,10 @@ function Workspace({
       {activeTab === "search" && (
         <SearchView
           busy={searchState.searchBusy}
+          searching={searchState.searching}
+          detailsBusy={searchState.detailsBusy}
+          aggregatePendingKeys={searchState.aggregatePendingKeys}
+          onCancelSearch={searchState.cancelSearch}
           loadingDetails={searchState.loadingDetails}
           pendingComic={searchState.pendingComic}
           detailError={searchState.detailError}

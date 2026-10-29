@@ -53,3 +53,25 @@
   color: var(--color-muted);
   font-size: 0.85rem;
 }
+
+.chapter-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.chapter-pagination button {
+  padding: 8px 10px;
+}
+.chapter-pagination select {
+  width: auto;
+  max-width: 100%;
+  padding: 8px;
+}
+.chapter-page-summary {
+  flex-basis: 100%;
+}

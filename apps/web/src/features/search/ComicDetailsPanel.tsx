@@ -74,6 +74,7 @@ export function ComicDetailsPanel(props: ComicDetailsPanelProps) {
             <button onClick={() => props.onPreviewEpisode()}>预览内容</button>
           )}
           <ChapterSelector
+            key={`${props.detailSourceKey}:${props.details.comicId ?? props.details.id}`}
             chapters={props.details.chapters ?? {}}
             episodeId={props.episodeId}
             selectedEpisodeIds={props.selectedEpisodeIds}

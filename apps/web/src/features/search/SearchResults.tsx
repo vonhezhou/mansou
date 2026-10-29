@@ -1,3 +1,4 @@
+import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { useState } from "react";
 import { Icon } from "../../app/Icon.js";
 import type { Comic } from "@venera/contracts";
@@ -6,6 +7,8 @@ import { ComicCard } from "./ComicCard.js";
 
 type SearchResultsProps = {
   busy: boolean;
+  interactionBusy?: boolean;
+  pendingSourceKeys?: string[];
   sourceKey: string;
   sourceName?: string;
   keyword?: string;
@@ -39,7 +42,7 @@ export function SearchResults(props: SearchResultsProps) {
   return (
     <section
       className={`search-results ${layout === "list" ? "list-layout" : ""}`}
-      aria-busy={props.busy}
+      aria-busy={props.interactionBusy ?? props.busy}
     >
       <header className="result-toolbar">
         <div className="result-heading">
@@ -100,6 +103,17 @@ export function SearchResults(props: SearchResultsProps) {
           </div>
         </div>
       </header>
+      {Boolean(props.pendingSourceKeys?.length) && (
+        <LoadingStatus
+          label={`正在搜索 ${props.pendingSourceKeys!.length} 个源，已完成 ${props.aggregatedResults.length - props.pendingSourceKeys!.length}/${props.aggregatedResults.length} 个源…`}
+        />
+      )}
+      {props.aggregatedResults.some((item) => item.cancelled) &&
+        props.searchMode === "aggregate" && (
+          <p className="muted" role="status">
+            已停止未完成的源，保留已取得的结果。
+          </p>
+        )}
       {props.busy &&
         (props.searchMode === "aggregate" ? aggregateCount === 0 : props.results.length === 0) && (
           <p className="muted" role="status">
@@ -122,7 +136,10 @@ export function SearchResults(props: SearchResultsProps) {
       {props.hasSearched &&
         !props.busy &&
         props.searchMode === "aggregate" &&
-        aggregateCount === 0 && <p className="muted">聚合搜索没有找到结果，或所有源均失败。</p>}
+        aggregateCount === 0 &&
+        !props.aggregatedResults.some((item) => item.cancelled) && (
+          <p className="muted">聚合搜索没有找到结果，或所有源均失败。</p>
+        )}
       {props.searchMode === "single" && (
         <>
           <div className="cards">
@@ -133,7 +150,7 @@ export function SearchResults(props: SearchResultsProps) {
                 sourceKey={props.sourceKey}
                 sourceName={props.sourceName}
                 onOpenComic={props.onOpenComic}
-                busy={props.busy}
+                busy={props.interactionBusy ?? props.busy}
               />
             ))}
           </div>
@@ -171,7 +188,7 @@ export function SearchResults(props: SearchResultsProps) {
               sourceKey={sourceKey}
               sourceName={sourceName}
               onOpenComic={props.onOpenComic}
-              busy={props.busy}
+              busy={props.interactionBusy ?? props.busy}
             />
           ))}
         </div>
@@ -189,7 +206,13 @@ export function SearchResults(props: SearchResultsProps) {
                 </div>
                 <span className="muted">
                   {item.sourceKey}
-                  {item.error ? ` / ${item.error}` : ` / ${item.result?.comics.length ?? 0} 项`}
+                  {props.pendingSourceKeys?.includes(item.sourceKey)
+                    ? " / 搜索中…"
+                    : item.cancelled
+                      ? " / 已停止"
+                      : item.error
+                        ? ` / ${item.error}`
+                        : ` / ${item.result?.comics.length ?? 0} 项`}
                 </span>
               </header>
               {item.result?.comics.length ? (
@@ -201,7 +224,7 @@ export function SearchResults(props: SearchResultsProps) {
                       sourceKey={item.sourceKey}
                       sourceName={item.sourceName}
                       onOpenComic={props.onOpenComic}
-                      busy={props.busy}
+                      busy={props.interactionBusy ?? props.busy}
                     />
                   ))}
                 </div>

@@ -30,6 +30,8 @@ export function SearchView(props: SearchViewProps) {
       <section className="search-hero">
         <SearchControls
           busy={props.busy}
+          searching={props.searching}
+          onCancelSearch={props.onCancelSearch}
           sourceKey={props.sourceKey}
           sources={props.sources}
           keyword={props.keyword}
@@ -53,6 +55,8 @@ export function SearchView(props: SearchViewProps) {
         sourceName={props.sources.find((source) => source.key === resultSourceKey)?.name}
         keyword={props.searchQuery?.keyword}
         busy={props.busy}
+        interactionBusy={props.detailsBusy ?? (props.busy && !props.searching)}
+        pendingSourceKeys={props.aggregatePendingKeys}
         sourceKey={resultSourceKey}
         searchMode={props.searchQuery?.mode ?? props.searchMode}
         aggregateResultLayout={props.aggregateResultLayout}
@@ -103,7 +107,7 @@ export function SearchView(props: SearchViewProps) {
             </div>
           )}
           {props.details && (
-            <fieldset disabled={props.busy} className="detail-content">
+            <fieldset disabled={props.detailsBusy ?? props.busy} className="detail-content">
               <ComicDetailsPanel
                 detailSourceKey={props.detailSourceKey}
                 details={props.details}

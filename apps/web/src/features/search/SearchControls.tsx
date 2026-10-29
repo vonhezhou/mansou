@@ -5,6 +5,8 @@ import type { Source } from "../../types.js";
 
 type SearchControlsProps = {
   busy: boolean;
+  searching?: boolean;
+  onCancelSearch?: () => void;
   sourceKey: string;
   sources: Source[];
   keyword: string;
@@ -63,6 +65,11 @@ export function SearchControls(props: SearchControlsProps) {
           {props.busy ? <LoadingStatus label="处理中…" /> : "搜索"}
         </button>
       </form>
+      {props.searching && props.onCancelSearch && (
+        <button className="secondary-button stop-search" onClick={props.onCancelSearch}>
+          停止搜索，保留已有结果
+        </button>
+      )}
       <div className="search-mode-row">
         <span>搜索方式</span>
         <div className="segmented-control" role="group" aria-label="搜索模式">
