@@ -12,6 +12,7 @@ const operationManifest = {
   updateSettings: true,
   resetSettings: true,
   invokeSetting: true,
+  respondToDialog: true,
   auth: true,
   login: true,
   logout: true,

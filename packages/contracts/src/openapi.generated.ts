@@ -412,11 +412,52 @@ export const openApiDocument = {
           "200": {
             description: "OK",
             content: {
-              "application/json": { schema: { $ref: "#/components/schemas/SourceSettings" } },
+              "application/json": {
+                schema: { $ref: "#/components/schemas/SourceSettingsActionResult" },
+              },
             },
           },
           "400": { description: "Invalid input or unsupported source capability" },
           "422": { description: "Source login failed" },
+        },
+      },
+    },
+    "/api/v1/sources/{sourceKey}/settings/dialogs/{dialogId}/respond": {
+      post: {
+        operationId: "respondToSourceDialog",
+        tags: ["sources"],
+        parameters: [
+          { name: "sourceKey", in: "path", required: true, schema: { type: "string" } },
+          {
+            name: "dialogId",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["buttonIndex"],
+                properties: { buttonIndex: { type: ["integer", "null"], minimum: 0 } },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/SourceSettingsActionResult" },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/Error" },
+          "409": { $ref: "#/components/responses/Error" },
         },
       },
     },
@@ -1421,6 +1462,41 @@ export const openApiDocument = {
           values: { type: "object", additionalProperties: true },
         },
         required: ["schema", "values"],
+      },
+      SourceUiEvent: {
+        oneOf: [
+          {
+            type: "object",
+            required: ["type", "message"],
+            properties: {
+              type: { type: "string", enum: ["message"] },
+              message: { type: "string" },
+            },
+          },
+          {
+            type: "object",
+            required: ["type", "id", "title", "message", "buttons"],
+            properties: {
+              type: { type: "string", enum: ["dialog"] },
+              id: { type: "string", format: "uuid" },
+              title: { type: "string" },
+              message: { type: "string" },
+              buttons: { type: "array", items: { type: "string" } },
+            },
+          },
+        ],
+      },
+      SourceSettingsActionResult: {
+        allOf: [
+          { $ref: "#/components/schemas/SourceSettings" },
+          {
+            type: "object",
+            required: ["events"],
+            properties: {
+              events: { type: "array", items: { $ref: "#/components/schemas/SourceUiEvent" } },
+            },
+          },
+        ],
       },
       Comic: {
         type: "object",

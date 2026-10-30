@@ -9,6 +9,7 @@ import type {
   ComicDetails,
   SettingDefinition,
 } from "@mansou/core";
+import type { SourceUi } from "./sourceUi.js";
 import type { VeneraComicSource } from "./types.js";
 import type { RuntimeOptions } from "../../options.js";
 import type { SourceDataStore } from "../../host/dataStore.js";
@@ -34,6 +35,7 @@ export class VeneraAdapter implements SourceProvider {
     private readonly globals: Record<string, unknown>,
     private readonly options: RuntimeOptions,
     private readonly fetch: typeof globalThis.fetch,
+    private readonly ui: SourceUi,
   ) {}
 
   async metadata(): Promise<SourceMetadata> {
@@ -123,7 +125,21 @@ export class VeneraAdapter implements SourceProvider {
   }
 
   async settings(): Promise<SourceSettings> {
-    return { schema: sourceSettingsSchema(this.source), values: this.values() };
+    const schema = sourceSettingsSchema(this.source) as SourceSettings["schema"];
+    const translate = (text: string) => this.source.translate?.(text) ?? text;
+    for (const field of Object.values(schema)) {
+      if (field.title) field.title = translate(field.title);
+      if (field.buttonText) field.buttonText = translate(field.buttonText);
+      if (field.options)
+        field.options = field.options.map((option) =>
+          typeof option === "string"
+            ? translate(option) === option
+              ? option
+              : { value: option, text: translate(option) }
+            : { ...option, ...(option.text ? { text: translate(option.text) } : {}) },
+        );
+    }
+    return { schema, values: this.values() };
   }
 
   async updateSettings(values: Record<string, unknown>) {
@@ -167,8 +183,13 @@ export class VeneraAdapter implements SourceProvider {
   async invokeSetting(key: string) {
     const action = settingAction(this.source, key);
     this.require(action, "setting action");
-    await action!.call(this.source);
-    return this.settings();
+    const events = await this.ui.capture(() => action!.call(this.source));
+    return { ...(await this.settings()), events };
+  }
+
+  async respondToDialog(id: string, buttonIndex: number | null) {
+    const events = await this.ui.respond(id, buttonIndex);
+    return { ...(await this.settings()), events };
   }
 
   async auth(): Promise<SourceAuth> {

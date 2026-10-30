@@ -66,6 +66,9 @@ export type RetryFailedDownloadImagesResult = Omit<
   "task"
 > & { task: DownloadTask | null };
 export type CacheStats = { files: number; bytes: number };
+export type SourceSettingsActionResult =
+  import("@mansou/contracts").components["schemas"]["SourceSettingsActionResult"];
+export type SourceUiEvent = import("@mansou/contracts").components["schemas"]["SourceUiEvent"];
 export type SettingsResponse = import("@mansou/contracts").components["schemas"]["SourceSettings"];
 export type SourceAuth = import("@mansou/contracts").components["schemas"]["SourceAuth"];
 export type SourceLogin = import("@mansou/contracts").components["schemas"]["SourceLogin"];

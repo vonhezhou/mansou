@@ -7,11 +7,13 @@ export type PluginErrorCode =
   | "PLUGIN_TIMEOUT"
   | "PLUGIN_NETWORK_ERROR"
   | "PLUGIN_SOURCE_ERROR"
+  | "SOURCE_INTERACTION_EXPIRED"
   | "SOURCE_NOT_LOADED"
   | "IMAGE_REJECTED";
 
 export class PluginRuntimeError extends Error {
   get statusCode() {
+    if (this.code === "SOURCE_INTERACTION_EXPIRED") return 409;
     return this.code === "SOURCE_ACCESS_RESTRICTED"
       ? 403
       : this.code === "SOURCE_SETTINGS_INVALID"

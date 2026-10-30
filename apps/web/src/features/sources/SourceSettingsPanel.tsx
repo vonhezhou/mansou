@@ -1,7 +1,9 @@
+import { useEffect, useRef } from "react";
+import { mergeSettingsDraft } from "./settingsDraft.js";
 import { LoadingStatus } from "../../app/LoadingStatus.js";
-import { useEffect, useRef, useState } from "react";
 import type { SettingsResponse } from "../../types.js";
-import { mansouApi } from "../../api/mansou.js";
+import { useSourceActions } from "./useSourceActions.js";
+import { SourceActionDialog } from "./SourceActionDialog.js";
 
 type SourceSettingsPanelProps = {
   busy: boolean;
@@ -15,15 +17,16 @@ type SourceSettingsPanelProps = {
 };
 
 export function SourceSettingsPanel(props: SourceSettingsPanelProps) {
-  const active = useRef(true);
+  const savedValues = useRef(props.sourceSettings?.values ?? {});
   useEffect(() => {
-    active.current = true;
-    return () => {
-      active.current = false;
-    };
-  }, []);
-  const [actionBusy, setActionBusy] = useState(false);
-  const [error, setError] = useState("");
+    savedValues.current = props.sourceSettings?.values ?? {};
+  }, [props.sourceSettings]);
+  const actions = useSourceActions(props.sourceKey, (result) => {
+    props.onSettingsJsonChange(
+      mergeSettingsDraft(savedValues.current, props.settingsJson, result.values),
+    );
+    savedValues.current = result.values;
+  });
   const title = `源设置：${props.sourceKey || "未选择"}`;
   if (!props.sourceSettings || props.sourceSettingsKey !== props.sourceKey)
     return (
@@ -41,27 +44,28 @@ export function SourceSettingsPanel(props: SourceSettingsPanelProps) {
   } catch {
     invalidJson = true;
   }
-  const busy = props.busy || actionBusy;
+  const busy = props.busy || actions.busy || !!actions.dialog;
   function update(key: string, value: unknown) {
     props.onSettingsJsonChange(JSON.stringify({ ...values, [key]: value }, null, 2));
-  }
-  async function invoke(key: string) {
-    setActionBusy(true);
-    setError("");
-    try {
-      const settings = await mansouApi.invokeSourceSetting(props.sourceKey, key);
-      if (active.current) props.onSettingsJsonChange(JSON.stringify(settings.values, null, 2));
-    } catch (error) {
-      setError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setActionBusy(false);
-    }
   }
   return (
     <section className="source-panel">
       <h3>{title}</h3>
-      {actionBusy && <LoadingStatus label="正在执行源设置操作…" />}
-      {error && <p role="alert">{error}</p>}
+      <div className="source-operation-status">
+        {actions.busy && <LoadingStatus label="正在执行源设置操作…" />}
+      </div>
+      {actions.error && <p role="alert">{actions.error}</p>}
+      {actions.messages.map((message, index) => (
+        <p className="source-action-message" key={index} role="status">
+          {message}
+        </p>
+      ))}
+      {actions.dialog && (
+        <SourceActionDialog
+          dialog={actions.dialog}
+          onChoose={(index) => void actions.respond(index)}
+        />
+      )}
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -75,7 +79,11 @@ export function SourceSettingsPanel(props: SourceSettingsPanelProps) {
               return (
                 <div key={key}>
                   <span>{field.title ?? key}</span>
-                  <button type="button" disabled={busy} onClick={() => void invoke(key)}>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={(event) => void actions.invoke(key, event.currentTarget)}
+                  >
                     {field.buttonText ?? "执行"}
                   </button>
                 </div>

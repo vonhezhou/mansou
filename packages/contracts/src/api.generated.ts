@@ -317,6 +317,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/sources/{sourceKey}/settings/dialogs/{dialogId}/respond": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["respondToSourceDialog"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/sources/{sourceKey}/cookies": {
     parameters: {
       query?: never;
@@ -987,6 +1003,24 @@ export interface components {
       values: {
         [key: string]: unknown;
       };
+    };
+    SourceUiEvent:
+      | {
+          /** @enum {string} */
+          type: "message";
+          message: string;
+        }
+      | {
+          /** @enum {string} */
+          type: "dialog";
+          /** Format: uuid */
+          id: string;
+          title: string;
+          message: string;
+          buttons: string[];
+        };
+    SourceSettingsActionResult: components["schemas"]["SourceSettings"] & {
+      events: components["schemas"]["SourceUiEvent"][];
     };
     Comic: {
       sourceKey?: string;
@@ -1733,7 +1767,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["SourceSettings"];
+          "application/json": components["schemas"]["SourceSettingsActionResult"];
         };
       };
       /** @description Invalid input or unsupported source capability */
@@ -1750,6 +1784,37 @@ export interface operations {
         };
         content?: never;
       };
+    };
+  };
+  respondToSourceDialog: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+        dialogId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          buttonIndex: number | null;
+        };
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceSettingsActionResult"];
+        };
+      };
+      400: components["responses"]["Error"];
+      409: components["responses"]["Error"];
     };
   };
   listSourceCookies: {

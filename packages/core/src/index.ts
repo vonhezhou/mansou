@@ -64,6 +64,10 @@ export type SourceSettings = {
   schema: Record<string, SettingDefinition>;
   values: Record<string, unknown>;
 };
+export type SourceUiEvent =
+  | { type: "message"; message: string }
+  | { type: "dialog"; id: string; title: string; message: string; buttons: string[] };
+export type SourceSettingsActionResult = SourceSettings & { events: SourceUiEvent[] };
 export type SourceAuth = {
   loggedIn: boolean;
   methods: Array<"password" | "cookies">;
@@ -98,7 +102,8 @@ export interface SourceProvider {
   settings(): Promise<SourceSettings>;
   updateSettings(values: Record<string, unknown>): Promise<SourceSettings>;
   resetSettings(): Promise<SourceSettings>;
-  invokeSetting(key: string): Promise<SourceSettings>;
+  invokeSetting(key: string): Promise<SourceSettingsActionResult>;
+  respondToDialog(id: string, buttonIndex: number | null): Promise<SourceSettingsActionResult>;
   auth(): Promise<SourceAuth>;
   login(input: LoginInput): Promise<SourceAuth>;
   logout(): Promise<SourceAuth>;

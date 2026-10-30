@@ -1,5 +1,6 @@
 import type { SearchResult } from "@mansou/core";
 export type VeneraComicSource = {
+  translate?: (text: string) => string;
   key: string;
   name: string;
   version: string;

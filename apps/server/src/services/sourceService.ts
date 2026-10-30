@@ -169,6 +169,9 @@ export class SourceService implements SourceRegistry {
   invokeSetting(key: string, setting: string) {
     return this.get(key).invokeSetting(setting);
   }
+  respondToDialog(key: string, id: string, buttonIndex: number | null) {
+    return this.get(key).respondToDialog(id, buttonIndex);
+  }
   auth(key: string) {
     return this.get(key).auth();
   }

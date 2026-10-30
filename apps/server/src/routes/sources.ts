@@ -98,6 +98,13 @@ export async function registerSourceRoutes(
       .parse(request.params);
     return context.sources.invokeSetting(params.sourceKey, params.settingKey);
   });
+  app.post("/sources/:sourceKey/settings/dialogs/:dialogId/respond", async (request) => {
+    const params = z
+      .object({ sourceKey: z.string(), dialogId: z.string().uuid() })
+      .parse(request.params);
+    const body = z.object({ buttonIndex: z.number().int().min(0).nullable() }).parse(request.body);
+    return context.sources.respondToDialog(params.sourceKey, params.dialogId, body.buttonIndex);
+  });
   app.get("/sources/:sourceKey/auth", async (request) => {
     const params = z.object({ sourceKey: z.string() }).parse(request.params);
     return context.sources.auth(params.sourceKey);

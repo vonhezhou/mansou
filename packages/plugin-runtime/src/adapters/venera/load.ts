@@ -1,3 +1,4 @@
+import { SourceUi } from "./sourceUi.js";
 import vm from "node:vm";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
@@ -54,10 +55,29 @@ export async function loadVenera(filePath: string, options: RuntimeOptions) {
   Object.setPrototypeOf(GuardedPromise, Promise);
   GuardedPromise.prototype = Promise.prototype;
   try {
+    let source: VeneraComicSource | undefined;
+    const common: Record<string, string> = options.locale.startsWith("zh")
+      ? {
+          Cancel: "取消",
+          Apply: "应用",
+          Close: "关闭",
+          OK: "确定",
+          "Update Success": "更新成功",
+          "Update Failed": "更新失败",
+        }
+      : {};
+    const ui = new SourceUi((text) => {
+      const translated = source?.translate?.(text) ?? text;
+      return translated !== text ? translated : (common[text] ?? text);
+    });
+    const sourceFetch: typeof fetch = (...args) =>
+      ui.track(network.fetch(...args).then((response) => ui.observeResponse(response)));
     const data = new SourceDataStore(storage);
     const cookies = new SourceCookieStore(storage, options.dataDir);
     const base = createComicSourceBase(data, options.locale);
-    const api = await createRuntimeApi(sourceKey, data, cookies, options, network.fetch);
+    const api = await createRuntimeApi(sourceKey, data, cookies, options, sourceFetch, (promise) =>
+      ui.track(promise),
+    );
     const script = await readFile(filePath, "utf8");
     const className = script.match(/class\s+([A-Za-z0-9_]+)\s+extends\s+ComicSource/)?.[1];
     if (!className) throw new Error("Invalid comic source: class extending ComicSource not found");
@@ -80,7 +100,7 @@ export async function loadVenera(filePath: string, options: RuntimeOptions) {
         timers.delete(handle);
       },
       Promise: GuardedPromise,
-      fetch: (...args: Parameters<typeof fetch>) => guard(network.fetch(...args)),
+      fetch: (...args: Parameters<typeof fetch>) => guard(sourceFetch(...args)),
       randomInt: (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min,
       Comic: class {
         constructor(value: object) {
@@ -94,14 +114,14 @@ export async function loadVenera(filePath: string, options: RuntimeOptions) {
       },
       ComicSource: base,
       UI: {
-        showMessage: (...args: unknown[]) => console.info(...args),
-        showDialog: (...args: unknown[]) => console.info(...args),
-        toast: (...args: unknown[]) => console.info(...args),
+        showMessage: (message: unknown) => ui.message(message),
+        showDialog: (...args: Parameters<SourceUi["dialog"]>) => ui.dialog(...args),
+        toast: (message: unknown) => ui.message(message),
       },
     };
     Object.assign(sandbox, { globalThis: sandbox, self: sandbox, window: sandbox });
     const context = vm.createContext(sandbox);
-    const source = vm.runInContext(`${script}\n;new ${className}();`, context, {
+    source = vm.runInContext(`${script}\n;new ${className}();`, context, {
       filename: filePath,
       timeout: options.pluginCallTimeoutMs,
     }) as VeneraComicSource;
@@ -123,7 +143,7 @@ export async function loadVenera(filePath: string, options: RuntimeOptions) {
       if (initTimer) clearTimeout(initTimer);
     }
     base.sources[source.key] = source;
-    const provider = new VeneraAdapter(source, data, cookies, api, options, network.fetch);
+    const provider = new VeneraAdapter(source, data, cookies, api, options, sourceFetch, ui);
     return { provider, close: dispose };
   } catch (error) {
     await dispose();

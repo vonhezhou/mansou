@@ -260,8 +260,9 @@ export async function createRuntimeApi(
   cookieStore: SourceCookieStore,
   config: RuntimeOptions,
   fetchWithProxy: typeof fetch,
+  track: <T>(promise: Promise<T>) => Promise<T> = (promise) => promise,
 ) {
-  async function request(url: string, options: RequestOptions = {}) {
+  async function performRequest(url: string, options: RequestOptions = {}) {
     const jar = await cookieStore.getJar(sourceKey);
     options = normalizeRequestOptions(options);
     const requestUrl = appendQuery(url.startsWith("//") ? `https:${url}` : url, options.query);
@@ -321,6 +322,10 @@ export async function createRuntimeApi(
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  function request(url: string, options: RequestOptions = {}) {
+    return track(performRequest(url, options));
   }
 
   const Network = {

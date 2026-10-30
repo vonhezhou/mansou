@@ -11,6 +11,7 @@ import type {
   RetryFailedDownloadImagesResult,
   SearchResult,
   SettingsResponse,
+  SourceSettingsActionResult,
   SourceAuth,
   SourceLogin,
   Source,
@@ -70,9 +71,17 @@ export const mansouApi = {
   logoutSource: (key: string) =>
     api<SourceAuth>(`/sources/${encodeURIComponent(key)}/auth/logout`, { method: "POST" }),
   invokeSourceSetting: (key: string, setting: string) =>
-    api<SettingsResponse>(
+    api<SourceSettingsActionResult>(
       `/sources/${encodeURIComponent(key)}/settings/${encodeURIComponent(setting)}/invoke`,
       { method: "POST" },
+    ),
+  respondToSourceDialog: (key: string, dialogId: string, buttonIndex: number | null) =>
+    api<SourceSettingsActionResult>(
+      `/sources/${encodeURIComponent(key)}/settings/dialogs/${encodeURIComponent(dialogId)}/respond`,
+      {
+        method: "POST",
+        body: JSON.stringify({ buttonIndex }),
+      },
     ),
   getSourceSettings: (sourceKey: string) =>
     api<SettingsResponse>(`/sources/${encodeURIComponent(sourceKey)}/settings`),

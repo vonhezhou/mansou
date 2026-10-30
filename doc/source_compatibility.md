@@ -75,17 +75,24 @@ CLI 默认输出 JSON；使用 `--output=result.md --format=markdown` 可输出 
 
 插件在 Worker 内提供以下兼容别名：
 
-| API                                 | 兼容关系                      | 说明                                    |
-| ----------------------------------- | ----------------------------- | --------------------------------------- |
-| `APP`                               | `App` alias                   | 兼容旧源直接读取 `APP.version` 等字段。 |
-| `app`                               | `App` alias                   | 兼容小写全局对象写法。                  |
-| `Http`                              | `Network` alias               | 兼容旧版网络 API 命名。                 |
-| `HTML`                              | `Html` alias                  | 兼容旧版 HTML API 命名。                |
-| `Storage`                           | `Data` alias                  | 兼容旧版数据存储 API 命名。             |
-| `Console`                           | `Log` alias                   | 兼容旧版日志 API 命名。                 |
-| `Data.loadData/saveData/deleteData` | `Data.load/save/delete` alias | 兼容旧版 Data 方法命名。                |
-| `globalThis/self/window`            | sandbox self references       | 兼容浏览器式全局对象访问。              |
-| `UI.toast`                          | log-backed shim               | 仅记录日志，不弹出真实 UI。             |
+| API                                 | 兼容关系                      | 说明                                                               |
+| ----------------------------------- | ----------------------------- | ------------------------------------------------------------------ |
+| `APP`                               | `App` alias                   | 兼容旧源直接读取 `APP.version` 等字段。                            |
+| `app`                               | `App` alias                   | 兼容小写全局对象写法。                                             |
+| `Http`                              | `Network` alias               | 兼容旧版网络 API 命名。                                            |
+| `HTML`                              | `Html` alias                  | 兼容旧版 HTML API 命名。                                           |
+| `Storage`                           | `Data` alias                  | 兼容旧版数据存储 API 命名。                                        |
+| `Console`                           | `Log` alias                   | 兼容旧版日志 API 命名。                                            |
+| `Data.loadData/saveData/deleteData` | `Data.load/save/delete` alias | 兼容旧版 Data 方法命名。                                           |
+| `globalThis/self/window`            | sandbox self references       | 兼容浏览器式全局对象访问。                                         |
+| `UI.showDialog`                     | settings action dialog        | 源设置操作中返回网页确认弹窗；选择后执行对应回调，关闭不执行回调。 |
+| `UI.showMessage` / `UI.toast`       | settings action feedback      | 源设置操作及其确认回调中展示网页反馈；其他后台任务仍仅记录日志。   |
+
+源设置的标题、按钮和选项文案按源的 `translation` 词典与运行时 locale 翻译；设置 key、默认值和选项值保持原样。
+
+设置回调接口返回 `SourceSettingsActionResult`，包含当前设置及 `events`。确认弹窗的选择通过 `POST /api/v1/sources/{sourceKey}/settings/dialogs/{dialogId}/respond` 提交，`buttonIndex: null` 表示关闭。弹窗令牌仅在对应源的 Worker 内有效，五分钟过期且只能使用一次；源重载后失效。网页离开当前源时会清理待确认弹窗。并发操作的消息彼此隔离，设置回调启动的网络任务及后续提示会在该次操作中收集。
+
+交互回归：`apps/server/test/sourceInteractions.test.ts`、`packages/plugin-runtime/test/sourceUi.test.ts` 与 `apps/web/src/features/sources/sourceActions.test.tsx`。
 
 覆盖测试：`apps/server/test/runtimeApi.test.ts` 验证 API alias；`apps/server/fixtures/sources/mock.js` 提供 worker 集成路径。
 
@@ -144,7 +151,6 @@ Worker 隔离模式下已验证以下一致性：
 设置新增按定义校验和 callback 调用；账号新增密码登录、Cookie 字段校验、退出与状态查询。网页登录明确标记 unsupported。历史真实源矩阵是当时的验证记录，本次未联网重新验证所有源，不代表这些源当前全部可用。
 
 当前仅支持 Worker 执行，内部保留 VM 上下文。上文 2026-05-25 记录中的 VM 模式和 `MANSOU_PLUGIN_ISOLATION` 是历史配置，现已移除；兼容检查使用 `compat`，不再接受 `--isolation`。
-
 
 ## 2026-10-29 拷贝漫画访问限制排查
 

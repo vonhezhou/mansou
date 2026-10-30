@@ -162,7 +162,7 @@ it("renders typed source settings and invokes a callback through its source endp
   const change = vi.fn();
   const invoke = vi
     .spyOn(mansouApi, "invokeSourceSetting")
-    .mockResolvedValue({ schema: {}, values: { label: "updated" } });
+    .mockResolvedValue({ schema: {}, values: { label: "updated" }, events: [] });
   await render(
     <SourceSettingsPanel
       sourceKey="one"
@@ -192,7 +192,7 @@ it("renders typed source settings and invokes a callback through its source endp
   )!;
   await act(async () => button.click());
   expect(invoke).toHaveBeenCalledWith("one", "refresh");
-  expect(JSON.parse(change.mock.calls[0][0])).toEqual({ label: "updated" });
+  expect(JSON.parse(change.mock.calls[0][0])).toEqual({ label: "updated", enabled: false });
 });
 
 it("blocks disabled-source settings and account requests until the source is enabled", async () => {
