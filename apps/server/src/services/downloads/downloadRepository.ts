@@ -7,6 +7,9 @@ export class DownloadRepository {
   all() {
     return this.storage.listDownloads();
   }
+  queuedIds() {
+    return this.storage.listQueuedDownloadIds();
+  }
   find(id: string) {
     return this.storage.getDownload(id);
   }

@@ -151,6 +151,13 @@ class AppStorage {
     return rows.map((row) => JSON.parse(row.task_json) as DownloadTask);
   }
 
+  listQueuedDownloadIds() {
+    const rows = this.db
+      .prepare("select id from downloads where status = 'queued' order by created_at asc")
+      .all() as Array<{ id: string }>;
+    return rows.map((row) => row.id);
+  }
+
   getDownload(id: string): DownloadTask | null {
     const row = this.db.prepare("select task_json from downloads where id = ?").get(id) as
       | { task_json: string }

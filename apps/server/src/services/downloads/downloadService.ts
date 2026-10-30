@@ -29,10 +29,7 @@ export class DownloadService {
   ) {
     this.scheduler = new DownloadScheduler(
       concurrency,
-      () =>
-        this.all()
-          .filter((task) => task.status === "queued" && !this.deleting.has(task.id))
-          .map((task) => task.id),
+      () => this.repository.queuedIds().filter((id) => !this.deleting.has(id)),
       (id, signal) => this.run(id, signal),
       onError,
     );

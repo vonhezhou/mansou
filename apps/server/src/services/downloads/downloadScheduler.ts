@@ -20,7 +20,7 @@ export class DownloadScheduler {
     this.scheduled = true;
     queueMicrotask(() => {
       this.scheduled = false;
-      if (this.stopped) return;
+      if (this.stopped || this.active.size >= this.limit) return;
       try {
         for (const id of this.queued()) {
           if (this.active.size >= this.limit) break;

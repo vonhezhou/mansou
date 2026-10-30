@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createStorage } from "./index.js";
+import { createStorage, type DownloadTask } from "./index.js";
 
 describe("storage migrations", () => {
   it("creates a database without reading history", async () => {
@@ -107,4 +107,40 @@ describe("download item lookup", () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+});
+
+it("lists only queued task ids in creation order and observes state transitions", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "venera-storage-queue-"));
+  const storage = createStorage(dir);
+  try {
+    const task = (id: string, status: DownloadTask["status"], createdAt: string): DownloadTask => ({
+      id,
+      status,
+      createdAt,
+      updatedAt: createdAt,
+      phase: "queued",
+      sourceKey: "mock",
+      comicId: id,
+      episodeId: "chapter",
+      total: 0,
+      completed: 0,
+      logs: [],
+    });
+    const later = task("later", "queued", "2026-10-30T01:00:00Z");
+    const earlier = task("earlier", "queued", "2026-10-30T00:00:00Z");
+    storage.saveDownload(later);
+    for (const status of ["running", "paused", "completed", "failed", "cancelled"] as const)
+      storage.saveDownload(task(status, status, "2026-10-29T00:00:00Z"));
+    storage.saveDownload(earlier);
+    expect(storage.listQueuedDownloadIds()).toEqual(["earlier", "later"]);
+    storage.saveDownload({ ...earlier, status: "running" });
+    expect(storage.listQueuedDownloadIds()).toEqual(["later"]);
+    storage.deleteDownload(later.id);
+    expect(storage.listQueuedDownloadIds()).toEqual([]);
+    storage.saveDownload({ ...earlier, status: "queued" });
+    expect(storage.listQueuedDownloadIds()).toEqual(["earlier"]);
+  } finally {
+    storage.close();
+    await rm(dir, { recursive: true, force: true });
+  }
 });
