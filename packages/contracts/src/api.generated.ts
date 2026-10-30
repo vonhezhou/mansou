@@ -1085,9 +1085,7 @@ export interface components {
       results: {
         imageKey: string;
         ok: boolean;
-        result?: {
-          [key: string]: unknown;
-        };
+        item?: components["schemas"]["DownloadItem"];
         error?: string;
       }[];
     };

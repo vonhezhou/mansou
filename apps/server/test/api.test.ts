@@ -355,7 +355,10 @@ describe("api v1 mock source", () => {
       expect(retryFailed.json().results[0]).toMatchObject({
         ok: true,
         imageKey: "mock://image/mock-comic-failing-image/chapter-1/3",
+        item: { task_id: taskId, status: "completed" },
       });
+      expect(retryFailed.json().results[0]).not.toHaveProperty("result");
+      expect(retryFailed.json().results[0]).not.toHaveProperty("task");
     } finally {
       context.imageProxy.loadBytes = originalLoadBytes;
     }

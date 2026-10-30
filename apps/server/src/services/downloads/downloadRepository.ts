@@ -25,6 +25,9 @@ export class DownloadRepository {
   items(id: string) {
     return this.storage.listDownloadItems(id);
   }
+  failedImageKeys(id: string) {
+    return this.storage.listFailedDownloadImageKeys(id);
+  }
   itemsPage(id: string, offset: number, limit: number, failedOnly: boolean) {
     return this.storage.listDownloadItemsPage(id, offset, limit, failedOnly);
   }

@@ -267,6 +267,15 @@ class AppStorage {
       .all(taskId) as DownloadItem[];
   }
 
+  listFailedDownloadImageKeys(taskId: string) {
+    const rows = this.db
+      .prepare(
+        "select image_key from download_items where task_id = ? and status = 'failed' order by id asc",
+      )
+      .all(taskId) as Array<{ image_key: string }>;
+    return rows.map((row) => row.image_key);
+  }
+
   listDownloadItemsPage(taskId: string, offset: number, limit: number, failedOnly: boolean) {
     return this.db.transaction(() => {
       const counts = this.db

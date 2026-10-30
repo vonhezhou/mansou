@@ -61,11 +61,10 @@ export type DownloadItemsPage = Omit<
   import("@venera/contracts").components["schemas"]["DownloadItemsPage"],
   "items"
 > & { items: DownloadItem[] };
-export type RetryFailedDownloadImagesResult = {
-  task: DownloadTask | null;
-  retried: number;
-  results: Array<{ imageKey: string; ok: boolean; result?: unknown; error?: string }>;
-};
+export type RetryFailedDownloadImagesResult = Omit<
+  import("@venera/contracts").components["schemas"]["RetryFailedDownloadImagesResult"],
+  "task"
+> & { task: DownloadTask | null };
 export type CacheStats = { files: number; bytes: number };
 export type SettingsResponse = import("@venera/contracts").components["schemas"]["SourceSettings"];
 export type SourceAuth = import("@venera/contracts").components["schemas"]["SourceAuth"];

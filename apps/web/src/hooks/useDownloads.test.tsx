@@ -88,7 +88,20 @@ it("blocks image retries during active downloads and uses batch retry for a stop
   const batch = vi.spyOn(veneraApi, "retryFailedDownloadItems").mockResolvedValue({
     task: task("a"),
     retried: 1,
-    results: [{ imageKey: "one", ok: true }],
+    results: [
+      {
+        imageKey: "one",
+        ok: true,
+        item: {
+          id: "a:one",
+          task_id: "a",
+          image_key: "one",
+          status: "completed",
+          retry_count: 1,
+          updated_at: "now",
+        },
+      },
+    ],
   });
   vi.spyOn(veneraApi, "listDownloadItemsPage").mockResolvedValue({
     items: [],

@@ -116,6 +116,30 @@ it("upgrades an existing version 5 database without changing image records and a
 });
 
 describe("download item lookup", () => {
+  it("selects ordered failed keys for one task and observes successful retries and deletions", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "venera-failed-keys-"));
+    const storage = createStorage(dir);
+    try {
+      storage.saveDownloadItem({ taskId: "task", imageKey: "z", status: "failed" });
+      storage.saveDownloadItem({ taskId: "task", imageKey: "a", status: "failed" });
+      storage.saveDownloadItem({
+        taskId: "task",
+        imageKey: "error-only",
+        status: "completed",
+        error: "notice",
+      });
+      storage.saveDownloadItem({ taskId: "other", imageKey: "foreign", status: "failed" });
+      expect(storage.listFailedDownloadImageKeys("task")).toEqual(["a", "z"]);
+      storage.saveDownloadItem({ taskId: "task", imageKey: "a", status: "completed" });
+      expect(storage.listFailedDownloadImageKeys("task")).toEqual(["z"]);
+      storage.deleteDownloadItems("task");
+      expect(storage.listFailedDownloadImageKeys("task")).toEqual([]);
+      expect(storage.listFailedDownloadImageKeys("other")).toEqual(["foreign"]);
+    } finally {
+      storage.close();
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
   it("retrieves the exact persisted image and observes updates and deletions", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "venera-storage-items-"));
     const storage = createStorage(dir);

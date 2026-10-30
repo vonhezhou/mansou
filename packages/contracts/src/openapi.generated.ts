@@ -1556,10 +1556,11 @@ export const openApiDocument = {
             type: "array",
             items: {
               type: "object",
+              additionalProperties: false,
               properties: {
                 imageKey: { type: "string" },
                 ok: { type: "boolean" },
-                result: { type: "object", additionalProperties: true },
+                item: { $ref: "#/components/schemas/DownloadItem" },
                 error: { type: "string" },
               },
               required: ["imageKey", "ok"],

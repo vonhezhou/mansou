@@ -264,18 +264,19 @@ export class DownloadService {
     return this.scheduler.execute(id, async (signal) => {
       const results = [];
       const retryImage = this.runner.createImageRetry(task, signal);
-      for (const item of this.repository.items(id).filter((item) => item.status === "failed")) {
+      for (const imageKey of this.repository.failedImageKeys(id)) {
         signal.throwIfAborted();
         try {
+          const result = await this.retry(task, imageKey, signal, retryImage);
           results.push({
-            imageKey: item.image_key,
+            imageKey,
             ok: true,
-            result: await this.retry(task, item.image_key, signal, retryImage),
+            item: result.item,
           });
         } catch (error) {
           signal.throwIfAborted();
           results.push({
-            imageKey: item.image_key,
+            imageKey,
             ok: false,
             error: error instanceof Error ? error.message : String(error),
           });
@@ -293,12 +294,12 @@ export class DownloadService {
     const result = await retryImage(imageKey);
     signal.throwIfAborted();
     const latest = this.find(task.id)!;
-    this.update(task.id, {
+    const updated = this.update(task.id, {
       completed: result.downloaded
         ? Math.min(latest.total, latest.completed + 1)
         : latest.completed,
     });
-    return { task: this.find(task.id), item: result.item };
+    return { task: updated, item: result.item };
   }
   private retryable(id: string) {
     const task = this.editable(id);

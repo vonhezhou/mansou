@@ -129,7 +129,7 @@ POST /api/v1/downloads/{taskId}/items/retry
 POST /api/v1/downloads/{taskId}/items/retry-failed
 ```
 
-明细分页接口返回 `{ items, total, failedTotal, offset, limit }`。offset 默认为 0，limit 默认为 100，允许 1–200；failedOnly 只接受 true/false，筛选 failed 状态或非空错误后再分页。total 是筛选后的记录数，failedTotal 是该任务全部 failed 状态记录数；记录按 ID 升序，越界页返回空数组与实际总数。旧 `/items` 保持完整数组响应，批量重试不受当前页限制。
+明细分页接口返回 `{ items, total, failedTotal, offset, limit }`。offset 默认为 0，limit 默认为 100，允许 1–200；failedOnly 只接受 true/false，筛选 failed 状态或非空错误后再分页。total 是筛选后的记录数，failedTotal 是该任务全部 failed 状态记录数；记录按 ID 升序，越界页返回空数组与实际总数。`/items` 返回完整数组，网页使用分页接口，批量重试不受当前页限制。
 
 全本下载采用逐章发现与下载，任务字段 `totalKnown: false` 表示 total 只是当前已发现页数，不能作为最终分母；最后一章发现后变为 true。省略字段的旧任务沿用总数已知的语义。中途失败保留此前已落盘图片，恢复时核验文件并复用。
 
@@ -150,11 +150,21 @@ POST /api/v1/downloads/{taskId}/items/retry-failed
   "results": [
     {
       "imageKey": "mock://image/mock-comic-1/chapter-1/3",
-      "ok": true
+      "ok": true,
+      "item": {
+        "id": "task-id:mock://image/mock-comic-1/chapter-1/3",
+        "task_id": "task-id",
+        "image_key": "mock://image/mock-comic-1/chapter-1/3",
+        "status": "completed",
+        "retry_count": 0,
+        "updated_at": "2026-10-30T00:00:00.000Z"
+      }
     }
   ]
 }
 ```
+
+批量结果的最终 task 只返回一次；成功项直接携带 item，失败项携带 error，不再使用 result 嵌套或在每项重复返回 task。当前网页与该契约同步更新，不提供旧响应格式或兼容参数。
 
 已下载图片会校验文件是否仍存在。若数据库中图片项为 `completed` 但文件丢失，后续下载或重试不会跳过该图片，会重新补齐。
 

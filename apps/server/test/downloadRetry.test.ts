@@ -76,6 +76,14 @@ it("reuses details and chapter indices within a retry batch while preserving fil
   const result = await service.retryFailedImages(task.id);
   expect(result).toMatchObject({ retried: 4, task: { completed: 4 } });
   expect(result!.results.every((item) => item.ok)).toBe(true);
+  expect(result!.results[0]).toMatchObject({
+    imageKey: "a1",
+    item: { image_key: "a1", status: "completed" },
+  });
+  for (const item of result!.results) {
+    expect(item).not.toHaveProperty("task");
+    expect(item).not.toHaveProperty("result");
+  }
   expect(details).toHaveBeenCalledOnce();
   expect(pages).toHaveBeenCalledTimes(2);
   for (const [imageKey, chapter, file] of [
@@ -102,6 +110,11 @@ it.each(["details", "pages"])(
     );
     const result = await service.retryFailedImages(task.id);
     expect(result!.results.map((item) => item.ok)).toEqual([false, true, true, true]);
+    expect(result!.results[0]).toEqual({
+      imageKey: "a1",
+      ok: false,
+      error: "temporary upstream error",
+    });
     expect(result!.task?.completed).toBe(3);
     expect(details).toHaveBeenCalledTimes(boundary === "details" ? 2 : 1);
     expect(pages).toHaveBeenCalledTimes(boundary === "pages" ? 3 : 2);
@@ -121,4 +134,72 @@ it("stops before downloading when cancelled during chapter loading", async () =>
   await expect(retry("a2")).rejects.toMatchObject({ name: "AbortError" });
   expect(loadBytes).not.toHaveBeenCalled();
   expect(repository.items(task.id).every((item) => item.status === "failed")).toBe(true);
+});
+
+it("queries only failed keys without loading complete image history", async () => {
+  repository.saveItem({
+    taskId: task.id,
+    imageKey: "completed",
+    status: "completed",
+    filePath: "/missing",
+  });
+  repository.saveItem({
+    taskId: task.id,
+    imageKey: "error-only",
+    status: "completed",
+    error: "notice",
+  });
+  repository.saveItem({ taskId: "foreign", imageKey: "foreign", status: "failed" });
+  const all = vi.spyOn(storage, "listDownloadItems");
+  const failed = vi.spyOn(storage, "listFailedDownloadImageKeys");
+  const result = await service.retryFailedImages(task.id);
+  expect(result!.results.map((item) => item.imageKey)).toEqual(["a1", "a2", "b1", "b2"]);
+  expect(all).not.toHaveBeenCalled();
+  expect(failed).toHaveBeenCalledOnce();
+  expect(loadBytes).toHaveBeenCalledTimes(4);
+});
+
+it("returns an empty batch without loading source metadata when no failed records remain", async () => {
+  storage.deleteDownloadItems(task.id);
+  expect(await service.retryFailedImages(task.id)).toMatchObject({
+    retried: 0,
+    results: [],
+    task: { id: task.id },
+  });
+  expect(details).not.toHaveBeenCalled();
+  expect(pages).not.toHaveBeenCalled();
+  expect(loadBytes).not.toHaveBeenCalled();
+});
+
+it("waits for the active image on shutdown and does not retry subsequent selected keys", async () => {
+  let entered!: () => void;
+  let release!: () => void;
+  const started = new Promise<void>((done) => {
+    entered = done;
+  });
+  const gate = new Promise<void>((done) => {
+    release = done;
+  });
+  loadBytes.mockImplementationOnce(async () => {
+    entered();
+    await gate;
+    return { data: Buffer.from("image"), contentType: "image/jpeg", cached: false };
+  });
+  const pending = service.retryFailedImages(task.id);
+  const rejected = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  try {
+    await started;
+    const closed = vi.fn();
+    const closing = service.close().then(closed);
+    await Promise.resolve();
+    expect(closed).not.toHaveBeenCalled();
+    release();
+    await closing;
+    await rejected;
+    expect(loadBytes).toHaveBeenCalledOnce();
+    expect(repository.items(task.id).every((item) => item.status === "failed")).toBe(true);
+  } finally {
+    release();
+    await Promise.allSettled([pending]);
+  }
 });
