@@ -55,6 +55,8 @@ export function SearchView(props: SearchViewProps) {
         sourceName={props.sources.find((source) => source.key === resultSourceKey)?.name}
         keyword={props.searchQuery?.keyword}
         busy={props.busy}
+        searchError={props.searchError}
+        searchCancelled={props.searchCancelled}
         interactionBusy={props.detailsBusy ?? (props.busy && !props.searching)}
         pendingSourceKeys={props.aggregatePendingKeys}
         sourceKey={resultSourceKey}

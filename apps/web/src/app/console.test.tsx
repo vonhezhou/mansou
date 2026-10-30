@@ -120,6 +120,31 @@ it("preserves the originating source when switching between grouped, flat and li
   expect(container.querySelectorAll(".comic-card")).toHaveLength(2);
 });
 
+it("distinguishes failed and cancelled searches from an empty successful search", async () => {
+  const props = {
+    busy: false,
+    sourceKey: "mock",
+    searchMode: "single" as const,
+    aggregateResultLayout: "flat" as const,
+    results: [],
+    aggregatedResults: [],
+    hasSearched: true,
+    searchPage: 1,
+    canLoadMore: false,
+    onAggregateResultLayoutChange: vi.fn(),
+    onLoadMore: vi.fn(),
+    onOpenComic: vi.fn(),
+  };
+  await render(<SearchResults {...props} searchError="连接超时" />);
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain("连接超时");
+  expect(container.textContent).not.toContain("没有找到结果");
+  await render(<SearchResults {...props} searchCancelled />);
+  expect(container.textContent).toContain("搜索已停止");
+  expect(container.textContent).not.toContain("没有找到结果");
+  await render(<SearchResults {...props} />);
+  expect(container.textContent).toContain("没有找到结果");
+});
+
 it("opens the selected source configuration without mixing it with repository installation", async () => {
   const changeSource = vi.fn();
   const enabled = vi.fn();

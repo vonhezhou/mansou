@@ -70,6 +70,27 @@ it("keeps the current page valid after the task list shrinks", async () => {
   expect(container.querySelectorAll(".download-card")).toHaveLength(2);
   expect(container.querySelector('[aria-label="下载任务分页"]')).toBeNull();
 });
+
+it("trims task filters and restores the first page when filters are cleared", async () => {
+  await act(async () => button("下一页任务").click());
+  const input = container.querySelector<HTMLInputElement>('[placeholder="漫画 ID 或标题"]')!;
+  async function filter(value: string) {
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
+  await filter("  Title 1004  ");
+  expect(container.querySelectorAll(".download-card")).toHaveLength(1);
+  expect(container.textContent).toContain("匹配 1 / 1005 个任务");
+  await filter("不存在的漫画");
+  expect(container.querySelectorAll(".download-card")).toHaveLength(0);
+  expect(container.textContent).toContain("没有匹配当前筛选条件");
+  await act(async () => button("清除任务筛选").click());
+  expect(input.value).toBe("");
+  expect(container.querySelectorAll(".download-card")).toHaveLength(50);
+  expect(container.querySelector<HTMLSelectElement>('[aria-label="下载任务页"]')?.value).toBe("1");
+});
 it("does not show a completed percentage until the full chapter count is known", async () => {
   props.downloads = [{ ...props.downloads[0], total: 2, completed: 2, totalKnown: false }];
   await act(async () => root.render(<DownloadsView {...props} />));

@@ -155,6 +155,70 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
+it("switches to the submitted query immediately and exposes failures without stale results", async () => {
+  const response = deferred<Awaited<ReturnType<typeof veneraApi.search>>>();
+  vi.spyOn(veneraApi, "search")
+    .mockResolvedValueOnce({ comics: [{ id: "old", title: "旧结果" }], maxPage: 2 })
+    .mockReturnValueOnce(response.promise)
+    .mockResolvedValueOnce({ comics: [] });
+  await act(async () => state.setKeyword("旧关键词"));
+  await act(async () => state.submitSearch());
+  await act(async () => state.setKeyword("新关键词"));
+  let pending: Promise<void>;
+  await act(async () => {
+    pending = state.submitSearch();
+  });
+  expect(state.searchQuery?.keyword).toBe("新关键词");
+  expect(state.results).toEqual([]);
+  expect(state.searching).toBe(true);
+  expect(state.canLoadMore).toBe(false);
+  await act(async () => {
+    response.reject(new Error("源连接超时"));
+    await pending;
+  });
+  expect(state.searchError).toBe("源连接超时");
+  expect(state.searching).toBe(false);
+  await act(async () => state.submitSearch());
+  expect(state.searchError).toBeNull();
+});
+
+it("preserves results and the pagination cursor after a failed load, allowing retry", async () => {
+  const search = vi
+    .spyOn(veneraApi, "search")
+    .mockResolvedValueOnce({ comics: [{ id: "one", title: "第一本" }], next: "cursor" })
+    .mockRejectedValueOnce(new Error("分页超时"))
+    .mockResolvedValueOnce({ comics: [{ id: "two", title: "第二本" }] });
+  await act(async () => state.setKeyword("漫画"));
+  await act(async () => state.submitSearch());
+  await act(async () => state.loadMoreResults());
+  expect(state.results.map((comic) => comic.id)).toEqual(["one"]);
+  expect(state.searchPage).toBe(1);
+  expect(state.canLoadMore).toBe(true);
+  expect(state.searchError).toBe("分页超时");
+  await act(async () => state.loadMoreResults());
+  expect(search.mock.calls[2][2]).toEqual({ next: "cursor" });
+  expect(state.results.map((comic) => comic.id)).toEqual(["one", "two"]);
+  expect(state.searchError).toBeNull();
+});
+
+it("reports a cancelled single search and ignores a late failure", async () => {
+  const response = deferred<Awaited<ReturnType<typeof veneraApi.search>>>();
+  vi.spyOn(veneraApi, "search").mockReturnValue(response.promise);
+  await act(async () => state.setKeyword("漫画"));
+  let pending: Promise<void>;
+  await act(async () => {
+    pending = state.submitSearch();
+  });
+  await act(async () => state.cancelSearch());
+  await act(async () => {
+    response.reject(new Error("迟到错误"));
+    await pending;
+  });
+  expect(state.searchCancelled).toBe(true);
+  expect(state.searchError).toBeNull();
+  expect(state.searching).toBe(false);
+});
+
 it("loads more using the submitted keyword and source after the controls change", async () => {
   const search = vi
     .spyOn(veneraApi, "search")

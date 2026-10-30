@@ -5,6 +5,8 @@ export type SearchViewProps = {
   busy: boolean;
   sourcesLoading?: boolean;
   searching?: boolean;
+  searchError?: string | null;
+  searchCancelled?: boolean;
   detailsBusy?: boolean;
   detailOperation?: string | null;
   detailSummary?: string | null;

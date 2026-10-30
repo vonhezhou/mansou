@@ -39,6 +39,8 @@ export function useSearch(options: UseSearchOptions) {
   const [episodePageCounts, setEpisodePageCounts] = useState<Record<string, number>>({});
   const [downloadCreateStatus, setDownloadCreateStatus] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchCancelled, setSearchCancelled] = useState(false);
   const [aggregatePendingKeys, setAggregatePendingKeys] = useState<string[]>([]);
   const searchController = useRef<AbortController | null>(null);
   const searchRequest = useRef(0);
@@ -58,6 +60,8 @@ export function useSearch(options: UseSearchOptions) {
     searchController.current?.abort();
     const controller = new AbortController();
     searchController.current = controller;
+    setSearchError(null);
+    setSearchCancelled(false);
     await options.runWith(
       (loading) => {
         if (request === searchRequest.current) setSearching(loading);
@@ -66,7 +70,8 @@ export function useSearch(options: UseSearchOptions) {
         try {
           await task(controller.signal, request);
         } catch (error) {
-          if (!controller.signal.aborted) throw error;
+          if (!controller.signal.aborted && request === searchRequest.current)
+            setSearchError(error instanceof Error ? error.message : String(error));
         } finally {
           if (request === searchRequest.current) {
             searchController.current = null;
@@ -82,6 +87,7 @@ export function useSearch(options: UseSearchOptions) {
     searchController.current?.abort();
     searchController.current = null;
     setSearching(false);
+    setSearchCancelled(true);
     setAggregatePendingKeys([]);
     setAggregatedResults((current) =>
       current.map((item) => (!item.result && !item.error ? { ...item, cancelled: true } : item)),
@@ -147,16 +153,20 @@ export function useSearch(options: UseSearchOptions) {
     };
     if (!query.keyword) return;
     await runSearch(async (signal, request) => {
+      // 提交时即切换结果上下文，避免慢请求期间把旧结果误认为新结果。
+      setSearchQuery(query);
+      setResults([]);
+      setAggregatedResults([]);
+      setSearchPage(1);
+      setSearchNext(null);
+      setSearchMaxPage(undefined);
+      setHasSearched(true);
       const data = await veneraApi.search(query.sourceKey, query.keyword, { page: 1 }, signal);
       if (request !== searchRequest.current) return;
       startTransition(() => {
-        setSearchQuery(query);
         setResults(data.comics ?? []);
-        setAggregatedResults([]);
-        setSearchPage(1);
         setSearchNext(data.next ?? null);
         setSearchMaxPage(data.maxPage);
-        setHasSearched(true);
         setDetails(null);
         setPreviewImages([]);
       });
@@ -460,6 +470,8 @@ export function useSearch(options: UseSearchOptions) {
     previewImages,
     results,
     searchBusy,
+    searchError,
+    searchCancelled,
     detailsBusy,
     detailOperation: previewingChapter
       ? `正在获取「${details?.chapters?.[previewEpisodeId ?? ""] ?? "当前章节"}」的图片列表…`

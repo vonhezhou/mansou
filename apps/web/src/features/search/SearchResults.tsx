@@ -7,6 +7,8 @@ import { ComicCard } from "./ComicCard.js";
 
 type SearchResultsProps = {
   busy: boolean;
+  searchError?: string | null;
+  searchCancelled?: boolean;
   interactionBusy?: boolean;
   pendingSourceKeys?: string[];
   sourceKey: string;
@@ -108,12 +110,22 @@ export function SearchResults(props: SearchResultsProps) {
           label={`正在搜索 ${props.pendingSourceKeys!.length} 个源，已完成 ${props.aggregatedResults.length - props.pendingSourceKeys!.length}/${props.aggregatedResults.length} 个源…`}
         />
       )}
-      {props.aggregatedResults.some((item) => item.cancelled) &&
-        props.searchMode === "aggregate" && (
-          <p className="muted" role="status">
-            已停止未完成的源，保留已取得的结果。
+      {props.searchError && (
+        <div className="alert" role="alert">
+          <p>搜索未完成：{props.searchError}</p>
+          <p>
+            {props.results.length > 0
+              ? "已有结果已保留，请再次加载更多，或更换漫画源重新搜索。"
+              : "请重试搜索，或更换漫画源。"}
           </p>
-        )}
+        </div>
+      )}
+      {(props.searchCancelled || props.aggregatedResults.some((item) => item.cancelled)) && (
+        <p className="muted" role="status">
+          搜索已停止，已取得的结果会保留。
+          {props.canLoadMore ? "可继续加载更多或重新搜索。" : "可重新搜索。"}
+        </p>
+      )}
       {props.busy &&
         (props.searchMode === "aggregate" ? aggregateCount === 0 : props.results.length === 0) && (
           <p className="muted" role="status">
@@ -131,10 +143,14 @@ export function SearchResults(props: SearchResultsProps) {
       )}
       {props.hasSearched &&
         !props.busy &&
+        !props.searchError &&
+        !props.searchCancelled &&
         props.searchMode === "single" &&
         props.results.length === 0 && <p className="muted">没有找到结果，可以更换关键词或源。</p>}
       {props.hasSearched &&
         !props.busy &&
+        !props.searchError &&
+        !props.searchCancelled &&
         props.searchMode === "aggregate" &&
         aggregateCount === 0 &&
         !props.aggregatedResults.some((item) => item.cancelled) && (
@@ -163,7 +179,7 @@ export function SearchResults(props: SearchResultsProps) {
                   : ""}
               </span>
               <button onClick={props.onLoadMore} disabled={props.busy || !props.canLoadMore}>
-                {props.canLoadMore ? "加载更多" : "没有更多"}
+                {props.busy ? "处理中…" : props.canLoadMore ? "加载更多" : "没有更多"}
               </button>
             </div>
           )}

@@ -10,18 +10,20 @@ export function DownloadsView(props: DownloadsViewProps) {
   const [comicFilter, setComicFilter] = useState("");
   const [page, setPage] = useState(1);
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
+  const sourceQuery = sourceFilter.trim().toLowerCase();
+  const comicQuery = comicFilter.trim().toLowerCase();
+  const hasTaskFilters = Boolean(sourceFilter || comicFilter);
   const filteredDownloads = useMemo(
     () =>
       props.downloads.filter((task) => {
-        const sourceMatched =
-          !sourceFilter || task.sourceKey.toLowerCase().includes(sourceFilter.toLowerCase());
+        const sourceMatched = !sourceQuery || task.sourceKey.toLowerCase().includes(sourceQuery);
         const comicMatched =
-          !comicFilter ||
-          task.comicId.toLowerCase().includes(comicFilter.toLowerCase()) ||
-          task.title?.toLowerCase().includes(comicFilter.toLowerCase());
+          !comicQuery ||
+          task.comicId.toLowerCase().includes(comicQuery) ||
+          task.title?.toLowerCase().includes(comicQuery);
         return sourceMatched && comicMatched;
       }),
-    [props.downloads, sourceFilter, comicFilter],
+    [props.downloads, sourceQuery, comicQuery],
   );
   const orderedDownloads = useMemo(
     () => groupDownloads(filteredDownloads).flatMap((group) => group.tasks),
@@ -92,6 +94,23 @@ export function DownloadsView(props: DownloadsViewProps) {
           </label>
         </details>
       </div>
+      {hasTaskFilters && (
+        <div className="download-filter-summary">
+          <span className="muted" role="status">
+            匹配 {filteredDownloads.length} / {props.downloads.length} 个任务
+          </span>
+          <button
+            className="secondary-button"
+            onClick={() => {
+              setSourceFilter("");
+              setComicFilter("");
+              setPage(1);
+            }}
+          >
+            清除任务筛选
+          </button>
+        </div>
+      )}
       {props.downloads.length > 0 && filteredDownloads.length === 0 && (
         <p className="muted">没有匹配当前筛选条件的下载任务。</p>
       )}

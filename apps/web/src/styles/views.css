@@ -582,6 +582,15 @@
   margin: 12px 0;
 }
 
+.download-filter-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+
 .download-pagination select {
   width: auto;
   max-width: 100%;

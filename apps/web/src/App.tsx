@@ -153,6 +153,8 @@ function Workspace({
           busy={searchState.searchBusy}
           sourcesLoading={refreshing}
           searching={searchState.searching}
+          searchError={searchState.searchError}
+          searchCancelled={searchState.searchCancelled}
           detailsBusy={searchState.detailsBusy}
           detailOperation={searchState.detailOperation}
           detailSummary={searchState.detailSummary}

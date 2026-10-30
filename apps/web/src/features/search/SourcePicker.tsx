@@ -48,7 +48,9 @@ export function SourcePicker(props: SourcePickerProps) {
       {sources.length === 0 && props.busy ? (
         <LoadingStatus label="正在加载漫画源…" />
       ) : sources.length === 0 ? (
-        <p className="muted">暂无可搜索的漫画源，请在源管理中安装或启用。</p>
+        <p className="muted">
+          暂无可搜索的漫画源，<a href="#sources">前往源管理安装或启用</a>。
+        </p>
       ) : aggregate && props.aggregateSourceKeys.length === 0 ? (
         <p className="muted">请选择至少一个漫画源。</p>
       ) : null}
