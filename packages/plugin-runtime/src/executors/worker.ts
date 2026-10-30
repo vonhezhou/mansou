@@ -1,8 +1,9 @@
-import { Worker } from "node:worker_threads";
+import type { Worker } from "node:worker_threads";
 import type { SourceMetadata } from "@mansou/core";
 import type { RuntimeOptions } from "../options.js";
 import { PluginRuntimeError, type PluginErrorCode } from "../errors.js";
 import type { Executor, Operation, Arguments, Result } from "./protocol.js";
+import { createWorker } from "./workerThread.js";
 
 type Response =
   | { id: number; ok: true; result: unknown }
@@ -50,10 +51,7 @@ export class WorkerExecutor implements Executor {
       import.meta.url.endsWith(".ts") ? "./workerMain.ts" : "./workerMain.js",
       import.meta.url,
     );
-    const worker = new Worker(url, {
-      execArgv: url.pathname.endsWith(".ts") ? ["--import", "tsx"] : [],
-      workerData: { filePath, options },
-    });
+    const worker = createWorker(url, { filePath, options });
     const executor = new WorkerExecutor(worker, options);
     try {
       executor.metadata = await executor.call("metadata", []);

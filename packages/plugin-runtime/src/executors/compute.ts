@@ -1,5 +1,6 @@
-import { Worker } from "node:worker_threads";
+import type { Worker } from "node:worker_threads";
 import type { RuntimeOptions } from "../options.js";
+import { createWorker } from "./workerThread.js";
 
 let active = 0;
 const queue: Array<() => void> = [];
@@ -19,18 +20,15 @@ export async function compute(
       import.meta.url.endsWith(".ts") ? "./computeWorker.ts" : "./computeWorker.js",
       import.meta.url,
     );
-    worker = new Worker(url, {
-      execArgv: url.pathname.endsWith(".ts") ? ["--import", "tsx"] : [],
-      workerData: {
-        sourceKey,
-        func,
-        args,
-        config,
-        dataDir: config.dataDir,
-        appVersion: config.appVersion,
-        locale: config.locale,
-        timeout: config.pluginCallTimeoutMs,
-      },
+    worker = createWorker(url, {
+      sourceKey,
+      func,
+      args,
+      config,
+      dataDir: config.dataDir,
+      appVersion: config.appVersion,
+      locale: config.locale,
+      timeout: config.pluginCallTimeoutMs,
     });
     const running = worker;
     return await new Promise<unknown>((resolve, reject) => {
