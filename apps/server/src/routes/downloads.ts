@@ -3,6 +3,7 @@ import path from "node:path";
 import { z } from "zod";
 import { notFound } from "./errors.js";
 import type { RouteContext } from "./types.js";
+import { createDownloadSnapshotWriter } from "./downloadSnapshotWriter.js";
 
 export async function registerDownloadRoutes(
   app: FastifyInstance,
@@ -29,14 +30,13 @@ export async function registerDownloadRoutes(
       reply.raw.end();
       return false;
     };
-    const unsubscribe = context.downloads.subscribe((tasks) => {
-      if (valid()) reply.raw.write(`event: downloads\ndata: ${JSON.stringify(tasks)}\n\n`);
-    });
+    const writer = createDownloadSnapshotWriter(reply.raw, valid);
+    const unsubscribe = context.downloads.subscribe((tasks) =>
+      writer.send(`event: downloads\ndata: ${JSON.stringify(tasks)}\n\n`),
+    );
     // Recheck persisted credentials so CLI password resets also close idle streams.
     const expiry = setInterval(valid, 1000);
-    const heartbeat = setInterval(() => {
-      if (valid()) reply.raw.write(": heartbeat\n\n");
-    }, 30000);
+    const heartbeat = setInterval(() => writer.heartbeat(), 30000);
     reply.raw.on("close", () => {
       clearInterval(expiry);
       clearInterval(heartbeat);
