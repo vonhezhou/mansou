@@ -6,9 +6,9 @@ import type {
   SourceMetadata,
   ImageInput,
   LoginInput,
-} from "@venera/core";
-import type { StorageDatabase } from "@venera/storage";
-import { PluginManager } from "@venera/plugin-runtime";
+} from "@mansou/core";
+import type { StorageDatabase } from "@mansou/storage";
+import { PluginManager } from "@mansou/plugin-runtime";
 import { SourceRepositoryService } from "../repositories/sourceRepository.js";
 
 /** Application workflows; no Venera objects or executor details enter this service. */

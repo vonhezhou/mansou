@@ -1,5 +1,5 @@
 import { AsyncImage } from "../../app/AsyncImage.js";
-import { imageUrl } from "../../api/venera.js";
+import { imageUrl } from "../../api/mansou.js";
 import type { Details } from "../../types.js";
 import { ChapterSelector } from "./ChapterSelector.js";
 import { DownloadActions } from "./DownloadActions.js";

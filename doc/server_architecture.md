@@ -77,7 +77,7 @@ HTTP 层通过 `routes/downloadSnapshotWriter.ts` 处理各 SSE 连接的背压�
 
 `getDownloadItem(taskId, imageKey)` 使用写入时相同的 `${taskId}:${imageKey}` 主键定位，避免逐图恢复时反复筛选同一任务下的全部图片记录；查询同时校验 `task_id` 和 `image_key`，即使含冒号的输入拼成相同 ID，也不会读取其他任务或图片的记录。恢复仍核验完成记录对应的磁盘文件是否存在，文件缺失时重新下载。本次查询优化不修改现有主键编码或迁移数据。
 
-全本下载逐章消费图片列表，不再等待整本章节解析和一次全本文件统计。首章就绪后立即开始该章图片下载，同时最多向前预取一章；章节解析最多一个请求在途，内存中最多保留当前章和下一章的图片列表。图片并发仍由 `VENERA_DOWNLOAD_CONCURRENCY` 控制，实际源调用继续受 `VENERA_PLUGIN_SOURCE_CONCURRENCY` 限制；源并发设为 1 时关闭章节预取，避免下一章请求抢占当前章的图片调用。
+全本下载逐章消费图片列表，不再等待整本章节解析和一次全本文件统计。首章就绪后立即开始该章图片下载，同时最多向前预取一章；章节解析最多一个请求在途，内存中最多保留当前章和下一章的图片列表。图片并发仍由 `MANSOU_DOWNLOAD_CONCURRENCY` 控制，实际源调用继续受 `MANSOU_PLUGIN_SOURCE_CONCURRENCY` 限制；源并发设为 1 时关闭章节预取，避免下一章请求抢占当前章的图片调用。
 
 任务新增可选的 `totalKnown`：false 表示 `total` 仅统计已发现章节的页数，最后一章解析后设为 true；旧任务省略该字段时沿用总数已知的语义。每次运行重新从已发现章节核验和累计进度，复用已完成且文件存在的图片，文件缺失则补下。已有文件不逐张触发任务写库，在章节结束或新图片完成时发布累计进度，替代原来的全本准备统计；下载过程只保留逐图实际使用前的完成记录和文件核验。
 
@@ -164,14 +164,14 @@ Venera 的 `load/loadNext`、`subTitle`、章节 Map、图片 Hook 别名由适�
 
 ## 执行边界与验证
 
-Worker 是唯一执行方式，内部 VM 提供 Venera 脚本上下文。调用超时会终止该实例，后续需要重载；插件同步死循环也不会阻塞服务主线程。Worker 与 VM 均不提供操作系统级安全隔离。已移除 `VENERA_PLUGIN_ISOLATION` 配置和兼容检查 CLI 的 `--isolation` 参数，统一使用 `compat` 命令。
+Worker 是唯一执行方式，内部 VM 提供 Venera 脚本上下文。调用超时会终止该实例，后续需要重载；插件同步死循环也不会阻塞服务主线程。Worker 与 VM 均不提供操作系统级安全隔离。已移除 `MANSOU_PLUGIN_ISOLATION` 配置和兼容检查 CLI 的 `--isolation` 参数，统一使用 `compat` 命令。
 
 新增方法时必须同时更新 core 接口和执行器的完整操作清单；不要添加任意字符串方法调用或把原始插件对象返回给 server。
 
 常规验证：
 
 ```sh
-pnpm --filter @venera/contracts generate:check
+pnpm --filter @mansou/contracts generate:check
 pnpm build
 pnpm typecheck
 pnpm lint

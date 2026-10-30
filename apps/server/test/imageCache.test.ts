@@ -6,7 +6,7 @@ import { ImageCache } from "../src/storage/imageCache.js";
 
 let directory: string;
 beforeEach(async () => {
-  directory = await mkdtemp(path.join(os.tmpdir(), "venera-image-cache-"));
+  directory = await mkdtemp(path.join(os.tmpdir(), "mansou-image-cache-"));
 });
 afterEach(async () => {
   await rm(directory, { recursive: true, force: true });

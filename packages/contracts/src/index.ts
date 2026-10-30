@@ -1,6 +1,6 @@
 import type { components } from "./api.generated.js";
 
-// Public HTTP types derive from the YAML contract; domain ports live in @venera/core.
+// Public HTTP types derive from the YAML contract; domain ports live in @mansou/core.
 export type SourceSummary = components["schemas"]["SourceSummary"];
 export type Comic = components["schemas"]["Comic"];
 export type ComicDetails = components["schemas"]["ComicDetails"];

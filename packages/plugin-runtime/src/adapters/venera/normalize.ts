@@ -1,4 +1,4 @@
-import type { Comic } from "@venera/core";
+import type { Comic } from "@mansou/core";
 export function normalizeComic(raw: Record<string, unknown>, sourceKey: string): Comic {
   return {
     id: String(raw.id),

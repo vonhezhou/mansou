@@ -5,7 +5,7 @@ import type { RuntimeOptions } from "../../options.js";
 import { SourceDataStore } from "../../host/dataStore.js";
 import { SourceCookieStore } from "../../host/cookieStore.js";
 import { createNetwork } from "../../host/network.js";
-import { createStorage } from "@venera/storage";
+import { createStorage } from "@mansou/storage";
 import { createRuntimeApi } from "./runtimeApi.js";
 import { createComicSourceBase, captureSettings } from "./comicSourceBase.js";
 import { checkSourceVersion } from "./version.js";

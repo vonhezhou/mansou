@@ -32,7 +32,7 @@ export function AuthGate({
   useEffect(() => {
     // Remove the old shared credential; new sessions are HttpOnly cookies.
     try {
-      window.localStorage.removeItem("venera_access_token");
+      window.localStorage.removeItem("mansou_access_token");
     } catch {
       /* storage may be disabled */
     }
@@ -44,8 +44,8 @@ export function AuthGate({
       );
       void reload();
     };
-    window.addEventListener("venera:unauthorized", expired);
-    return () => window.removeEventListener("venera:unauthorized", expired);
+    window.addEventListener("mansou:unauthorized", expired);
+    return () => window.removeEventListener("mansou:unauthorized", expired);
   }, []);
   async function login(event: FormEvent) {
     event.preventDefault();
@@ -65,7 +65,7 @@ export function AuthGate({
   return (
     <main className="shell">
       <section className="panel auth-panel">
-        <h1>登录 Venera</h1>
+        <h1>登录漫搜</h1>
         {error && (
           <p role="alert" className="alert">
             {error}

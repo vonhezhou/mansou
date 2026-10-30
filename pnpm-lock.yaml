@@ -136,16 +136,16 @@ importers:
       '@node-rs/argon2':
         specifier: ^2.2.1
         version: 2.2.1
-      '@venera/contracts':
+      '@mansou/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
-      '@venera/core':
+      '@mansou/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@venera/plugin-runtime':
+      '@mansou/plugin-runtime':
         specifier: workspace:*
         version: link:../../packages/plugin-runtime
-      '@venera/storage':
+      '@mansou/storage':
         specifier: workspace:*
         version: link:../../packages/storage
       cookie:
@@ -176,7 +176,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@venera/contracts':
+      '@mansou/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
       '@vitejs/plugin-react':
@@ -219,10 +219,10 @@ importers:
 
   packages/plugin-runtime:
     dependencies:
-      '@venera/core':
+      '@mansou/core':
         specifier: workspace:*
         version: link:../core
-      '@venera/storage':
+      '@mansou/storage':
         specifier: workspace:*
         version: link:../storage
       cheerio:

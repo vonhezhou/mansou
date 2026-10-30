@@ -1,6 +1,6 @@
 import path from "node:path";
 import { Cookie, CookieJar, SerializedCookieJar } from "tough-cookie";
-import type { StorageDatabase } from "@venera/storage";
+import type { StorageDatabase } from "@mansou/storage";
 import { ensureDir, readJson, safeFilename, writeJson } from "./fs.js";
 
 export class SourceCookieStore {

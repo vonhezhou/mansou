@@ -6,14 +6,14 @@ COPY apps ./apps
 COPY packages ./packages
 RUN pnpm install --frozen-lockfile
 RUN pnpm build
-RUN pnpm deploy --filter @venera/server --prod /out
+RUN pnpm deploy --filter @mansou/server --prod /out
 
 FROM node:22-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3210 \
-    VENERA_DATA_DIR=/data \
+    MANSOU_DATA_DIR=/data \
     AUTH_MODE=required
 COPY --from=build /out ./
 COPY --from=build /app/apps/web/dist ../web/dist

@@ -15,7 +15,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @venera/contracts generate:check
+      - run: pnpm --filter @mansou/contracts generate:check
       - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm lint

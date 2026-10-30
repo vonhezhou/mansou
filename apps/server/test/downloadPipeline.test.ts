@@ -1,8 +1,8 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { createStorage, type DownloadTask } from "@venera/storage";
-import type { SourceRegistry, SourceProvider } from "@venera/core";
+import { createStorage, type DownloadTask } from "@mansou/storage";
+import type { SourceRegistry, SourceProvider } from "@mansou/core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { DownloadRepository } from "../src/services/downloads/downloadRepository.js";
 import { DownloadRunner } from "../src/services/downloads/downloadRunner.js";
@@ -47,7 +47,7 @@ let firstImage: ReturnType<typeof deferred>;
 const running: Promise<unknown>[] = [];
 
 beforeEach(async () => {
-  directory = await mkdtemp(path.join(os.tmpdir(), "venera-pipeline-"));
+  directory = await mkdtemp(path.join(os.tmpdir(), "mansou-pipeline-"));
   storage = createStorage(directory);
   repository = new DownloadRepository(storage);
   second = deferred();

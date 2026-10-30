@@ -1,5 +1,5 @@
 import path from "node:path";
-import { isNewerVersion } from "@venera/plugin-runtime/version";
+import { isNewerVersion } from "@mansou/plugin-runtime/version";
 import { readdir, readFile, writeFile, rename, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import crypto from "node:crypto";
@@ -20,7 +20,7 @@ export class SourceRepositoryService {
 
   async refreshRepository() {
     const response = await this.fetch(this.config.sourceListUrl, {
-      headers: { "user-agent": "venera-web-poc", "accept-encoding": "identity" },
+      headers: { "user-agent": "mansou", "accept-encoding": "identity" },
     });
     if (!response.ok) {
       throw new Error(`Failed to fetch source index: ${response.status} ${response.statusText}`);
@@ -83,7 +83,7 @@ export class SourceRepositoryService {
 
     const scriptUrl = this.resolveScriptUrl(item);
     const response = await this.fetch(scriptUrl, {
-      headers: { "user-agent": "venera-web-poc", "accept-encoding": "identity" },
+      headers: { "user-agent": "mansou", "accept-encoding": "identity" },
     });
     if (!response.ok) {
       throw new Error(

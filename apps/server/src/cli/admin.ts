@@ -1,4 +1,4 @@
-import { createStorage } from "@venera/storage";
+import { createStorage } from "@mansou/storage";
 import path from "node:path";
 import { hashPassword } from "../auth/password.js";
 
@@ -42,7 +42,7 @@ async function main() {
   if (!["init", "reset-password"].includes(command) || process.argv.length !== 3) {
     throw new Error("用法：admin init | admin reset-password（不要传入密码参数）");
   }
-  const storage = createStorage(process.env.VENERA_DATA_DIR ?? path.join(process.cwd(), "data"));
+  const storage = createStorage(process.env.MANSOU_DATA_DIR ?? path.join(process.cwd(), "data"));
   try {
     const admin = storage.auth.admin();
     if (command === "init" && admin) throw new Error("管理员已存在，初始化不会覆盖账号");

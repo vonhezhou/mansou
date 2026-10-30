@@ -8,7 +8,7 @@ import { TestSourceRuntime as SourceRuntime } from "./helpers/runtime.js";
 
 describe("worker plugin isolation", () => {
   it("loads and invokes a source in a worker by default", async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "venera-worker-source-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "mansou-worker-source-"));
     const sourceFile = path.join(dir, "worker_mock.js");
     await writeFile(
       sourceFile,

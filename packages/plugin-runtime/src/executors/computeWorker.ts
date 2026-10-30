@@ -1,6 +1,6 @@
 import vm from "node:vm";
 import { parentPort, workerData } from "node:worker_threads";
-import { createStorage } from "@venera/storage";
+import { createStorage } from "@mansou/storage";
 import { createNetwork } from "../host/network.js";
 import { SourceDataStore } from "../host/dataStore.js";
 import { SourceCookieStore } from "../host/cookieStore.js";

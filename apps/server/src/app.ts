@@ -7,7 +7,7 @@ import { registerAuthHook } from "./auth/http.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import Fastify from "fastify";
 import { ZodError } from "zod";
-import { PluginRuntimeError } from "@venera/plugin-runtime";
+import { PluginRuntimeError } from "@mansou/plugin-runtime";
 import { registerComicRoutes } from "./routes/comics.js";
 import { registerDebugRoutes } from "./routes/debug.js";
 import { registerDownloadRoutes } from "./routes/downloads.js";

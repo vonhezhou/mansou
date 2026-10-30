@@ -1,4 +1,4 @@
-import type { SourceProvider, SourceRegistry, SourceMetadata } from "@venera/core";
+import type { SourceProvider, SourceRegistry, SourceMetadata } from "@mansou/core";
 import type { RuntimeOptions } from "./options.js";
 import { WorkerExecutor } from "./executors/worker.js";
 import {

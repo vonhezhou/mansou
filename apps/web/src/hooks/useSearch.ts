@@ -1,6 +1,6 @@
 import { startTransition, useEffect, useRef, useState } from "react";
-import type { Comic } from "@venera/contracts";
-import { veneraApi } from "../api/venera.js";
+import type { Comic } from "@mansou/contracts";
+import { mansouApi } from "../api/mansou.js";
 import type { AggregatedSearchItem, Details, Source } from "../types.js";
 
 type RunWith = (setLoading: (value: boolean) => void, task: () => Promise<void>) => Promise<void>;
@@ -161,7 +161,7 @@ export function useSearch(options: UseSearchOptions) {
       setSearchNext(null);
       setSearchMaxPage(undefined);
       setHasSearched(true);
-      const data = await veneraApi.search(query.sourceKey, query.keyword, { page: 1 }, signal);
+      const data = await mansouApi.search(query.sourceKey, query.keyword, { page: 1 }, signal);
       if (request !== searchRequest.current) return;
       startTransition(() => {
         setResults(data.comics ?? []);
@@ -205,7 +205,7 @@ export function useSearch(options: UseSearchOptions) {
           let patch: Pick<AggregatedSearchItem, "result" | "error">;
           try {
             patch = {
-              result: await veneraApi.search(sourceKey, query.keyword, { page: 1 }, signal),
+              result: await mansouApi.search(sourceKey, query.keyword, { page: 1 }, signal),
             };
           } catch (error) {
             if (signal.aborted) return;
@@ -234,7 +234,7 @@ export function useSearch(options: UseSearchOptions) {
     if (!searchQuery || searchQuery.mode !== "single" || !canLoadMore) return;
     await runSearch(async (signal, request) => {
       const nextPage = searchPage + 1;
-      const data = await veneraApi.search(
+      const data = await mansouApi.search(
         searchQuery.sourceKey,
         searchQuery.keyword,
         searchNext ? { next: searchNext } : { page: nextPage },
@@ -264,7 +264,7 @@ export function useSearch(options: UseSearchOptions) {
       },
       async () => {
         try {
-          const data = await veneraApi.comicDetails(nextSourceKey, comic.id);
+          const data = await mansouApi.comicDetails(nextSourceKey, comic.id);
           // 关闭弹窗或打开另一本漫画后，旧请求不能重新打开或覆盖详情。
           if (request !== detailRequest.current) return;
           const firstEpisode = Object.keys(data.chapters ?? {})[0] ?? "_default";
@@ -299,7 +299,7 @@ export function useSearch(options: UseSearchOptions) {
       },
       async () => {
         try {
-          const data = await veneraApi.episodePages(
+          const data = await mansouApi.episodePages(
             options.detailSourceKey,
             details.comicId ?? details.id,
             nextEpisodeId,
@@ -347,7 +347,7 @@ export function useSearch(options: UseSearchOptions) {
           if (controller.signal.aborted || request !== detailRequest.current) return;
           if (nextCounts[chapterId] !== undefined) continue;
           try {
-            const pages = await veneraApi.episodePages(
+            const pages = await mansouApi.episodePages(
               options.detailSourceKey,
               details.comicId ?? details.id,
               chapterId,
@@ -396,7 +396,7 @@ export function useSearch(options: UseSearchOptions) {
         setDownloadCreateStatus(`创建中：0/${requests.length}`);
         for (const request of requests) {
           try {
-            await veneraApi.createDownload(request);
+            await mansouApi.createDownload(request);
             success += 1;
           } catch (error) {
             failed += 1;

@@ -10,15 +10,15 @@ cp .env.example .env
 
 ```dotenv
 AUTH_MODE=required
-AUTH_ORIGIN=https://venera.example.com
-VENERA_BIND=127.0.0.1
+AUTH_ORIGIN=https://mansou.example.com
+MANSOU_BIND=127.0.0.1
 ```
 
 将域名替换为实际访问地址，然后启动并初始化管理员：
 
 ```bash
 docker compose up -d --build
-docker compose exec -it venera-web node dist/cli/admin.js init
+docker compose exec -it mansou node dist/cli/admin.js init
 ```
 
 Compose 默认只将 `3210` 绑定到 VPS 的回环地址，供同机 HTTPS 反向代理访问。Docker 镜像与 Compose 默认开启鉴权；没有正确的 AUTH_ORIGIN 会启动失败，没有管理员则业务接口拒绝访问。不要为解决配置错误而在公网关闭鉴权。
@@ -26,7 +26,7 @@ Compose 默认只将 `3210` 绑定到 VPS 的回环地址，供同机 HTTPS 反�
 以 Caddy 为例，同机入口可配置：
 
 ```caddyfile
-venera.example.com {
+mansou.example.com {
     reverse_proxy 127.0.0.1:3210
 }
 ```
@@ -42,7 +42,7 @@ venera.example.com {
 ```dotenv
 AUTH_MODE=none
 AUTH_ORIGIN=
-VENERA_BIND=0.0.0.0
+MANSOU_BIND=0.0.0.0
 ```
 
 执行 `docker compose up -d --build`，访问 `http://NAS局域网地址:3210`，无需初始化管理员。此模式信任所有能够访问服务的人；路由器不要将该端口映射到公网。若需要登录，改为 required 并配置实际 origin；公网必须使用 HTTPS。
@@ -68,7 +68,7 @@ pnpm dev
 ```bash
 export AUTH_MODE=required
 export AUTH_ORIGIN=http://localhost:5173
-pnpm --filter @venera/server admin init
+pnpm --filter @mansou/server admin init
 pnpm dev
 ```
 
@@ -83,8 +83,8 @@ Node.js 不会自动读取 `.env`；Compose 会读取它用于变量替换。HTT
 已有存储命令可用于备份及旧 JSON 导入：
 
 ```bash
-pnpm --filter @venera/server storage backup
-pnpm --filter @venera/server storage import-json
+pnpm --filter @mansou/server storage backup
+pnpm --filter @mansou/server storage import-json
 ```
 
 管理员恢复与旧共享 Token 的升级步骤见 [鉴权说明](auth.md)。

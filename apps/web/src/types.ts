@@ -1,4 +1,4 @@
-import type { Comic } from "@venera/contracts";
+import type { Comic } from "@mansou/contracts";
 
 export type Source = {
   key: string;
@@ -58,17 +58,17 @@ export type DownloadItem = {
   error_code?: string;
 };
 export type DownloadItemsPage = Omit<
-  import("@venera/contracts").components["schemas"]["DownloadItemsPage"],
+  import("@mansou/contracts").components["schemas"]["DownloadItemsPage"],
   "items"
 > & { items: DownloadItem[] };
 export type RetryFailedDownloadImagesResult = Omit<
-  import("@venera/contracts").components["schemas"]["RetryFailedDownloadImagesResult"],
+  import("@mansou/contracts").components["schemas"]["RetryFailedDownloadImagesResult"],
   "task"
 > & { task: DownloadTask | null };
 export type CacheStats = { files: number; bytes: number };
-export type SettingsResponse = import("@venera/contracts").components["schemas"]["SourceSettings"];
-export type SourceAuth = import("@venera/contracts").components["schemas"]["SourceAuth"];
-export type SourceLogin = import("@venera/contracts").components["schemas"]["SourceLogin"];
+export type SettingsResponse = import("@mansou/contracts").components["schemas"]["SourceSettings"];
+export type SourceAuth = import("@mansou/contracts").components["schemas"]["SourceAuth"];
+export type SourceLogin = import("@mansou/contracts").components["schemas"]["SourceLogin"];
 export type SourceMetadata = {
   availableVersion?: string;
   key: string;

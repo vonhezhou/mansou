@@ -12,8 +12,8 @@ import { SourceCookieStore } from "../../../packages/plugin-runtime/src/host/coo
 import { SourceDataStore } from "../../../packages/plugin-runtime/src/host/dataStore.js";
 import { createRuntimeApi as createApi } from "../../../packages/plugin-runtime/src/adapters/venera/runtimeApi.js";
 import { createNetwork } from "../../../packages/plugin-runtime/src/host/network.js";
-import { createStorage } from "@venera/storage";
-const dataDir = mkdtempSync(path.join(os.tmpdir(), "venera-api-test-"));
+import { createStorage } from "@mansou/storage";
+const dataDir = mkdtempSync(path.join(os.tmpdir(), "mansou-api-test-"));
 const storage = createStorage(dataDir);
 const network = createNetwork(config);
 const createRuntimeApi = (key: string, data: SourceDataStore, cookies: SourceCookieStore) =>

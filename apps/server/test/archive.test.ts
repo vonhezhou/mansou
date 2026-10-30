@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { inflateRawSync } from "node:zlib";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { createStorage, type DownloadTask } from "@venera/storage";
+import { createStorage, type DownloadTask } from "@mansou/storage";
 import * as archive from "../src/services/downloads/archive.js";
 import { DownloadService } from "../src/services/downloads/downloadService.js";
 import { DownloadRepository } from "../src/services/downloads/downloadRepository.js";
@@ -15,7 +15,7 @@ let repository: DownloadRepository;
 let service: DownloadService;
 let images: string;
 beforeEach(async () => {
-  directory = await mkdtemp(path.join(os.tmpdir(), "venera-archive-"));
+  directory = await mkdtemp(path.join(os.tmpdir(), "mansou-archive-"));
   images = path.join(directory, "images");
   await mkdir(path.join(images, "chapter"), { recursive: true });
   storage = createStorage(directory);

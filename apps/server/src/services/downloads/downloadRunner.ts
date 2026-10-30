@@ -1,7 +1,7 @@
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import type { SourceRegistry } from "@venera/core";
-import type { DownloadTask } from "@venera/storage";
+import type { SourceRegistry } from "@mansou/core";
+import type { DownloadTask } from "@mansou/storage";
 import type { ImageProxyService } from "../imageProxy.js";
 import { DownloadRepository } from "./downloadRepository.js";
 import { writeImage } from "./downloadFiles.js";

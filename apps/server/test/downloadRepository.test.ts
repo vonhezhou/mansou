@@ -1,7 +1,7 @@
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { createStorage } from "@venera/storage";
+import { createStorage } from "@mansou/storage";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { DownloadRepository } from "../src/services/downloads/downloadRepository.js";
 
@@ -9,7 +9,7 @@ let directory: string;
 let storage: ReturnType<typeof createStorage>;
 let repository: DownloadRepository;
 beforeEach(async () => {
-  directory = await mkdtemp(path.join(os.tmpdir(), "venera-download-records-"));
+  directory = await mkdtemp(path.join(os.tmpdir(), "mansou-download-records-"));
   storage = createStorage(directory);
   repository = new DownloadRepository(storage);
 });

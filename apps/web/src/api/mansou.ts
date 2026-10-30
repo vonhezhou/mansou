@@ -44,7 +44,7 @@ export function downloadsEventUrl() {
   return `${apiBase}/downloads/events`;
 }
 
-export const veneraApi = {
+export const mansouApi = {
   health: () => api<Health>("/health"),
   listInstalledSources: () => api<Source[]>("/sources/installed"),
   listSourceMetadata: () => api<SourceMetadata[]>("/sources/metadata"),

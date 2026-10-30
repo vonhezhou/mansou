@@ -1,5 +1,5 @@
 import { Worker } from "node:worker_threads";
-import type { SourceMetadata } from "@venera/core";
+import type { SourceMetadata } from "@mansou/core";
 import type { RuntimeOptions } from "../options.js";
 import { PluginRuntimeError, type PluginErrorCode } from "../errors.js";
 import type { Executor, Operation, Arguments, Result } from "./protocol.js";

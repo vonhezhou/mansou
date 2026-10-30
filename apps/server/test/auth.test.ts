@@ -8,7 +8,7 @@ import { readAuthConfig } from "../src/auth/config.js";
 import { hashPassword, secretHash } from "../src/auth/password.js";
 const config = readConfig();
 
-const origin = "https://venera.test";
+const origin = "https://mansou.test";
 const options = readAuthConfig({ AUTH_MODE: "required", AUTH_ORIGIN: origin });
 let built: Awaited<ReturnType<typeof buildApp>>;
 let dir: string;
@@ -18,7 +18,7 @@ beforeAll(async () => {
   digest = await hashPassword(password);
 });
 beforeEach(async () => {
-  dir = await mkdtemp(path.join(os.tmpdir(), "venera-auth-"));
+  dir = await mkdtemp(path.join(os.tmpdir(), "mansou-auth-"));
   config.dataDir = dir;
   built = await buildApp(options, config);
 });
@@ -54,7 +54,7 @@ describe("session authentication", () => {
     }
     expect((await built.app.inject({ url: "/api/v1/health" })).json()).toEqual({
       ok: true,
-      name: "venera_web",
+      name: "mansou",
     });
     expect((await built.app.inject({ url: "/api/v1/auth/session" })).json()).toEqual({
       mode: "required",
@@ -65,7 +65,7 @@ describe("session authentication", () => {
   it("issues secure cookies, rejects missing CSRF and foreign origins, and logs out", async () => {
     built.context.storage.auth.createAdmin("admin", digest);
     const headers = await login();
-    expect(headers.cookie).toMatch(/^__Host-venera_session=/);
+    expect(headers.cookie).toMatch(/^__Host-mansou_session=/);
     const second = await built.app.inject({
       method: "POST",
       url: "/api/v1/auth/login",

@@ -7,11 +7,11 @@ import { createStorage, type DownloadTask } from "./index.js";
 
 describe("storage migrations", () => {
   it("creates a database without reading history", async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "venera-storage-test-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "mansou-storage-test-"));
     try {
       const storage = createStorage(dir);
       storage.close();
-      const db = new Database(path.join(dir, "venera_web.sqlite"));
+      const db = new Database(path.join(dir, "mansou.sqlite"));
       try {
         expect(
           db.prepare("select name from sqlite_master where name = 'history'").get(),
@@ -27,11 +27,11 @@ describe("storage migrations", () => {
   it.each([1, 3, 4, 5, 6])(
     "opens a version %i database without changing existing history",
     async (version) => {
-      const dir = await mkdtemp(path.join(os.tmpdir(), "venera-storage-test-"));
+      const dir = await mkdtemp(path.join(os.tmpdir(), "mansou-storage-test-"));
       try {
         const initial = createStorage(dir);
         initial.close();
-        const db = new Database(path.join(dir, "venera_web.sqlite"));
+        const db = new Database(path.join(dir, "mansou.sqlite"));
         try {
           db.prepare("delete from schema_migrations where version > ?").run(version);
           if (version < 6) db.exec("drop index idx_download_items_task_order");
@@ -48,7 +48,7 @@ describe("storage migrations", () => {
         } finally {
           storage.close();
         }
-        const reopened = new Database(path.join(dir, "venera_web.sqlite"));
+        const reopened = new Database(path.join(dir, "mansou.sqlite"));
         try {
           expect(reopened.prepare("select * from history").all()).toEqual([
             { id: "mock:comic-1", page: 3 },
@@ -67,7 +67,7 @@ describe("storage migrations", () => {
 });
 
 it("upgrades an existing version 5 database without changing image records and avoids temporary page sorting", async () => {
-  const dir = await mkdtemp(path.join(os.tmpdir(), "venera-storage-page-index-"));
+  const dir = await mkdtemp(path.join(os.tmpdir(), "mansou-storage-page-index-"));
   try {
     const initial = createStorage(dir);
     for (const imageKey of ["z", "a", "m"])
@@ -79,7 +79,7 @@ it("upgrades an existing version 5 database without changing image records and a
       });
     const before = initial.listDownloadItems("task");
     initial.close();
-    const legacy = new Database(path.join(dir, "venera_web.sqlite"));
+    const legacy = new Database(path.join(dir, "mansou.sqlite"));
     legacy.exec(
       "drop index idx_download_items_task_order; delete from schema_migrations where version = 6",
     );
@@ -98,7 +98,7 @@ it("upgrades an existing version 5 database without changing image records and a
     } finally {
       upgraded.close();
     }
-    const verified = new Database(path.join(dir, "venera_web.sqlite"));
+    const verified = new Database(path.join(dir, "mansou.sqlite"));
     try {
       const plan = verified
         .prepare(
@@ -117,7 +117,7 @@ it("upgrades an existing version 5 database without changing image records and a
 
 describe("download item lookup", () => {
   it("selects ordered failed keys for one task and observes successful retries and deletions", async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "venera-failed-keys-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "mansou-failed-keys-"));
     const storage = createStorage(dir);
     try {
       storage.saveDownloadItem({ taskId: "task", imageKey: "z", status: "failed" });
@@ -141,7 +141,7 @@ describe("download item lookup", () => {
     }
   });
   it("retrieves the exact persisted image and observes updates and deletions", async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "venera-storage-items-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "mansou-storage-items-"));
     const storage = createStorage(dir);
     try {
       for (const taskId of ["first", "second"])
@@ -170,7 +170,7 @@ describe("download item lookup", () => {
   });
 
   it("does not return a different task or image when separator-containing keys share an id", async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "venera-storage-items-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "mansou-storage-items-"));
     const storage = createStorage(dir);
     try {
       storage.saveDownloadItem({ taskId: "task:part", imageKey: "image", status: "completed" });
@@ -184,7 +184,7 @@ describe("download item lookup", () => {
 });
 
 it("lists only queued task ids in creation order and observes state transitions", async () => {
-  const dir = await mkdtemp(path.join(os.tmpdir(), "venera-storage-queue-"));
+  const dir = await mkdtemp(path.join(os.tmpdir(), "mansou-storage-queue-"));
   const storage = createStorage(dir);
   try {
     const task = (id: string, status: DownloadTask["status"], createdAt: string): DownloadTask => ({

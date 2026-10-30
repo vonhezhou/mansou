@@ -1,4 +1,4 @@
-import type { Comic } from "@venera/contracts";
+import type { Comic } from "@mansou/contracts";
 import type { AggregatedSearchItem, Details, Source } from "../../types.js";
 
 export type SearchViewProps = {

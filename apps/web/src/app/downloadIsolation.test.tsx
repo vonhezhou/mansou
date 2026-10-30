@@ -3,7 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { App } from "../App.js";
 import { authApi } from "../api/auth.js";
-import { veneraApi } from "../api/venera.js";
+import { mansouApi } from "../api/mansou.js";
 import type { DownloadTask } from "../types.js";
 
 const renders = vi.hoisted(() => ({ search: vi.fn(), sources: vi.fn() }));
@@ -69,22 +69,22 @@ beforeEach(async () => {
     authenticated: true,
     initialized: true,
   });
-  vi.spyOn(veneraApi, "health").mockResolvedValue({ ok: true, name: "test", dataDir: "/data" });
-  vi.spyOn(veneraApi, "listInstalledSources").mockResolvedValue([
+  vi.spyOn(mansouApi, "health").mockResolvedValue({ ok: true, name: "test", dataDir: "/data" });
+  vi.spyOn(mansouApi, "listInstalledSources").mockResolvedValue([
     { key: "mock", name: "Mock", hasSearch: true },
   ]);
-  vi.spyOn(veneraApi, "listSourceMetadata").mockResolvedValue([
+  vi.spyOn(mansouApi, "listSourceMetadata").mockResolvedValue([
     { key: "mock", name: "Mock", enabled: true },
   ]);
-  vi.spyOn(veneraApi, "listAvailableSources").mockResolvedValue([{ key: "mock", name: "Mock" }]);
-  vi.spyOn(veneraApi, "getSourceAuth").mockResolvedValue({
+  vi.spyOn(mansouApi, "listAvailableSources").mockResolvedValue([{ key: "mock", name: "Mock" }]);
+  vi.spyOn(mansouApi, "getSourceAuth").mockResolvedValue({
     loggedIn: false,
     methods: [],
     cookieFields: [],
     webview: "unsupported",
   });
-  vi.spyOn(veneraApi, "getCacheStats").mockResolvedValue({ files: 0, bytes: 0 });
-  vi.spyOn(veneraApi, "listDownloads").mockResolvedValue([task()]);
+  vi.spyOn(mansouApi, "getCacheStats").mockResolvedValue({ files: 0, bytes: 0 });
+  vi.spyOn(mansouApi, "listDownloads").mockResolvedValue([task()]);
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);

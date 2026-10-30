@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useDownloads } from "./useDownloads.js";
-import { veneraApi } from "../api/venera.js";
+import { mansouApi } from "../api/mansou.js";
 import type { DownloadTask } from "../types.js";
 
 let state: ReturnType<typeof useDownloads>;
@@ -28,7 +28,7 @@ beforeEach(async () => {
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  vi.spyOn(veneraApi, "listDownloads").mockResolvedValue([]);
+  vi.spyOn(mansouApi, "listDownloads").mockResolvedValue([]);
   await act(async () => root.render(<Harness />));
 });
 afterEach(async () => {
@@ -41,18 +41,18 @@ afterEach(async () => {
 
 it("prevents duplicate commands for one task while allowing another task to proceed", async () => {
   let finish!: (value: DownloadTask) => void;
-  vi.spyOn(veneraApi, "pauseDownload").mockReturnValue(
+  vi.spyOn(mansouApi, "pauseDownload").mockReturnValue(
     new Promise((resolve) => {
       finish = resolve;
     }),
   );
-  const resume = vi.spyOn(veneraApi, "resumeDownload").mockResolvedValue(task("b", "running"));
+  const resume = vi.spyOn(mansouApi, "resumeDownload").mockResolvedValue(task("b", "running"));
   let pending: Promise<void>;
   await act(async () => {
     pending = state.downloadAction(task("a", "running"), "pause");
   });
   await act(async () => state.downloadAction(task("a", "running"), "pause"));
-  expect(veneraApi.pauseDownload).toHaveBeenCalledTimes(1);
+  expect(mansouApi.pauseDownload).toHaveBeenCalledTimes(1);
   await act(async () => state.downloadAction(task("b"), "resume"));
   expect(resume).toHaveBeenCalledWith("b");
   expect(state.taskOperations).toEqual({ a: "正在暂停任务…" });
@@ -65,7 +65,7 @@ it("prevents duplicate commands for one task while allowing another task to proc
 
 it("keeps detail errors visible and reloads them successfully", async () => {
   const load = vi
-    .spyOn(veneraApi, "listDownloadItemsPage")
+    .spyOn(mansouApi, "listDownloadItemsPage")
     .mockRejectedValueOnce(new Error("连接失败"))
     .mockResolvedValueOnce({
       items: [{ imageKey: "one", status: "failed" }],
@@ -86,14 +86,14 @@ it("keeps detail errors visible and reloads them successfully", async () => {
 it("keeps operation errors with their tasks and clears only the retried task's error", async () => {
   let finish!: (value: DownloadTask) => void;
   const pause = vi
-    .spyOn(veneraApi, "pauseDownload")
+    .spyOn(mansouApi, "pauseDownload")
     .mockRejectedValueOnce(new Error("暂停失败"))
     .mockReturnValueOnce(
       new Promise((resolve) => {
         finish = resolve;
       }),
     );
-  vi.spyOn(veneraApi, "resumeDownload").mockRejectedValueOnce(new Error("继续失败"));
+  vi.spyOn(mansouApi, "resumeDownload").mockRejectedValueOnce(new Error("继续失败"));
   await act(async () => state.downloadAction(task("a", "running"), "pause"));
   await act(async () => state.downloadAction(task("b"), "resume"));
   expect(state.taskErrors).toEqual({ a: "暂停失败", b: "继续失败" });
@@ -115,8 +115,8 @@ it("keeps operation errors with their tasks and clears only the retried task's e
 });
 
 it("blocks image retries during active downloads and uses batch retry for a stopped task", async () => {
-  const retry = vi.spyOn(veneraApi, "retryDownloadItem");
-  const batch = vi.spyOn(veneraApi, "retryFailedDownloadItems").mockResolvedValue({
+  const retry = vi.spyOn(mansouApi, "retryDownloadItem");
+  const batch = vi.spyOn(mansouApi, "retryFailedDownloadItems").mockResolvedValue({
     task: task("a"),
     retried: 1,
     results: [
@@ -134,7 +134,7 @@ it("blocks image retries during active downloads and uses batch retry for a stop
       },
     ],
   });
-  vi.spyOn(veneraApi, "listDownloadItemsPage").mockResolvedValue({
+  vi.spyOn(mansouApi, "listDownloadItemsPage").mockResolvedValue({
     items: [],
     total: 0,
     failedTotal: 0,
@@ -147,7 +147,7 @@ it("blocks image retries during active downloads and uses batch retry for a stop
   expect(retry).not.toHaveBeenCalled();
   await act(async () => state.downloadAction(task("a"), "retry-failed"));
   expect(batch).toHaveBeenCalledWith("a");
-  expect(veneraApi.listDownloadItemsPage).toHaveBeenCalledWith("a", {
+  expect(mansouApi.listDownloadItemsPage).toHaveBeenCalledWith("a", {
     offset: 0,
     limit: 100,
     failedOnly: false,
@@ -156,7 +156,7 @@ it("blocks image retries during active downloads and uses batch retry for a stop
 
 it("does not overwrite a newer live snapshot with an older list response", async () => {
   let finish!: (tasks: DownloadTask[]) => void;
-  vi.mocked(veneraApi.listDownloads).mockReturnValue(
+  vi.mocked(mansouApi.listDownloads).mockReturnValue(
     new Promise((resolve) => {
       finish = resolve;
     }),
@@ -174,8 +174,8 @@ it("does not overwrite a newer live snapshot with an older list response", async
 });
 
 it("requests the current filter from the server and ignores the old filter's response", async () => {
-  let finish!: (value: Awaited<ReturnType<typeof veneraApi.listDownloadItemsPage>>) => void;
-  const load = vi.spyOn(veneraApi, "listDownloadItemsPage").mockReturnValueOnce(
+  let finish!: (value: Awaited<ReturnType<typeof mansouApi.listDownloadItemsPage>>) => void;
+  const load = vi.spyOn(mansouApi, "listDownloadItemsPage").mockReturnValueOnce(
     new Promise((resolve) => {
       finish = resolve;
     }),
@@ -210,7 +210,7 @@ it("requests the current filter from the server and ignores the old filter's res
 
 it("fetches the new last page once if the requested page disappears after records change", async () => {
   const load = vi
-    .spyOn(veneraApi, "listDownloadItemsPage")
+    .spyOn(mansouApi, "listDownloadItemsPage")
     .mockResolvedValueOnce({ items: [], total: 101, failedTotal: 0, offset: 200, limit: 100 })
     .mockResolvedValueOnce({
       items: [{ imageKey: "last", status: "completed" }],
@@ -228,7 +228,7 @@ it("fetches the new last page once if the requested page disappears after record
 it("keeps export feedback active until preparation succeeds and does not start a browser download on failure", async () => {
   let finish!: (value: { path: string }) => void;
   const prepare = vi
-    .spyOn(veneraApi, "exportDownloadCbz")
+    .spyOn(mansouApi, "exportDownloadCbz")
     .mockReturnValueOnce(
       new Promise((resolve) => {
         finish = resolve;

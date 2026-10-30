@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { readConfig } from "../src/config/config.js";
 import { createPaths } from "../src/storage/paths.js";
 import { SourceRepositoryService } from "../src/repositories/sourceRepository.js";
-import { isNewerVersion } from "@venera/plugin-runtime/version";
+import { isNewerVersion } from "@mansou/plugin-runtime/version";
 const config = readConfig();
 
 const paths = createPaths(config.dataDir);
@@ -22,7 +22,7 @@ let filename = "old.js";
 const requests: string[] = [];
 
 beforeAll(async () => {
-  dir = await mkdtemp(path.join(os.tmpdir(), "venera-repository-"));
+  dir = await mkdtemp(path.join(os.tmpdir(), "mansou-repository-"));
   paths.repositoryIndex = path.join(dir, "index.json");
   paths.scripts = path.join(dir, "scripts");
   server = createServer((req, res) => {

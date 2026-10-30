@@ -1,4 +1,4 @@
-# Venera Web 技术设计
+# 漫搜 · Mansou 技术设计
 
 > 当前 server 实现以 [server_architecture.md](server_architecture.md) 为准。本文保留项目总体规划；阅读器、历史、收藏等早期扩展设想不属于当前搜索、聚合搜索、章节预览和下载的实施范围。
 
@@ -6,7 +6,7 @@
 
 `venera` 是 Flutter 漫画阅读应用，核心能力包括通过 JavaScript 插件扩展漫画源、聚合搜索、在线浏览、详情页、阅读器、收藏、历史、下载、图片缓存、账号与 Cookie 管理。`venera_web_poc` 已经验证了在 Node.js/TypeScript 环境中复用 Venera 插件的可行性：通过 Fastify 暴露 HTTP API，通过 Node `vm` 加载插件脚本，并提供 `ComicSource`、`Network`、`Html`、`Data`、`Log`、`App`、`Convert` 等兼容层。
 
-`venera_web` 的目标是将 PoC 正式化为可长期维护、可部署在 NAS/服务器/本地桌面环境的 Web 漫画阅读项目。正式项目应复用 Venera 现有插件生态，同时提供稳定的服务端 API、现代 Web 前端、数据持久化、任务调度、插件兼容性验证、可观测性、安全隔离与部署能力。
+`mansou` 的目标是将 PoC 正式化为可长期维护、可部署在 NAS/服务器/本地桌面环境的 Web 漫画阅读项目。正式项目应复用 Venera 现有插件生态，同时提供稳定的服务端 API、现代 Web 前端、数据持久化、任务调度、插件兼容性验证、可观测性、安全隔离与部署能力。
 
 ## 2. 设计原则
 
@@ -35,7 +35,7 @@
 - 兼容层：已实现 `Network`、`Html`、`HtmlDocument`、`Data`、`Log`、`App`、部分 `Convert`。
 - API：源列表、源安装、源设置、Cookie 导入、单源搜索、聚合搜索、详情、章节图片、图片代理、下载任务、CBZ 导出。
 - 存储：文件系统 JSON 数据、Cookie 文件、图片缓存、下载目录。
-- 网络：支持 `VENERA_PROXY`、系统代理环境变量和 `VENERA_NO_PROXY`。
+- 网络：支持 `MANSOU_PROXY`、系统代理环境变量和 `MANSOU_NO_PROXY`。
 - Web UI：`public/index.html`、`app.js`、`style.css` 的最小可用界面。
 
 ### 3.3 PoC 主要不足
@@ -53,7 +53,7 @@
 正式项目采用单仓库、前后端同构 TypeScript 的分层架构。首版建议仍以一个 Node.js 进程交付，内部拆分为明确模块；后续可将 Worker、下载器、插件运行时独立为进程或服务。
 
 ```text
-venera_web
+mansou
 ├── apps
 │   ├── server          # Fastify API、任务调度、静态资源托管
 │   └── web             # Web 前端应用
@@ -303,7 +303,7 @@ GET /api/v1/images/:sourceKey?imageKey=...&comicId=...&episodeId=...&thumbnail=f
 
 - `pnpm build && pnpm start` 本地运行。
 - Docker 镜像，挂载 `/data` 保存源、数据库、缓存、下载。
-- 环境变量沿用并规范 PoC 变量：`PORT`、`HOST`、`VENERA_DATA_DIR`、`VENERA_SOURCE_LIST_URL`、`VENERA_SOURCE_CDN_BASE_URL`、`VENERA_PROXY`、`VENERA_NO_PROXY`、`VENERA_REQUEST_TIMEOUT_MS`、下载并发等。
+- 环境变量沿用并规范 PoC 变量：`PORT`、`HOST`、`MANSOU_DATA_DIR`、`MANSOU_SOURCE_LIST_URL`、`MANSOU_SOURCE_CDN_BASE_URL`、`MANSOU_PROXY`、`MANSOU_NO_PROXY`、`MANSOU_REQUEST_TIMEOUT_MS`、下载并发等。
 
 后续可选：
 
@@ -314,7 +314,7 @@ GET /api/v1/images/:sourceKey?imageKey=...&comicId=...&episodeId=...&thumbnail=f
 
 ## 11. 迁移方案
 
-从 `venera_web_poc` 到 `venera_web` 的迁移建议：
+从 `venera_web_poc` 到 `mansou` 的迁移建议：
 
 - 先整体复制 PoC 可运行代码，保持 API 主路径可用。
 - 引入 monorepo 结构和共享 contracts，逐步拆分 `server.ts`。

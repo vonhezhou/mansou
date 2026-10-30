@@ -15,7 +15,7 @@ let initializeApp: typeof import("../src/app.js").initializeApp;
 beforeAll(async () => {
   config = {
     ...readConfig(),
-    dataDir: await mkdtemp(path.join(os.tmpdir(), "venera-web-test-")),
+    dataDir: await mkdtemp(path.join(os.tmpdir(), "mansou-test-")),
     downloadRetries: 1,
   };
   const module = await import("../src/app.js");
@@ -35,11 +35,11 @@ describe("api v1 mock source", () => {
   it("returns health status", async () => {
     const response = await app.inject({ method: "GET", url: "/api/v1/health" });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ ok: true, name: "venera_web" });
+    expect(response.json()).toMatchObject({ ok: true, name: "mansou" });
   });
 
   it("rejects static asset path traversal", async () => {
-    const assetsDir = path.resolve("/tmp/venera-web/static/assets");
+    const assetsDir = path.resolve("/tmp/mansou/static/assets");
     expect(resolveAssetPath(assetsDir, "main.js")).toBe(path.join(assetsDir, "main.js"));
     expect(resolveAssetPath(assetsDir, "../app.js")).toBeNull();
   });

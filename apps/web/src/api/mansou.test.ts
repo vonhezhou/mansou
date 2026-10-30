@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { downloadsEventUrl, imageUrl, veneraApi } from "./venera.js";
+import { downloadsEventUrl, imageUrl, mansouApi } from "./mansou.js";
 
 describe("cookie-authenticated resource URLs", () => {
   it("encodes image context without embedding credentials", () => {
@@ -14,6 +14,6 @@ describe("cookie-authenticated resource URLs", () => {
   });
   it("keeps streams and archive downloads free of tokens", () => {
     expect(downloadsEventUrl()).toBe("/api/v1/downloads/events");
-    expect(veneraApi.downloadDownloadCbzUrl("a/b")).toBe("/api/v1/downloads/a%2Fb/cbz");
+    expect(mansouApi.downloadDownloadCbzUrl("a/b")).toBe("/api/v1/downloads/a%2Fb/cbz");
   });
 });

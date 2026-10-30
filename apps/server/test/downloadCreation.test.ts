@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { createStorage, type DownloadTask } from "@venera/storage";
+import { createStorage, type DownloadTask } from "@mansou/storage";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { DownloadRepository } from "../src/services/downloads/downloadRepository.js";
 import { DownloadService } from "../src/services/downloads/downloadService.js";
@@ -24,7 +24,7 @@ const task = (id: string, patch: Partial<DownloadTask> = {}): DownloadTask => ({
   ...patch,
 });
 beforeEach(async () => {
-  directory = await mkdtemp(path.join(os.tmpdir(), "venera-download-creation-"));
+  directory = await mkdtemp(path.join(os.tmpdir(), "mansou-download-creation-"));
   storage = createStorage(directory);
   // 不初始化调度，单独验证创建命令的持久化与去重规则。
   service = new DownloadService(new DownloadRepository(storage), {} as DownloadRunner, 1, vi.fn());

@@ -1,5 +1,5 @@
-import { createStorage } from "@venera/storage";
-import { PluginManager } from "@venera/plugin-runtime";
+import { createStorage } from "@mansou/storage";
+import { PluginManager } from "@mansou/plugin-runtime";
 import { AuthService } from "./auth/service.js";
 import type { AuthConfig } from "./auth/config.js";
 import type { AppConfig } from "./config/config.js";

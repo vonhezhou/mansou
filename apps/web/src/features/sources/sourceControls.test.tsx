@@ -4,7 +4,7 @@ import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { SourceAccountPanel } from "./SourceAccountPanel.js";
 import { SourceSettingsPanel } from "./SourceSettingsPanel.js";
 import { SourceRepositoryPanel } from "./SourceRepositoryPanel.js";
-import { veneraApi } from "../../api/venera.js";
+import { mansouApi } from "../../api/mansou.js";
 import type { SourceAuth } from "../../types.js";
 let root: Root;
 let container: HTMLDivElement;
@@ -48,7 +48,7 @@ const passwordAuth: SourceAuth = {
 it("recovers a failed source account load without reloading the page", async () => {
   const response = deferred<SourceAuth>();
   const load = vi
-    .spyOn(veneraApi, "getSourceAuth")
+    .spyOn(mansouApi, "getSourceAuth")
     .mockRejectedValueOnce(new Error("账号状态暂不可用"))
     .mockReturnValueOnce(response.promise);
   await render(<SourceAccountPanel sourceKey="one" />);
@@ -65,14 +65,14 @@ it("recovers a failed source account load without reloading the page", async () 
 });
 
 it("blocks duplicate login submissions and lets a failed login recover before logout", async () => {
-  vi.spyOn(veneraApi, "getSourceAuth").mockResolvedValue(passwordAuth);
+  vi.spyOn(mansouApi, "getSourceAuth").mockResolvedValue(passwordAuth);
   const response = deferred<SourceAuth>();
   const login = vi
-    .spyOn(veneraApi, "loginSource")
+    .spyOn(mansouApi, "loginSource")
     .mockReturnValueOnce(response.promise)
     .mockResolvedValueOnce({ ...passwordAuth, loggedIn: true });
   const logoutResponse = deferred<SourceAuth>();
-  const logout = vi.spyOn(veneraApi, "logoutSource").mockReturnValue(logoutResponse.promise);
+  const logout = vi.spyOn(mansouApi, "logoutSource").mockReturnValue(logoutResponse.promise);
   await render(<SourceAccountPanel sourceKey="one" />);
   await input(container.querySelector('input[autocomplete="username"]')!, "user");
   await input(container.querySelector('input[type="password"]')!, "secret");
@@ -136,8 +136,8 @@ it("submits plugin credentials for the selected source and clears secrets after 
     cookieFields: [],
     webview: "unavailable" as const,
   };
-  vi.spyOn(veneraApi, "getSourceAuth").mockResolvedValue(auth);
-  const login = vi.spyOn(veneraApi, "loginSource").mockResolvedValue({ ...auth, loggedIn: true });
+  vi.spyOn(mansouApi, "getSourceAuth").mockResolvedValue(auth);
+  const login = vi.spyOn(mansouApi, "loginSource").mockResolvedValue({ ...auth, loggedIn: true });
   await render(<SourceAccountPanel key="one" sourceKey="one" />);
   await input(container.querySelector('input[autocomplete="username"]')!, "user");
   await input(container.querySelector('input[type="password"]')!, "secret");
@@ -161,7 +161,7 @@ it("submits plugin credentials for the selected source and clears secrets after 
 it("renders typed source settings and invokes a callback through its source endpoint", async () => {
   const change = vi.fn();
   const invoke = vi
-    .spyOn(veneraApi, "invokeSourceSetting")
+    .spyOn(mansouApi, "invokeSourceSetting")
     .mockResolvedValue({ schema: {}, values: { label: "updated" } });
   await render(
     <SourceSettingsPanel

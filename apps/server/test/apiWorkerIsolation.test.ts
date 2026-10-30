@@ -42,7 +42,7 @@ beforeAll(async () => {
   const address = testServer.address() as AddressInfo;
   baseUrl = `http://127.0.0.1:${address.port}`;
 
-  config.dataDir = await mkdtemp(path.join(os.tmpdir(), "venera-web-worker-api-test-"));
+  config.dataDir = await mkdtemp(path.join(os.tmpdir(), "mansou-worker-api-test-"));
   const module = await import("../src/app.js");
   const built = await module.buildApp(undefined, config);
   app = built.app;

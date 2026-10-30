@@ -1,4 +1,4 @@
-import type { SourceRegistry } from "@venera/core";
+import type { SourceRegistry } from "@mansou/core";
 import { ImageCache } from "../storage/imageCache.js";
 type ImageProxyInput = {
   sourceKey: string;
@@ -111,7 +111,7 @@ function mockSvg(label: string) {
   </defs>
   <rect width="900" height="1200" fill="url(#bg)"/>
   <circle cx="740" cy="180" r="90" fill="#64748b" opacity="0.35"/>
-  <text x="450" y="560" text-anchor="middle" font-family="Arial, sans-serif" font-size="54" fill="#f8fafc">Venera Web</text>
+  <text x="450" y="560" text-anchor="middle" font-family="Arial, sans-serif" font-size="54" fill="#f8fafc">Mansou</text>
   <text x="450" y="640" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" fill="#cbd5e1">${safeLabel}</text>
 </svg>`;
 }

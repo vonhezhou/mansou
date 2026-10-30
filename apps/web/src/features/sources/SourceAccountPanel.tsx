@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { veneraApi } from "../../api/venera.js";
+import { mansouApi } from "../../api/mansou.js";
 import { LoadingStatus } from "../../app/LoadingStatus.js";
 import type { SourceAuth } from "../../types.js";
 
@@ -20,7 +20,7 @@ export function SourceAccountPanel({ sourceKey }: { sourceKey: string }) {
     setAuth(null);
     setError("");
     if (sourceKey)
-      veneraApi
+      mansouApi
         .getSourceAuth(sourceKey)
         .then((value) => {
           if (active) setAuth(value);
@@ -44,8 +44,8 @@ export function SourceAccountPanel({ sourceKey }: { sourceKey: string }) {
     try {
       setAuth(
         logout
-          ? await veneraApi.logoutSource(sourceKey)
-          : await veneraApi.loginSource(
+          ? await mansouApi.logoutSource(sourceKey)
+          : await mansouApi.loginSource(
               sourceKey,
               auth.methods.includes("password")
                 ? { method: "password", username, password }

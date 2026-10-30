@@ -2,13 +2,13 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { rm, stat, rename } from "node:fs/promises";
-import type { DownloadTask } from "@venera/storage";
+import type { DownloadTask } from "@mansou/storage";
 import { AppError } from "../../errors.js";
 import { zipDirectory } from "./archive.js";
 import { DownloadRepository } from "./downloadRepository.js";
 import { DownloadRunner, classifyDownloadError } from "./downloadRunner.js";
 import { DownloadScheduler } from "./downloadScheduler.js";
-export type { DownloadTask } from "@venera/storage";
+export type { DownloadTask } from "@mansou/storage";
 
 type DownloadInput = { sourceKey: string; comicId: string; episodeId?: string; all?: boolean };
 const terminal = new Set(["completed", "failed", "cancelled"]);

@@ -1,4 +1,4 @@
-import type { SearchResult } from "@venera/core";
+import type { SearchResult } from "@mansou/core";
 export type VeneraComicSource = {
   key: string;
   name: string;

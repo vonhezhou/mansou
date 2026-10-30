@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import sharp from "sharp";
-import { createStorage } from "@venera/storage";
+import { createStorage } from "@mansou/storage";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { readConfig } from "../src/config/config.js";
 import { TestSourceRuntime as SourceRuntime } from "./helpers/runtime.js";
@@ -19,7 +19,7 @@ const original = { ...config };
 let dir: string;
 
 beforeAll(async () => {
-  dir = await mkdtemp(path.join(os.tmpdir(), "venera-sync-"));
+  dir = await mkdtemp(path.join(os.tmpdir(), "mansou-sync-"));
   config.dataDir = dir;
   png = await sharp(Buffer.from([255, 0, 0, 255, 0, 255, 0, 255]), {
     raw: { width: 2, height: 1, channels: 4 },

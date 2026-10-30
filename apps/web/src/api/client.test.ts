@@ -26,7 +26,7 @@ describe("session API client", () => {
   });
   it("signals expired sessions and preserves structured errors", async () => {
     const expired = vi.fn();
-    window.addEventListener("venera:unauthorized", expired);
+    window.addEventListener("mansou:unauthorized", expired);
     try {
       vi.spyOn(window, "fetch").mockResolvedValue(
         new Response(JSON.stringify({ error: { code: "UNAUTHORIZED", message: "请先登录" } }), {
@@ -41,12 +41,12 @@ describe("session API client", () => {
       });
       expect(expired).toHaveBeenCalledOnce();
     } finally {
-      window.removeEventListener("venera:unauthorized", expired);
+      window.removeEventListener("mansou:unauthorized", expired);
     }
   });
   it("does not treat an incorrect login password as an expired session", async () => {
     const expired = vi.fn();
-    window.addEventListener("venera:unauthorized", expired);
+    window.addEventListener("mansou:unauthorized", expired);
     try {
       vi.spyOn(window, "fetch").mockResolvedValue(
         new Response("{}", { status: 401, headers: { "content-type": "application/json" } }),
@@ -54,7 +54,7 @@ describe("session API client", () => {
       await expect(api("/auth/login", { method: "POST" })).rejects.toThrow();
       expect(expired).not.toHaveBeenCalled();
     } finally {
-      window.removeEventListener("venera:unauthorized", expired);
+      window.removeEventListener("mansou:unauthorized", expired);
     }
   });
 });

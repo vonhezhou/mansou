@@ -1,4 +1,4 @@
-import type { SourceProvider } from "@venera/core";
+import type { SourceProvider } from "@mansou/core";
 import type { RuntimeOptions } from "../options.js";
 import { loadVenera } from "./venera/load.js";
 export async function loadProvider(

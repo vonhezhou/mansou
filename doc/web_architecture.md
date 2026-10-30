@@ -14,7 +14,7 @@ React/Vite 客户端提供源管理、搜索、详情和章节预览、下载管
 - `src/hooks/*`：各业务功能状态与异步操作。
 - `src/api/client.ts`：同源 HTTP 请求、CSRF 请求头和结构化错误。
 - `src/api/auth.ts`：鉴权 API，类型来自 OpenAPI YAML 生成产物。
-- `src/api/venera.ts`：业务请求封装与资源 URL。
+- `src/api/mansou.ts`：业务请求封装与资源 URL。
 - `src/types.ts`：尚未迁移到生成契约的业务类型及 UI 类型。
 - `src/styles/*`：基础、布局、组件和页面样式。
 
@@ -115,10 +115,10 @@ EventSource 错误时显示“正在自动重连，当前进度可能不是最�
 ## 验证
 
 ```bash
-pnpm --filter @venera/contracts generate:check
-pnpm --filter @venera/web test
-pnpm --filter @venera/web typecheck
-pnpm --filter @venera/web build
+pnpm --filter @mansou/contracts generate:check
+pnpm --filter @mansou/web test
+pnpm --filter @mansou/web typecheck
+pnpm --filter @mansou/web build
 ```
 
 鉴权回归还需运行 server 测试，覆盖匿名/登录两种模式、CSRF、密码限流与重置、Token 权限、SSE 失效和真实 HTTP 连接。浏览器验证登录、账号设置、退出，以及 401 后返回登录页。

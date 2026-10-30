@@ -4,7 +4,7 @@
 
 `AUTH_MODE=none` 用于可信局域网；`AUTH_MODE=required` 用于公网或需要登录的部署。直接启动 Node.js 且不设置该变量时默认为 `none`；Docker 镜像和 Compose 默认 `required`。NAS 一旦通过公网入口开放，也按公网模式配置。
 
-`required` 必须设置 `AUTH_ORIGIN`，例如 `https://venera.example.com`。值是浏览器看到的 origin，不能包含路径、末尾斜线或用户凭据。配置错误会阻止服务启动；尚未初始化管理员时，服务可启动，但业务 API 一律拒绝访问。
+`required` 必须设置 `AUTH_ORIGIN`，例如 `https://mansou.example.com`。值是浏览器看到的 origin，不能包含路径、末尾斜线或用户凭据。配置错误会阻止服务启动；尚未初始化管理员时，服务可启动，但业务 API 一律拒绝访问。
 
 仅首页、前端静态资源、最小健康检查、登录和会话状态接口公开。健康检查只返回 `ok/name`，不包含数据路径或代理地址。此版本不提供注册、多用户、角色权限、JWT 或邮件找回。
 
@@ -13,25 +13,25 @@
 Compose 服务启动后执行：
 
 ```bash
-docker compose exec -it venera-web node dist/cli/admin.js init
+docker compose exec -it mansou node dist/cli/admin.js init
 ```
 
 本地源码运行：
 
 ```bash
-pnpm --filter @venera/storage build
-pnpm --filter @venera/server admin init
+pnpm --filter @mansou/storage build
+pnpm --filter @mansou/server admin init
 ```
 
 用户名默认 `admin`，允许 1–64 位字母、数字、下划线、点和连字符。密码为 12–128 字符，两次输入且不回显。命令必须在交互式终端运行，不接受密码参数；账号已存在时拒绝覆盖。
 
-初始化命令与 Server 必须使用同一个 `VENERA_DATA_DIR`。源码下 server 命令默认使用 `apps/server/data`；容器默认使用 `/data`。Node.js 不自动加载 `.env`，源码启动时需要显式导出环境变量。
+初始化命令与 Server 必须使用同一个 `MANSOU_DATA_DIR`。源码下 server 命令默认使用 `apps/server/data`；容器默认使用 `/data`。Node.js 不自动加载 `.env`，源码启动时需要显式导出环境变量。
 
-SQLite 只保存 Argon2id 密码哈希（随机盐，19 MiB 内存、2 次迭代、并行度 1）。账号、会话和 API Token 位于现有 `venera_web.sqlite`，不增加独立数据库服务。
+SQLite 只保存 Argon2id 密码哈希（随机盐，19 MiB 内存、2 次迭代、并行度 1）。账号、会话和 API Token 位于现有 `mansou.sqlite`，不增加独立数据库服务。
 
 ## 浏览器登录
 
-浏览器同源访问 `/api/v1`。登录成功后 Server 创建随机会话 ID，并通过 HttpOnly、SameSite=Lax、Path=/ 的 Cookie 返回；HTTPS origin 使用带 Secure 的 `__Host-venera_session`，HTTP 本地开发使用 `venera_session`。
+浏览器同源访问 `/api/v1`。登录成功后 Server 创建随机会话 ID，并通过 HttpOnly、SameSite=Lax、Path=/ 的 Cookie 返回；HTTPS origin 使用带 Secure 的 `__Host-mansou_session`，HTTP 本地开发使用 `mansou_session`。
 
 会话 ID 明文不返回 JSON，不放入 localStorage 或资源 URL；SQLite 保存会话 ID 的 SHA-256 哈希。会话固定有效期默认 24 小时，可通过 `AUTH_SESSION_TTL_SECONDS` 设置为 60–2592000 秒，不自动续期。服务每分钟清理过期记录，过期记录即使未清理也无法使用。
 
@@ -46,8 +46,8 @@ SQLite 只保存 Argon2id 密码哈希（随机盐，19 MiB 内存、2 次迭代
 忘记密码时，通过 SSH/本地终端执行：
 
 ```bash
-docker compose exec -it venera-web node dist/cli/admin.js reset-password
-# 源码运行：pnpm --filter @venera/server admin reset-password
+docker compose exec -it mansou node dist/cli/admin.js reset-password
+# 源码运行：pnpm --filter @mansou/server admin reset-password
 ```
 
 重置会撤销所有浏览器会话；API Token 保持有效，需在登录后按需撤销。怀疑凭据泄露时，应同时检查并撤销相关 Token。
@@ -71,7 +71,7 @@ SSE 首次连接验证凭据，推送前再次检查，每秒检查空闲连接�
 ## 从旧共享 Token 迁移
 
 1. 更新前备份数据目录。
-2. 移除 `VENERA_ACCESS_TOKEN`；只要该旧变量仍非空，服务就拒绝启动并提示迁移。
+2. 移除 `MANSOU_ACCESS_TOKEN`；只要该旧变量仍非空，服务就拒绝启动并提示迁移。
 3. 公网明确设置 `AUTH_MODE=required` 和真实 `AUTH_ORIGIN`；局域网按需明确设置 `none`。
 4. 使用同一持久化目录执行 `admin init`，再通过浏览器登录。
 5. 为外部客户端创建独立 Token，更新请求头；删除旧 URL Token 和自定义头。前端会清除旧 localStorage 条目。

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { veneraApi } from "../api/venera.js";
+import { mansouApi } from "../api/mansou.js";
 import type { CacheStats, DownloadItem, DownloadItemsPage, DownloadTask } from "../types.js";
 import type { DownloadAction } from "../features/downloads/types.js";
 import { createDownloadSnapshotStore } from "../lib/downloadSnapshot.js";
@@ -30,13 +30,13 @@ export function useDownloads(runWith: RunWith) {
 
   async function loadDownloads() {
     const version = ++downloadsVersion.current;
-    const tasks = await veneraApi.listDownloads();
+    const tasks = await mansouApi.listDownloads();
     // 实时事件到达后，旧的列表请求不能把进度回滚到先前快照。
     if (version === downloadsVersion.current) snapshotStore.setSnapshot(tasks);
   }
 
   async function loadCacheStats() {
-    setCache(await veneraApi.getCacheStats());
+    setCache(await mansouApi.getCacheStats());
   }
 
   async function withTask(taskId: string, label: string, work: () => Promise<void>) {
@@ -84,7 +84,7 @@ export function useDownloads(runWith: RunWith) {
       await runWith(
         (loading) => setCacheOperation(loading ? "正在清理图片缓存…" : null),
         async () => {
-          setCache(await (action === "clear" ? veneraApi.clearCache() : veneraApi.pruneCache()));
+          setCache(await (action === "clear" ? mansouApi.clearCache() : mansouApi.pruneCache()));
         },
       );
     } finally {
@@ -111,11 +111,11 @@ export function useDownloads(runWith: RunWith) {
       return next;
     });
     try {
-      let page = await veneraApi.listDownloadItemsPage(taskId, { offset, limit: 100, failedOnly });
+      let page = await mansouApi.listDownloadItemsPage(taskId, { offset, limit: 100, failedOnly });
       if (!currentRequest()) return;
       // 重试或删除后末页可能消失，仅补取一次新的末页。
       if (page.total > 0 && page.offset >= page.total) {
-        page = await veneraApi.listDownloadItemsPage(taskId, {
+        page = await mansouApi.listDownloadItemsPage(taskId, {
           offset: Math.floor((page.total - 1) / page.limit) * page.limit,
           limit: page.limit,
           failedOnly,
@@ -140,7 +140,7 @@ export function useDownloads(runWith: RunWith) {
     const imageKey = item.imageKey ?? item.image_key;
     if (!imageKey || ["queued", "running"].includes(task.status)) return;
     await withTask(task.id, "正在重试图片…", async () => {
-      await veneraApi.retryDownloadItem(task.id, imageKey);
+      await mansouApi.retryDownloadItem(task.id, imageKey);
       await fetchDownloadItems(task.id, downloadItems[task.id]?.offset ?? 0);
       await loadDownloads();
     });
@@ -162,14 +162,14 @@ export function useDownloads(runWith: RunWith) {
       "retry-failed": "正在重试失败图片…",
     };
     await withTask(task.id, labels[action], async () => {
-      if (action === "pause") await veneraApi.pauseDownload(task.id);
-      if (action === "resume") await veneraApi.resumeDownload(task.id);
-      if (action === "cancel") await veneraApi.cancelDownload(task.id);
-      if (action === "rerun") await veneraApi.rerunDownload(task.id);
+      if (action === "pause") await mansouApi.pauseDownload(task.id);
+      if (action === "resume") await mansouApi.resumeDownload(task.id);
+      if (action === "cancel") await mansouApi.cancelDownload(task.id);
+      if (action === "rerun") await mansouApi.rerunDownload(task.id);
       if (action === "download-local") {
-        await veneraApi.exportDownloadCbz(task.id);
+        await mansouApi.exportDownloadCbz(task.id);
         const link = document.createElement("a");
-        link.href = veneraApi.downloadDownloadCbzUrl(task.id);
+        link.href = mansouApi.downloadDownloadCbzUrl(task.id);
         link.download = "";
         link.rel = "noreferrer";
         link.click();
@@ -180,7 +180,7 @@ export function useDownloads(runWith: RunWith) {
         return;
       }
       if (action === "delete" || action === "delete-files") {
-        await veneraApi.deleteDownload(task.id, action === "delete-files");
+        await mansouApi.deleteDownload(task.id, action === "delete-files");
         setDownloadItems((current) => {
           const next = { ...current };
           delete next[task.id];
@@ -188,7 +188,7 @@ export function useDownloads(runWith: RunWith) {
         });
       }
       if (action === "retry-failed") {
-        await veneraApi.retryFailedDownloadItems(task.id);
+        await mansouApi.retryFailedDownloadItems(task.id);
         await fetchDownloadItems(task.id, downloadItems[task.id]?.offset ?? 0);
       }
       await loadDownloads();

@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { createStorage } from "@venera/storage";
+import { createStorage } from "@mansou/storage";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { DownloadRepository } from "../src/services/downloads/downloadRepository.js";
 import { DownloadService } from "../src/services/downloads/downloadService.js";
@@ -20,7 +20,7 @@ let unsubscribe: () => void;
 
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-  directory = await mkdtemp(path.join(os.tmpdir(), "venera-download-events-"));
+  directory = await mkdtemp(path.join(os.tmpdir(), "mansou-download-events-"));
   storage = createStorage(directory);
   repository = new DownloadRepository(storage);
   let entered!: () => void;

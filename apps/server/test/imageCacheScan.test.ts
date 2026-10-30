@@ -14,7 +14,7 @@ const releases: Array<() => void> = [];
 beforeEach(async () => {
   actual = await vi.importActual<typeof fs>("node:fs/promises");
   vi.mocked(fs.stat).mockReset().mockImplementation(actual.stat);
-  directory = await fs.mkdtemp(path.join(os.tmpdir(), "venera-cache-scan-"));
+  directory = await fs.mkdtemp(path.join(os.tmpdir(), "mansou-cache-scan-"));
   await Promise.all(
     Array.from({ length: 12 }, (_, index) =>
       fs.writeFile(path.join(directory, `${index}.bin`), "image"),

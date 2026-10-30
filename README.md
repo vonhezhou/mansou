@@ -1,6 +1,6 @@
-# Venera Web
+# 漫搜 · Mansou
 
-Venera Web 是 Venera 漫画源插件生态的 Web 化实现。项目使用 pnpm monorepo，提供 Fastify 服务、React Web 客户端、插件运行时、图片代理和下载管理。支持可信局域网免登录，以及公网单管理员登录与客户端 API Token。
+漫搜（Mansou）是兼容 Venera 漫画源插件生态的多源漫画搜索与下载工具。项目使用 pnpm monorepo，提供 Fastify 服务、React Web 客户端、插件运行时、图片代理和下载管理。支持可信局域网免登录，以及公网单管理员登录与客户端 API Token。
 
 ## 项目结构
 
@@ -36,15 +36,17 @@ pnpm lint
 
 ## 配置
 
+项目环境变量使用 `MANSOU_` 前缀，数据库文件名为 `mansou.sqlite`。
+
 Compose 可复制 `.env.example` 后修改；源码运行需显式导出环境变量，Node.js 不自动加载 `.env`。常用变量包括：
 
 - `AUTH_MODE`、`AUTH_ORIGIN`、`AUTH_SESSION_TTL_SECONDS`
 - `PORT`、`HOST`
-- `VENERA_DATA_DIR`
-- `VENERA_SOURCE_LIST_URL`
-- `VENERA_SOURCE_CDN_BASE_URL`
-- `VENERA_PROXY`、`VENERA_NO_PROXY`
-- `VENERA_REQUEST_TIMEOUT_MS`
+- `MANSOU_DATA_DIR`
+- `MANSOU_SOURCE_LIST_URL`
+- `MANSOU_SOURCE_CDN_BASE_URL`
+- `MANSOU_PROXY`、`MANSOU_NO_PROXY`
+- `MANSOU_REQUEST_TIMEOUT_MS`
 
 ## 文档
 

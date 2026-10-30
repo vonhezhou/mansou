@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { StorageDatabase, Session } from "@venera/storage";
+import type { StorageDatabase, Session } from "@mansou/storage";
 import { AppError } from "../errors.js";
 import type { AuthConfig } from "./config.js";
 import { hashPassword, randomSecret, secretHash, verifyPassword } from "./password.js";
@@ -105,7 +105,7 @@ export class AuthService {
     if (expiresAt != null && expiresAt <= Date.now())
       throw new AppError("VALIDATION_ERROR", "有效期必须晚于当前时间");
     const entry = { id: randomUUID(), name, createdAt: Date.now(), expiresAt: expiresAt ?? null };
-    const token = `venera_${randomSecret()}`;
+    const token = `mansou_${randomSecret()}`;
     this.storage.auth.createToken(entry, secretHash(token));
     return { token, entry };
   }

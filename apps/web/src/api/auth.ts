@@ -1,4 +1,4 @@
-import type { components } from "@venera/contracts";
+import type { components } from "@mansou/contracts";
 import { api } from "./client.js";
 export type AuthSession = components["schemas"]["AuthSession"];
 export type ApiToken = components["schemas"]["ApiToken"];

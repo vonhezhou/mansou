@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { openApiDocument } from "@venera/contracts";
+import { openApiDocument } from "@mansou/contracts";
 export { openApiDocument };
 
 export async function registerOpenApiRoutes(app: FastifyInstance) {

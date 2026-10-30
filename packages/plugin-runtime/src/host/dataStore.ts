@@ -1,4 +1,4 @@
-import type { StorageDatabase } from "@venera/storage";
+import type { StorageDatabase } from "@mansou/storage";
 
 type PluginStorage = Pick<
   StorageDatabase,

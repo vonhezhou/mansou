@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { downloadsEventUrl, veneraApi } from "./api/venera.js";
+import { downloadsEventUrl, mansouApi } from "./api/mansou.js";
 import { AuthGate } from "./features/auth/AuthGate.js";
 import { AccountPanel } from "./features/auth/AccountPanel.js";
 import type { AuthSession } from "./api/auth.js";
@@ -61,7 +61,7 @@ function Workspace({
     );
     events.addEventListener("auth-expired", () => {
       events.close();
-      window.dispatchEvent(new Event("venera:unauthorized"));
+      window.dispatchEvent(new Event("mansou:unauthorized"));
     });
     events.onopen = () => setDownloadsReconnecting(false);
     events.onerror = () => {
@@ -100,7 +100,7 @@ function Workspace({
 
   async function checkHealth() {
     try {
-      setHealth(await veneraApi.health());
+      setHealth(await mansouApi.health());
     } catch {
       setHealth(null);
     }

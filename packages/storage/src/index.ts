@@ -16,7 +16,7 @@ export type StorageDatabase = ReturnType<typeof createStorage>;
 
 export function createStorage(dataDir: string) {
   mkdirSync(dataDir, { recursive: true });
-  const db = new Database(path.join(dataDir, "venera_web.sqlite"));
+  const db = new Database(path.join(dataDir, "mansou.sqlite"));
   try {
     db.pragma("journal_mode = WAL");
     db.pragma("foreign_keys = ON");

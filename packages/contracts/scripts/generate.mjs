@@ -16,7 +16,7 @@ for (const [file, source] of Object.entries(outputs)) {
   const url = new URL(file, root);
   if (process.argv.includes("--check")) {
     if ((await readFile(url, "utf8").catch(() => "")) !== content) {
-      throw new Error(`${file} is stale; run pnpm --filter @venera/contracts generate`);
+      throw new Error(`${file} is stale; run pnpm --filter @mansou/contracts generate`);
     }
   } else await writeFile(url, content);
 }

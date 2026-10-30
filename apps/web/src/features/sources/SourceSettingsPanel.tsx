@@ -1,7 +1,7 @@
 import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { useEffect, useRef, useState } from "react";
 import type { SettingsResponse } from "../../types.js";
-import { veneraApi } from "../../api/venera.js";
+import { mansouApi } from "../../api/mansou.js";
 
 type SourceSettingsPanelProps = {
   busy: boolean;
@@ -49,7 +49,7 @@ export function SourceSettingsPanel(props: SourceSettingsPanelProps) {
     setActionBusy(true);
     setError("");
     try {
-      const settings = await veneraApi.invokeSourceSetting(props.sourceKey, key);
+      const settings = await mansouApi.invokeSourceSetting(props.sourceKey, key);
       if (active.current) props.onSettingsJsonChange(JSON.stringify(settings.values, null, 2));
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error));

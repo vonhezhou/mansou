@@ -29,7 +29,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     : await response.text();
   if (!response.ok) {
     if (response.status === 401 && path !== "/auth/login")
-      window.dispatchEvent(new Event("venera:unauthorized"));
+      window.dispatchEvent(new Event("mansou:unauthorized"));
     throw new ApiError(
       response.status,
       body?.error?.code ?? "HTTP_ERROR",

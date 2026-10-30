@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { copyFile, mkdir, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { createStorage, type DownloadTask } from "@venera/storage";
+import { createStorage, type DownloadTask } from "@mansou/storage";
 import { readConfig } from "../config/config.js";
 import { createPaths } from "../storage/paths.js";
 const config = readConfig();
@@ -17,7 +17,7 @@ if (command === "import-json") {
 } else if (command === "restore") {
   await restore(target);
 } else {
-  console.log("Usage: pnpm --filter @venera/server storage <import-json|backup|restore> [file]");
+  console.log("Usage: pnpm --filter @mansou/server storage <import-json|backup|restore> [file]");
   process.exit(command ? 1 : 0);
 }
 
@@ -58,7 +58,7 @@ async function importJsonData() {
 }
 
 async function backup(
-  file = path.join(config.dataDir, "backups", `venera_web-${Date.now()}.sqlite`),
+  file = path.join(config.dataDir, "backups", `mansou-${Date.now()}.sqlite`),
 ) {
   await mkdir(path.dirname(file), { recursive: true });
   await copyFile(dbPath(), file);
@@ -72,5 +72,5 @@ async function restore(file?: string) {
 }
 
 function dbPath() {
-  return path.join(config.dataDir, "venera_web.sqlite");
+  return path.join(config.dataDir, "mansou.sqlite");
 }

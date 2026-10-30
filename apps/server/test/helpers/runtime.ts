@@ -2,8 +2,8 @@ import { createPaths } from "../../src/storage/paths.js";
 import { mkdtempSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createStorage, type StorageDatabase } from "@venera/storage";
-import { PluginManager } from "@venera/plugin-runtime";
+import { createStorage, type StorageDatabase } from "@mansou/storage";
+import { PluginManager } from "@mansou/plugin-runtime";
 import { readConfig, type AppConfig } from "../../src/config/config.js";
 import { SourceService } from "../../src/services/sourceService.js";
 import { SearchService } from "../../src/services/searchService.js";
@@ -14,7 +14,7 @@ export class TestSourceRuntime extends SourceService {
   constructor(storage?: StorageDatabase, config: AppConfig = readConfig()) {
     const dataDir = storage
       ? config.dataDir
-      : mkdtempSync(path.join(os.tmpdir(), "venera-runtime-test-"));
+      : mkdtempSync(path.join(os.tmpdir(), "mansou-runtime-test-"));
     const db = storage ?? createStorage(dataDir);
     super(
       new PluginManager({ ...config, dataDir }),

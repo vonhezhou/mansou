@@ -2,10 +2,10 @@
 export const openApiDocument = {
   openapi: "3.1.0",
   info: {
-    title: "Venera Web API",
+    title: "Mansou API",
     version: "0.1.0",
     description:
-      "Venera HTTP API. Authentication is required unless explicitly disabled by AUTH_MODE=none. Browser mutations require Origin and X-CSRF-Token; API tokens use Authorization. SSE emits downloads snapshots and auth-expired before closing on credential expiry/revocation.",
+      "Mansou HTTP API. Authentication is required unless explicitly disabled by AUTH_MODE=none. Browser mutations require Origin and X-CSRF-Token; API tokens use Authorization. SSE emits downloads snapshots and auth-expired before closing on credential expiry/revocation.",
   },
   servers: [{ url: "/" }],
   security: [{ sessionAuth: [] }, { bearerAuth: [] }],
@@ -1218,9 +1218,9 @@ export const openApiDocument = {
       sessionAuth: {
         type: "apiKey",
         in: "cookie",
-        name: "__Host-venera_session",
+        name: "__Host-mansou_session",
         description:
-          "HTTPS session cookie. HTTP development uses venera_session. Unsafe session requests require matching Origin and X-CSRF-Token.",
+          "HTTPS session cookie. HTTP development uses mansou_session. Unsafe session requests require matching Origin and X-CSRF-Token.",
       },
       bearerAuth: {
         type: "http",

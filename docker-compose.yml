@@ -1,17 +1,17 @@
 services:
-  venera-web:
+  mansou:
     build: .
     ports:
-      - "${VENERA_BIND:-127.0.0.1}:3210:3210"
+      - "${MANSOU_BIND:-127.0.0.1}:3210:3210"
     environment:
-      VENERA_DATA_DIR: /data
+      MANSOU_DATA_DIR: /data
       AUTH_MODE: ${AUTH_MODE:-required}
       AUTH_ORIGIN: ${AUTH_ORIGIN:-}
       AUTH_SESSION_TTL_SECONDS: ${AUTH_SESSION_TTL_SECONDS:-86400}
       # Keep this migration guard: a nonempty legacy token makes startup fail.
-      VENERA_ACCESS_TOKEN: ${VENERA_ACCESS_TOKEN:-}
-      VENERA_PROXY: ${VENERA_PROXY:-}
-      VENERA_NO_PROXY: ${VENERA_NO_PROXY:-}
+      MANSOU_ACCESS_TOKEN: ${MANSOU_ACCESS_TOKEN:-}
+      MANSOU_PROXY: ${MANSOU_PROXY:-}
+      MANSOU_NO_PROXY: ${MANSOU_NO_PROXY:-}
     volumes:
       - ./data:/data
     restart: unless-stopped

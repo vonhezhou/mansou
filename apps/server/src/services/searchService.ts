@@ -1,4 +1,4 @@
-import type { SourceRegistry } from "@venera/core";
+import type { SourceRegistry } from "@mansou/core";
 export class SearchService {
   constructor(private readonly sources: SourceRegistry) {}
   search(sourceKey: string, keyword: string, pageOrNext?: string, options?: string[]) {

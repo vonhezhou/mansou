@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useSearch } from "./useSearch.js";
-import { veneraApi } from "../api/venera.js";
+import { mansouApi } from "../api/mansou.js";
 
 let state: ReturnType<typeof useSearch>;
 let root: Root;
@@ -43,12 +43,12 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 it("opens details without loading chapter images or changing the search source", async () => {
-  vi.spyOn(veneraApi, "comicDetails").mockResolvedValue({
+  vi.spyOn(mansouApi, "comicDetails").mockResolvedValue({
     id: "comic",
     title: "漫画",
     chapters: { chapter: "第一章" },
   });
-  const pages = vi.spyOn(veneraApi, "episodePages").mockResolvedValue({ images: ["page.jpg"] });
+  const pages = vi.spyOn(mansouApi, "episodePages").mockResolvedValue({ images: ["page.jpg"] });
   await act(async () => state.openComic({ id: "comic", title: "漫画" }, "detail-source"));
   expect(state.details?.id).toBe("comic");
   expect(pages).not.toHaveBeenCalled();
@@ -61,13 +61,13 @@ it("opens details without loading chapter images or changing the search source",
   expect(state.previewImages).toEqual([]);
 });
 it("clears detail state when navigating to downloads so it cannot reopen on return", async () => {
-  vi.spyOn(veneraApi, "comicDetails").mockResolvedValue({
+  vi.spyOn(mansouApi, "comicDetails").mockResolvedValue({
     id: "comic",
     title: "漫画",
     chapters: { chapter: "第一章" },
   });
-  vi.spyOn(veneraApi, "createDownload").mockResolvedValue({ id: "task" } as Awaited<
-    ReturnType<typeof veneraApi.createDownload>
+  vi.spyOn(mansouApi, "createDownload").mockResolvedValue({ id: "task" } as Awaited<
+    ReturnType<typeof mansouApi.createDownload>
   >);
   await act(async () => state.openComic({ id: "comic", title: "漫画" }, "detail-source"));
   await act(async () => state.createDownload("all"));
@@ -76,12 +76,12 @@ it("clears detail state when navigating to downloads so it cannot reopen on retu
 });
 
 it("keeps failed downloads visible in the detail dialog", async () => {
-  vi.spyOn(veneraApi, "comicDetails").mockResolvedValue({
+  vi.spyOn(mansouApi, "comicDetails").mockResolvedValue({
     id: "comic",
     title: "漫画",
     chapters: { chapter: "第一章" },
   });
-  vi.spyOn(veneraApi, "createDownload").mockRejectedValue(new Error("下载失败"));
+  vi.spyOn(mansouApi, "createDownload").mockRejectedValue(new Error("下载失败"));
   await act(async () => state.openComic({ id: "comic", title: "漫画" }, "detail-source"));
   await act(async () => state.createDownload("all"));
   expect(navigate).not.toHaveBeenCalled();
@@ -91,16 +91,16 @@ it("keeps failed downloads visible in the detail dialog", async () => {
 });
 
 it("keeps only failed chapters selected so retry does not resubmit successful chapters", async () => {
-  vi.spyOn(veneraApi, "comicDetails").mockResolvedValue({
+  vi.spyOn(mansouApi, "comicDetails").mockResolvedValue({
     id: "comic",
     title: "漫画",
     chapters: { a: "第一章", b: "第二章", c: "第三章" },
   });
   const create = vi
-    .spyOn(veneraApi, "createDownload")
-    .mockResolvedValueOnce({ id: "a" } as Awaited<ReturnType<typeof veneraApi.createDownload>>)
+    .spyOn(mansouApi, "createDownload")
+    .mockResolvedValueOnce({ id: "a" } as Awaited<ReturnType<typeof mansouApi.createDownload>>)
     .mockRejectedValueOnce(new Error("漫画源请求超时"))
-    .mockResolvedValue({ id: "task" } as Awaited<ReturnType<typeof veneraApi.createDownload>>);
+    .mockResolvedValue({ id: "task" } as Awaited<ReturnType<typeof mansouApi.createDownload>>);
   await act(async () => state.openComic({ id: "comic", title: "漫画" }));
   await act(async () => state.selectEpisodes("all"));
   await act(async () => state.createDownload("selected"));
@@ -115,12 +115,12 @@ it("keeps only failed chapters selected so retry does not resubmit successful ch
 });
 
 it("does not navigate or submit downloads when no chapters are selected", async () => {
-  vi.spyOn(veneraApi, "comicDetails").mockResolvedValue({
+  vi.spyOn(mansouApi, "comicDetails").mockResolvedValue({
     id: "comic",
     title: "漫画",
     chapters: { a: "第一章" },
   });
-  const create = vi.spyOn(veneraApi, "createDownload");
+  const create = vi.spyOn(mansouApi, "createDownload");
   await act(async () => state.openComic({ id: "comic", title: "漫画" }));
   await act(async () => state.createDownload("selected"));
   expect(create).not.toHaveBeenCalled();
@@ -128,13 +128,13 @@ it("does not navigate or submit downloads when no chapters are selected", async 
 });
 
 it("does not replace a new comic's selection when an old batch fails after closing details", async () => {
-  vi.spyOn(veneraApi, "comicDetails").mockResolvedValue({
+  vi.spyOn(mansouApi, "comicDetails").mockResolvedValue({
     id: "comic",
     title: "漫画",
     chapters: { a: "第一章", b: "第二章" },
   });
-  const response = deferred<Awaited<ReturnType<typeof veneraApi.createDownload>>>();
-  vi.spyOn(veneraApi, "createDownload").mockReturnValue(response.promise);
+  const response = deferred<Awaited<ReturnType<typeof mansouApi.createDownload>>>();
+  vi.spyOn(mansouApi, "createDownload").mockReturnValue(response.promise);
   await act(async () => state.openComic({ id: "comic", title: "漫画" }));
   await act(async () => state.toggleSelectedEpisode("a"));
   let pending: Promise<void>;
@@ -154,8 +154,8 @@ it("does not replace a new comic's selection when an old batch fails after closi
 });
 
 it("shows pending details immediately and ignores a response after the dialog is closed", async () => {
-  const response = deferred<Awaited<ReturnType<typeof veneraApi.comicDetails>>>();
-  vi.spyOn(veneraApi, "comicDetails").mockReturnValue(response.promise);
+  const response = deferred<Awaited<ReturnType<typeof mansouApi.comicDetails>>>();
+  vi.spyOn(mansouApi, "comicDetails").mockReturnValue(response.promise);
   let opening: Promise<void>;
   await act(async () => {
     opening = state.openComic({ id: "slow", title: "慢请求" });
@@ -173,10 +173,10 @@ it("shows pending details immediately and ignores a response after the dialog is
 });
 
 it("keeps a failed detail dialog available for retry without showing an old request over the new one", async () => {
-  const older = deferred<Awaited<ReturnType<typeof veneraApi.comicDetails>>>();
-  const newer = deferred<Awaited<ReturnType<typeof veneraApi.comicDetails>>>();
+  const older = deferred<Awaited<ReturnType<typeof mansouApi.comicDetails>>>();
+  const newer = deferred<Awaited<ReturnType<typeof mansouApi.comicDetails>>>();
   const load = vi
-    .spyOn(veneraApi, "comicDetails")
+    .spyOn(mansouApi, "comicDetails")
     .mockReturnValueOnce(older.promise)
     .mockReturnValueOnce(newer.promise)
     .mockResolvedValue({ id: "new", title: "新漫画" });
@@ -220,8 +220,8 @@ function deferred<T>() {
 }
 
 it("switches to the submitted query immediately and exposes failures without stale results", async () => {
-  const response = deferred<Awaited<ReturnType<typeof veneraApi.search>>>();
-  vi.spyOn(veneraApi, "search")
+  const response = deferred<Awaited<ReturnType<typeof mansouApi.search>>>();
+  vi.spyOn(mansouApi, "search")
     .mockResolvedValueOnce({ comics: [{ id: "old", title: "旧结果" }], maxPage: 2 })
     .mockReturnValueOnce(response.promise)
     .mockResolvedValueOnce({ comics: [] });
@@ -248,7 +248,7 @@ it("switches to the submitted query immediately and exposes failures without sta
 
 it("preserves results and the pagination cursor after a failed load, allowing retry", async () => {
   const search = vi
-    .spyOn(veneraApi, "search")
+    .spyOn(mansouApi, "search")
     .mockResolvedValueOnce({ comics: [{ id: "one", title: "第一本" }], next: "cursor" })
     .mockRejectedValueOnce(new Error("分页超时"))
     .mockResolvedValueOnce({ comics: [{ id: "two", title: "第二本" }] });
@@ -266,8 +266,8 @@ it("preserves results and the pagination cursor after a failed load, allowing re
 });
 
 it("reports a cancelled single search and ignores a late failure", async () => {
-  const response = deferred<Awaited<ReturnType<typeof veneraApi.search>>>();
-  vi.spyOn(veneraApi, "search").mockReturnValue(response.promise);
+  const response = deferred<Awaited<ReturnType<typeof mansouApi.search>>>();
+  vi.spyOn(mansouApi, "search").mockReturnValue(response.promise);
   await act(async () => state.setKeyword("漫画"));
   let pending: Promise<void>;
   await act(async () => {
@@ -285,7 +285,7 @@ it("reports a cancelled single search and ignores a late failure", async () => {
 
 it("loads more using the submitted keyword and source after the controls change", async () => {
   const search = vi
-    .spyOn(veneraApi, "search")
+    .spyOn(mansouApi, "search")
     .mockResolvedValueOnce({ comics: [{ id: "one", title: "第一本" }], maxPage: 2 })
     .mockResolvedValueOnce({ comics: [{ id: "two", title: "第二本" }], maxPage: 2 });
   await act(async () => state.setKeyword("  原关键词  "));
@@ -309,16 +309,16 @@ it("loads more using the submitted keyword and source after the controls change"
 });
 
 it("does not issue a blank search", async () => {
-  const search = vi.spyOn(veneraApi, "search");
+  const search = vi.spyOn(mansouApi, "search");
   await act(async () => state.setKeyword("   "));
   await act(async () => state.submitSearch());
   expect(search).not.toHaveBeenCalled();
 });
 
 it("publishes aggregate results as each source finishes and isolates source failures", async () => {
-  const fast = deferred<Awaited<ReturnType<typeof veneraApi.search>>>();
-  const slow = deferred<Awaited<ReturnType<typeof veneraApi.search>>>();
-  vi.spyOn(veneraApi, "search").mockImplementation((key) =>
+  const fast = deferred<Awaited<ReturnType<typeof mansouApi.search>>>();
+  const slow = deferred<Awaited<ReturnType<typeof mansouApi.search>>>();
+  vi.spyOn(mansouApi, "search").mockImplementation((key) =>
     key === "fast" ? fast.promise : slow.promise,
   );
   await act(async () => {
@@ -345,9 +345,9 @@ it("publishes aggregate results as each source finishes and isolates source fail
 });
 
 it("aborts aggregate requests, preserves completed results and ignores late responses", async () => {
-  const slow = deferred<Awaited<ReturnType<typeof veneraApi.search>>>();
+  const slow = deferred<Awaited<ReturnType<typeof mansouApi.search>>>();
   let signal: AbortSignal | undefined;
-  vi.spyOn(veneraApi, "search").mockImplementation((key, _keyword, _cursor, requestSignal) => {
+  vi.spyOn(mansouApi, "search").mockImplementation((key, _keyword, _cursor, requestSignal) => {
     signal = requestSignal;
     return key === "fast"
       ? Promise.resolve({ comics: [{ id: "fast", title: "已完成" }] })
@@ -377,8 +377,8 @@ it("aborts aggregate requests, preserves completed results and ignores late resp
 });
 
 it("limits aggregate concurrency and does not start queued sources after cancellation", async () => {
-  const response = deferred<Awaited<ReturnType<typeof veneraApi.search>>>();
-  const search = vi.spyOn(veneraApi, "search").mockReturnValue(response.promise);
+  const response = deferred<Awaited<ReturnType<typeof mansouApi.search>>>();
+  const search = vi.spyOn(mansouApi, "search").mockReturnValue(response.promise);
   await act(async () => {
     state.setSearchMode("aggregate");
     state.setKeyword("漫画");
@@ -398,14 +398,14 @@ it("limits aggregate concurrency and does not start queued sources after cancell
 });
 
 it("stops chapter counting, preserves completed counts and does not request remaining chapters", async () => {
-  vi.spyOn(veneraApi, "comicDetails").mockResolvedValue({
+  vi.spyOn(mansouApi, "comicDetails").mockResolvedValue({
     id: "book",
     title: "漫画",
     chapters: { a: "第一章", b: "第二章", c: "第三章" },
   });
-  const pendingPages = deferred<Awaited<ReturnType<typeof veneraApi.episodePages>>>();
+  const pendingPages = deferred<Awaited<ReturnType<typeof mansouApi.episodePages>>>();
   const pages = vi
-    .spyOn(veneraApi, "episodePages")
+    .spyOn(mansouApi, "episodePages")
     .mockResolvedValueOnce({ images: ["one"] })
     .mockReturnValueOnce(pendingPages.promise);
   await act(async () => state.openComic({ id: "book", title: "漫画" }));
@@ -428,13 +428,13 @@ it("stops chapter counting, preserves completed counts and does not request rema
 });
 
 it("aborts a chapter preview on close and ignores its response after another comic opens", async () => {
-  vi.spyOn(veneraApi, "comicDetails").mockResolvedValue({
+  vi.spyOn(mansouApi, "comicDetails").mockResolvedValue({
     id: "book",
     title: "漫画",
     chapters: { a: "第一章" },
   });
-  const response = deferred<Awaited<ReturnType<typeof veneraApi.episodePages>>>();
-  const pages = vi.spyOn(veneraApi, "episodePages").mockReturnValue(response.promise);
+  const response = deferred<Awaited<ReturnType<typeof mansouApi.episodePages>>>();
+  const pages = vi.spyOn(mansouApi, "episodePages").mockReturnValue(response.promise);
   await act(async () => state.openComic({ id: "book", title: "漫画" }));
   let preview: Promise<void>;
   await act(async () => {
@@ -454,13 +454,13 @@ it("aborts a chapter preview on close and ignores its response after another com
 });
 
 it("counts failed chapters as failures and retries only the chapters still missing counts", async () => {
-  vi.spyOn(veneraApi, "comicDetails").mockResolvedValue({
+  vi.spyOn(mansouApi, "comicDetails").mockResolvedValue({
     id: "book",
     title: "漫画",
     chapters: { a: "第一章", b: "第二章" },
   });
   const pages = vi
-    .spyOn(veneraApi, "episodePages")
+    .spyOn(mansouApi, "episodePages")
     .mockRejectedValueOnce(new Error("暂不可用"))
     .mockResolvedValueOnce({ images: ["b"] })
     .mockResolvedValueOnce({ images: ["a"] });
@@ -474,12 +474,12 @@ it("counts failed chapters as failures and retries only the chapters still missi
 });
 
 it("exposes chapter preview errors in the detail state and clears them on a successful retry", async () => {
-  vi.spyOn(veneraApi, "comicDetails").mockResolvedValue({
+  vi.spyOn(mansouApi, "comicDetails").mockResolvedValue({
     id: "book",
     title: "漫画",
     chapters: { a: "第一章" },
   });
-  vi.spyOn(veneraApi, "episodePages")
+  vi.spyOn(mansouApi, "episodePages")
     .mockRejectedValueOnce(new Error("源暂不可用"))
     .mockResolvedValueOnce({ images: [] });
   await act(async () => state.openComic({ id: "book", title: "漫画" }));
@@ -492,13 +492,13 @@ it("exposes chapter preview errors in the detail state and clears them on a succ
 });
 
 it("keeps creating requested downloads in the background without redirecting after the dialog closes", async () => {
-  vi.spyOn(veneraApi, "comicDetails").mockResolvedValue({
+  vi.spyOn(mansouApi, "comicDetails").mockResolvedValue({
     id: "book",
     title: "漫画",
     chapters: { a: "第一章" },
   });
-  const response = deferred<Awaited<ReturnType<typeof veneraApi.createDownload>>>();
-  vi.spyOn(veneraApi, "createDownload").mockReturnValue(response.promise);
+  const response = deferred<Awaited<ReturnType<typeof mansouApi.createDownload>>>();
+  vi.spyOn(mansouApi, "createDownload").mockReturnValue(response.promise);
   await act(async () => state.openComic({ id: "book", title: "漫画" }));
   let creating: Promise<void>;
   await act(async () => {
@@ -506,7 +506,7 @@ it("keeps creating requested downloads in the background without redirecting aft
   });
   await act(async () => state.closeDetails());
   await act(async () => {
-    response.resolve({ id: "task" } as Awaited<ReturnType<typeof veneraApi.createDownload>>);
+    response.resolve({ id: "task" } as Awaited<ReturnType<typeof mansouApi.createDownload>>);
     await creating;
   });
   expect(navigate).not.toHaveBeenCalled();

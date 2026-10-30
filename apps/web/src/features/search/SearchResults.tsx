@@ -1,7 +1,7 @@
 import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { useState } from "react";
 import { Icon } from "../../app/Icon.js";
-import type { Comic } from "@venera/contracts";
+import type { Comic } from "@mansou/contracts";
 import type { AggregatedSearchItem } from "../../types.js";
 import { ComicCard } from "./ComicCard.js";
 

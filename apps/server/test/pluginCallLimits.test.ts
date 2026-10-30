@@ -17,7 +17,7 @@ afterEach(async () => {
 });
 
 async function writeSource(script: string) {
-  const dir = await mkdtemp(path.join(os.tmpdir(), "venera-plugin-limits-"));
+  const dir = await mkdtemp(path.join(os.tmpdir(), "mansou-plugin-limits-"));
   const sourceFile = path.join(dir, "limited.js");
   await writeFile(sourceFile, script, "utf8");
   return sourceFile;

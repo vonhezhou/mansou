@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createStorage } from "@venera/storage";
+import { createStorage } from "@mansou/storage";
 import { buildApp } from "../src/app.js";
 import { readConfig } from "../src/config/config.js";
 import { readAuthConfig } from "../src/auth/config.js";
@@ -14,7 +14,7 @@ let dir: string;
 let base: string;
 const controllers: AbortController[] = [];
 beforeEach(async () => {
-  dir = await mkdtemp(path.join(os.tmpdir(), "venera-stream-"));
+  dir = await mkdtemp(path.join(os.tmpdir(), "mansou-stream-"));
   config.dataDir = dir;
   built = await buildApp(
     readAuthConfig({ AUTH_MODE: "required", AUTH_ORIGIN: "http://localhost" }),
@@ -56,7 +56,7 @@ describe("authenticated SSE lifecycle", () => {
       { hash: secretHash("session"), csrfToken: "csrf", expiresAt: Date.now() + 60000 },
       1,
     );
-    const reader = await stream({ cookie: "venera_session=session" });
+    const reader = await stream({ cookie: "mansou_session=session" });
     const external = createStorage(dir);
     external.auth.changePassword("new-test-hash", 1);
     external.close();
@@ -83,14 +83,14 @@ describe("authenticated SSE lifecycle", () => {
       { hash: secretHash("short"), csrfToken: "csrf", expiresAt: Date.now() + 500 },
       1,
     );
-    expect(await closed(await stream({ cookie: "venera_session=short" }))).toContain(
+    expect(await closed(await stream({ cookie: "mansou_session=short" }))).toContain(
       "auth-expired",
     );
     built.context.storage.auth.createSession(
       { hash: secretHash("long"), csrfToken: "csrf", expiresAt: Date.now() + 60000 },
       1,
     );
-    const reader = await stream({ cookie: "venera_session=long" });
+    const reader = await stream({ cookie: "mansou_session=long" });
     const closing = built.app.close();
     await closed(reader);
     await closing;

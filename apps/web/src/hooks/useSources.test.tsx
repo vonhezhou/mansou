@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useSources } from "./useSources.js";
-import { veneraApi } from "../api/venera.js";
+import { mansouApi } from "../api/mansou.js";
 
 let state: ReturnType<typeof useSources>;
 let root: Root;
@@ -22,10 +22,10 @@ beforeEach(async () => {
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  vi.spyOn(veneraApi, "listInstalledSources").mockResolvedValue(installed);
-  vi.spyOn(veneraApi, "listSourceMetadata").mockResolvedValue(metadata);
-  vi.spyOn(veneraApi, "listAvailableSources").mockResolvedValue([]);
-  vi.spyOn(veneraApi, "refreshRepository").mockResolvedValue({ sources: repository });
+  vi.spyOn(mansouApi, "listInstalledSources").mockResolvedValue(installed);
+  vi.spyOn(mansouApi, "listSourceMetadata").mockResolvedValue(metadata);
+  vi.spyOn(mansouApi, "listAvailableSources").mockResolvedValue([]);
+  vi.spyOn(mansouApi, "refreshRepository").mockResolvedValue({ sources: repository });
   await act(async () => root.render(<Harness />));
 });
 
@@ -38,29 +38,29 @@ afterEach(async () => {
 });
 
 it("fetches the repository on first use and rechecks installed versions after refreshing", async () => {
-  vi.mocked(veneraApi.listSourceMetadata)
+  vi.mocked(mansouApi.listSourceMetadata)
     .mockResolvedValueOnce(metadata)
     .mockResolvedValueOnce([{ ...metadata[0], availableVersion: "1.1.0" }]);
   await act(async () => {
     await state.loadSources();
   });
-  expect(veneraApi.refreshRepository).toHaveBeenCalledOnce();
+  expect(mansouApi.refreshRepository).toHaveBeenCalledOnce();
   expect(state.availableSources).toEqual(repository);
   expect(state.sourceMetadata[0].availableVersion).toBe("1.1.0");
   expect(changeSource).toHaveBeenCalledWith("mock");
 });
 
 it("uses the cached repository without requiring network access", async () => {
-  vi.mocked(veneraApi.listAvailableSources).mockResolvedValue(repository);
+  vi.mocked(mansouApi.listAvailableSources).mockResolvedValue(repository);
   await act(async () => {
     await state.loadSources();
   });
-  expect(veneraApi.refreshRepository).not.toHaveBeenCalled();
+  expect(mansouApi.refreshRepository).not.toHaveBeenCalled();
   expect(state.availableSources).toEqual(repository);
 });
 
 it("preserves installed sources if the initial repository fetch fails", async () => {
-  vi.mocked(veneraApi.refreshRepository).mockRejectedValue(new Error("仓库不可达"));
+  vi.mocked(mansouApi.refreshRepository).mockRejectedValue(new Error("仓库不可达"));
   await act(async () => {
     await expect(state.loadSources()).rejects.toThrow("仓库不可达");
   });
@@ -71,7 +71,7 @@ it("preserves installed sources if the initial repository fetch fails", async ()
 it("keeps the source operation visible until both mutation and source refresh finish", async () => {
   const response = deferred<void>();
   const refresh = deferred<void>();
-  vi.spyOn(veneraApi, "setSourceEnabled").mockReturnValue(response.promise);
+  vi.spyOn(mansouApi, "setSourceEnabled").mockReturnValue(response.promise);
   const afterChange = vi.fn(() => refresh.promise);
   let enabling: Promise<void>;
   await act(async () => {
@@ -89,7 +89,7 @@ it("keeps the source operation visible until both mutation and source refresh fi
 });
 
 it("clears the source operation when installation fails", async () => {
-  vi.spyOn(veneraApi, "installSource").mockRejectedValue(new Error("安装失败"));
+  vi.spyOn(mansouApi, "installSource").mockRejectedValue(new Error("安装失败"));
   await act(async () => state.setInstallSource("example.js"));
   const afterInstall = vi.fn();
   await act(async () => {

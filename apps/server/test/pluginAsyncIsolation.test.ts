@@ -6,7 +6,7 @@ import { TestSourceRuntime as SourceRuntime } from "./helpers/runtime.js";
 
 describe("plugin async task isolation", () => {
   it("captures detached plugin async failures without process-level unhandled rejections", async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "venera-plugin-async-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "mansou-plugin-async-"));
     const sourceFile = path.join(dir, "async_bad.js");
     await writeFile(
       sourceFile,

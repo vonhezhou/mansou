@@ -20,7 +20,7 @@ const publicPaths = new Set([
   "/api/v1/auth/login",
 ]);
 export const sessionCookie = (auth: AuthService) =>
-  auth.config.secureCookie ? "__Host-venera_session" : "venera_session";
+  auth.config.secureCookie ? "__Host-mansou_session" : "mansou_session";
 
 export function setSessionCookie(reply: FastifyReply, auth: AuthService, secret: string) {
   reply.header(

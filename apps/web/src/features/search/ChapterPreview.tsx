@@ -1,5 +1,5 @@
 import { AsyncImage } from "../../app/AsyncImage.js";
-import { imageUrl } from "../../api/venera.js";
+import { imageUrl } from "../../api/mansou.js";
 import type { Details } from "../../types.js";
 
 type ChapterPreviewProps = {

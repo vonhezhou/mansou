@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import type { SourceProvider, SourceRegistry } from "@venera/core";
+import type { SourceProvider, SourceRegistry } from "@mansou/core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ImageCache } from "../src/storage/imageCache.js";
 import { ImageProxyService } from "../src/services/imageProxy.js";
@@ -10,7 +10,7 @@ let directory: string;
 const releases: Array<() => void> = [];
 const active: Promise<unknown>[] = [];
 beforeEach(async () => {
-  directory = await mkdtemp(path.join(os.tmpdir(), "venera-image-proxy-"));
+  directory = await mkdtemp(path.join(os.tmpdir(), "mansou-image-proxy-"));
 });
 afterEach(async () => {
   releases.splice(0).forEach((release) => release());

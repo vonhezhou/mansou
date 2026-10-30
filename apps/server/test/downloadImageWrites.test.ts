@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import type { SourceProvider, SourceRegistry } from "@venera/core";
-import { createStorage, type DownloadTask } from "@venera/storage";
+import type { SourceProvider, SourceRegistry } from "@mansou/core";
+import { createStorage, type DownloadTask } from "@mansou/storage";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { DownloadRunner } from "../src/services/downloads/downloadRunner.js";
 import { DownloadRepository } from "../src/services/downloads/downloadRepository.js";
@@ -39,7 +39,7 @@ const task: DownloadTask = {
 beforeEach(async () => {
   actual = await vi.importActual<typeof fs>("node:fs/promises");
   vi.mocked(fs.writeFile).mockReset().mockImplementation(actual.writeFile);
-  directory = await fs.mkdtemp(path.join(os.tmpdir(), "venera-download-image-writes-"));
+  directory = await fs.mkdtemp(path.join(os.tmpdir(), "mansou-download-image-writes-"));
   storage = createStorage(directory);
   cache = new ImageCache(path.join(directory, "cache"), 0);
   loadImageBytes.mockReset().mockResolvedValue({ data, contentType: "image/jpeg" });

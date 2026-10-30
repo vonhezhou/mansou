@@ -1,8 +1,8 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { SourceProvider, SourceRegistry } from "@venera/core";
-import { createStorage, type DownloadTask } from "@venera/storage";
+import type { SourceProvider, SourceRegistry } from "@mansou/core";
+import { createStorage, type DownloadTask } from "@mansou/storage";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { DownloadRepository } from "../src/services/downloads/downloadRepository.js";
 import { DownloadRunner } from "../src/services/downloads/downloadRunner.js";
@@ -33,7 +33,7 @@ const pages = vi.fn<SourceProvider["comicPages"]>();
 const loadBytes = vi.fn<ImageProxyService["loadBytes"]>();
 
 beforeEach(async () => {
-  directory = await mkdtemp(path.join(os.tmpdir(), "venera-retry-"));
+  directory = await mkdtemp(path.join(os.tmpdir(), "mansou-retry-"));
   storage = createStorage(directory);
   repository = new DownloadRepository(storage);
   repository.save(task);

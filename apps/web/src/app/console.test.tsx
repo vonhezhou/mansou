@@ -82,7 +82,7 @@ it("keeps account and refresh actions reachable in settings after collapsing nav
   expect(refresh).toHaveBeenCalledOnce();
   await click(button("切换主题"));
   expect(document.documentElement.dataset.theme).toBe("dark");
-  expect(localStorage.setItem).toHaveBeenCalledWith("venera:theme", "dark");
+  expect(localStorage.setItem).toHaveBeenCalledWith("mansou:theme", "dark");
 });
 
 it("preserves the originating source when switching between grouped, flat and list results with duplicate comic IDs", async () => {

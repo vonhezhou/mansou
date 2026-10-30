@@ -36,7 +36,7 @@ export function AppShell(props: AppShellProps) {
     document.documentElement.dataset.theme = next;
     setTheme(next);
     try {
-      localStorage.setItem("venera:theme", next);
+      localStorage.setItem("mansou:theme", next);
     } catch {
       // 存储不可用时仍允许切换当前页面的主题。
     }
@@ -94,11 +94,11 @@ export function AppShell(props: AppShellProps) {
         </button>
         <div className="brand">
           <div className="brand-mark">
-            <span>V</span>
+            <span>M</span>
           </div>
           <div className="brand-copy">
-            <strong>Venera</strong>
-            <span>WEB CONSOLE</span>
+            <strong>漫搜</strong>
+            <span>MANSOU</span>
           </div>
         </div>
         <nav className="nav" aria-label="主要功能">
@@ -131,7 +131,7 @@ export function AppShell(props: AppShellProps) {
               <Icon name="server" />
             </span>
             <div>
-              <strong>Venera Server</strong>
+              <strong>Mansou Server</strong>
               <span title={window.location.host}>{window.location.host}</span>
             </div>
           </div>
@@ -140,8 +140,8 @@ export function AppShell(props: AppShellProps) {
       <div className="workspace-frame">
         <header className="mobile-header">
           <div className="mobile-brand">
-            <span>V</span>
-            <strong>Venera Web</strong>
+            <span>M</span>
+            <strong>漫搜</strong>
           </div>
           {themeButton}
         </header>

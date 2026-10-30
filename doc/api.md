@@ -13,15 +13,15 @@ GET /api/v1/openapi.json
 导出到文件：
 
 ```bash
-pnpm --filter @venera/server openapi openapi.json
+pnpm --filter @mansou/server openapi openapi.json
 ```
 
 协议唯一源文件是 `packages/contracts/openapi.yaml`。先修改 YAML，再生成类型和运行时文档：
 
 ```bash
-pnpm --filter @venera/contracts generate
-pnpm --filter @venera/contracts build
-pnpm --filter @venera/contracts generate:check
+pnpm --filter @mansou/contracts generate
+pnpm --filter @mansou/contracts build
+pnpm --filter @mansou/contracts generate:check
 ```
 
 `src/api.generated.ts` 和 `src/openapi.generated.ts` 是生成文件，请勿手改。生成结果纳入 Git，CI 检查是否与 YAML 一致。Server 文档端点从生成产物返回 JSON；鉴权开启时该端点也需要凭据。

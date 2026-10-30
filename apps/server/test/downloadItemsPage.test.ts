@@ -8,7 +8,7 @@ import { readConfig } from "../src/config/config.js";
 let directory: string;
 let built: Awaited<ReturnType<typeof buildApp>>;
 beforeAll(async () => {
-  directory = await mkdtemp(path.join(os.tmpdir(), "venera-items-page-"));
+  directory = await mkdtemp(path.join(os.tmpdir(), "mansou-items-page-"));
   built = await buildApp(undefined, { ...readConfig(), dataDir: directory });
   built.context.downloads.create({ sourceKey: "mock", comicId: "comic" });
   const task = built.context.downloads.all()[0];

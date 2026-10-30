@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { openApiDocument } from "@venera/contracts";
+import { openApiDocument } from "@mansou/contracts";
 
 // Consume the generated YAML schemas for runtime request validation and response serialization.
 // Only auth routes are migrated here; business routes keep their existing validation.
@@ -19,9 +19,9 @@ export function registerAuthContract(app: FastifyInstance) {
   );
   const rewriteRefs = (schema: unknown) =>
     JSON.parse(
-      JSON.stringify(schema).replaceAll("#/components/schemas/", "venera-auth#/definitions/"),
+      JSON.stringify(schema).replaceAll("#/components/schemas/", "mansou-auth#/definitions/"),
     );
-  app.addSchema({ $id: "venera-auth", definitions: rewriteRefs(schemas) });
+  app.addSchema({ $id: "mansou-auth", definitions: rewriteRefs(schemas) });
   const paths = Object.fromEntries(
     Object.entries(openApiDocument.paths).filter(([path]) => path.startsWith("/api/v1/auth/")),
   ) as unknown as Record<

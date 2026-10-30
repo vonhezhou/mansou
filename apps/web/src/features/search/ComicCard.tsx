@@ -1,7 +1,7 @@
 import { AsyncImage } from "../../app/AsyncImage.js";
-import type { Comic } from "@venera/contracts";
+import type { Comic } from "@mansou/contracts";
 import { Icon } from "../../app/Icon.js";
-import { imageUrl } from "../../api/venera.js";
+import { imageUrl } from "../../api/mansou.js";
 
 type ComicCardProps = {
   comic: Comic;

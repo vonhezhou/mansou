@@ -12,7 +12,7 @@ describe("source protocol (worker)", () => {
   let file: string;
   const original = { ...config };
   beforeAll(async () => {
-    dir = await mkdtemp(path.join(os.tmpdir(), "venera-provider-"));
+    dir = await mkdtemp(path.join(os.tmpdir(), "mansou-provider-"));
     config.dataDir = dir;
     built = await buildApp(undefined, config);
     file = path.join(dir, "protocol.js");

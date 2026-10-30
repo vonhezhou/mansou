@@ -1,5 +1,5 @@
 import { access } from "node:fs/promises";
-import type { DownloadTask, StorageDatabase } from "@venera/storage";
+import type { DownloadTask, StorageDatabase } from "@mansou/storage";
 
 /** SQLite is the authority; callers receive snapshots, never shared mutable tasks. */
 export class DownloadRepository {

@@ -6,7 +6,7 @@ describe("authentication setup", () => {
   it("rejects unsafe or ambiguous configuration", () => {
     expect(readAuthConfig({}).mode).toBe("none");
     expect(() => readAuthConfig({ AUTH_MODE: "typo" })).toThrow();
-    expect(() => readAuthConfig({ VENERA_ACCESS_TOKEN: "old" })).toThrow(/停用/);
+    expect(() => readAuthConfig({ MANSOU_ACCESS_TOKEN: "old" })).toThrow(/停用/);
     expect(() => readAuthConfig({ AUTH_MODE: "required" })).toThrow(/AUTH_ORIGIN/);
     expect(() =>
       readAuthConfig({ AUTH_MODE: "required", AUTH_ORIGIN: "https://example.com/path" }),

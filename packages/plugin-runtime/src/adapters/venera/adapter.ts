@@ -8,7 +8,7 @@ import type {
   ImageInput,
   ComicDetails,
   SettingDefinition,
-} from "@venera/core";
+} from "@mansou/core";
 import type { VeneraComicSource } from "./types.js";
 import type { RuntimeOptions } from "../../options.js";
 import type { SourceDataStore } from "../../host/dataStore.js";

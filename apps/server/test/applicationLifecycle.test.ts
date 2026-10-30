@@ -14,7 +14,7 @@ afterEach(async () => {
   );
 });
 async function build() {
-  const dataDir = await mkdtemp(path.join(os.tmpdir(), "venera-app-lifecycle-"));
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), "mansou-app-lifecycle-"));
   directories.push(dataDir);
   const built = await buildApp(undefined, { ...readConfig(), dataDir });
   apps.push(built);

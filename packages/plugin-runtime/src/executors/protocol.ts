@@ -1,4 +1,4 @@
-import type { SourceProvider, SourceMetadata } from "@venera/core";
+import type { SourceProvider, SourceMetadata } from "@mansou/core";
 export type Operation = keyof SourceProvider;
 export type Arguments<K extends Operation> = Parameters<SourceProvider[K]>;
 export type Result<K extends Operation> = Awaited<ReturnType<SourceProvider[K]>>;

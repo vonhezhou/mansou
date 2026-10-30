@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp, initializeApp } from "../src/app.js";
-import { createStorage } from "@venera/storage";
+import { createStorage } from "@mansou/storage";
 import { readConfig } from "../src/config/config.js";
 const config = readConfig();
 
@@ -18,7 +18,7 @@ let built: Awaited<ReturnType<typeof buildApp>>;
 let dir: string;
 const releases: Array<() => void> = [];
 beforeEach(async () => {
-  dir = await mkdtemp(path.join(os.tmpdir(), "venera-download-lifecycle-"));
+  dir = await mkdtemp(path.join(os.tmpdir(), "mansou-download-lifecycle-"));
   config.dataDir = dir;
   config.downloadConcurrency = 1;
   config.downloadTaskConcurrency = 1;

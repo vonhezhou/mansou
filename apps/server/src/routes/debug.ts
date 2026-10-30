@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { runtimeCompatibility } from "@venera/plugin-runtime";
-import { classifyPluginError } from "@venera/plugin-runtime";
+import { runtimeCompatibility } from "@mansou/plugin-runtime";
+import { classifyPluginError } from "@mansou/plugin-runtime";
 import type { RouteContext } from "./types.js";
 
 export async function registerDebugRoutes(
@@ -93,9 +93,9 @@ function debugHint(error: unknown) {
   if (message.includes("403"))
     return "The source rejected the request. Check cookies, referer/user-agent headers, Cloudflare, or no-proxy rules.";
   if (message.includes("302"))
-    return "The source returned a redirect. Check whether the target domain should be added to VENERA_NO_PROXY or handled by a source fallback.";
+    return "The source returned a redirect. Check whether the target domain should be added to MANSOU_NO_PROXY or handled by a source fallback.";
   if (message.includes("fetch failed") || message.includes("aborted"))
-    return "Network request failed. Check VENERA_PROXY, VENERA_NO_PROXY, and VENERA_REQUEST_TIMEOUT_MS.";
+    return "Network request failed. Check MANSOU_PROXY, MANSOU_NO_PROXY, and MANSOU_REQUEST_TIMEOUT_MS.";
   if (message.includes("not defined") || message.includes("is not a function"))
     return "The plugin used a Venera JavaScript API that is not implemented in the Node runtime yet.";
   return undefined;

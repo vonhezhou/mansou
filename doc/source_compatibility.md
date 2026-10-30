@@ -22,7 +22,7 @@
 
 ## 2026-05-23 验证记录
 
-本轮使用独立 `VENERA_DATA_DIR` 逐源安装验证，避免源脚本初始化副作用污染主数据目录。验证关键词为 `one`，主路径为安装、搜索、详情、章节、首图调试加载。
+本轮使用独立 `MANSOU_DATA_DIR` 逐源安装验证，避免源脚本初始化副作用污染主数据目录。验证关键词为 `one`，主路径为安装、搜索、详情、章节、首图调试加载。
 
 - `baozi`：搜索返回 81 条；详情和第 1 话章节页通过；首图返回 `image/jpeg`，27143 bytes。
 - `Komiic`：搜索返回 30 条；详情和章节页通过；补齐 `comic.onImageLoad` 兼容后首图返回 `image/jpeg`，108418 bytes。
@@ -33,7 +33,7 @@
 
 ## 2026-05-25 Worker 模式验证记录
 
-本轮使用独立临时 `VENERA_DATA_DIR`，设置 `VENERA_PLUGIN_ISOLATION=worker`，通过服务端 API 安装并验证真实源主路径。验证关键词为 `one`，主路径为安装、搜索、详情、章节、首图调试加载。
+本轮使用独立临时 `MANSOU_DATA_DIR`，设置 `MANSOU_PLUGIN_ISOLATION=worker`，通过服务端 API 安装并验证真实源主路径。验证关键词为 `one`，主路径为安装、搜索、详情、章节、首图调试加载。
 
 | 源        | 安装 | 搜索 | 详情    | 章节    | 图片    | 备注                                                                          |
 | --------- | ---- | ---- | ------- | ------- | ------- | ----------------------------------------------------------------------------- |
@@ -46,13 +46,13 @@
 本轮同时确认 Worker 隔离模式下已支持以下能力：
 
 - Worker 内复用 `createRuntimeApi`。
-- Worker 内使用同一 `VENERA_DATA_DIR` 下的 sqlite storage adapter 支持 Cookie/Data 存储。
+- Worker 内使用同一 `MANSOU_DATA_DIR` 下的 sqlite storage adapter 支持 Cookie/Data 存储。
 - 图片代理可通过 Worker 调用 `comic.getImageLoadingConfig`、`comic.onImageLoad`、`source.getImageLoadingConfig` 和 `getThumbnailLoadingConfig`。
-- mock 源在 `VENERA_PLUGIN_ISOLATION=worker` 下的搜索、详情、章节、图片、下载 API 集成测试通过。
+- mock 源在 `MANSOU_PLUGIN_ISOLATION=worker` 下的搜索、详情、章节、图片、下载 API 集成测试通过。
 
 ## 2026-05-25 Worker 模式补充验证
 
-本轮补齐 `APP` 全局别名、Worker 详情章节扁平化和 `baozi` 章节 fallback 后，使用 `pnpm --filter @venera/server compat` 重新验证重点源。
+本轮补齐 `APP` 全局别名、Worker 详情章节扁平化和 `baozi` 章节 fallback 后，使用 `pnpm --filter @mansou/server compat` 重新验证重点源。
 
 | 源        | 安装 | 搜索 | 详情 | 章节 | 图片 | 备注                                                                         |
 | --------- | ---- | ---- | ---- | ---- | ---- | ---------------------------------------------------------------------------- |
@@ -62,7 +62,7 @@
 兼容验证 CLI 用法：
 
 ```bash
-VENERA_DATA_DIR=/tmp/venera-compat pnpm --filter @venera/server compat manga_dex,baozi --keyword=one
+MANSOU_DATA_DIR=/tmp/mansou-compat pnpm --filter @mansou/server compat manga_dex,baozi --keyword=one
 ```
 
 CLI 默认输出 JSON；使用 `--output=result.md --format=markdown` 可输出 Markdown 表格。
@@ -143,7 +143,7 @@ Worker 隔离模式下已验证以下一致性：
 
 设置新增按定义校验和 callback 调用；账号新增密码登录、Cookie 字段校验、退出与状态查询。网页登录明确标记 unsupported。历史真实源矩阵是当时的验证记录，本次未联网重新验证所有源，不代表这些源当前全部可用。
 
-当前仅支持 Worker 执行，内部保留 VM 上下文。上文 2026-05-25 记录中的 VM 模式和 `VENERA_PLUGIN_ISOLATION` 是历史配置，现已移除；兼容检查使用 `compat`，不再接受 `--isolation`。
+当前仅支持 Worker 执行，内部保留 VM 上下文。上文 2026-05-25 记录中的 VM 模式和 `MANSOU_PLUGIN_ISOLATION` 是历史配置，现已移除；兼容检查使用 `compat`，不再接受 `--isolation`。
 
 
 ## 2026-10-29 拷贝漫画访问限制排查

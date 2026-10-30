@@ -38,7 +38,7 @@ const downloadTimeoutMs = Number(args.downloadTimeoutMs ?? 180000);
 
 if (args.help || sources.length === 0) {
   console.log(
-    "Usage: VENERA_DATA_DIR=/tmp/venera-compat pnpm --filter @venera/server compat -- --source=baozi,comick --keyword=one --download=true --output=result.md --format=markdown",
+    "Usage: MANSOU_DATA_DIR=/tmp/mansou-compat pnpm --filter @mansou/server compat -- --source=baozi,comick --keyword=one --download=true --output=result.md --format=markdown",
   );
   process.exit(args.help ? 0 : 1);
 }
