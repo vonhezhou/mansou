@@ -16,6 +16,7 @@ export function useDownloads(runWith: RunWith) {
   const itemVersions = useRef(new Map<string, number>());
   const [cache, setCache] = useState<CacheStats | null>(null);
   const [taskMessages, setTaskMessages] = useState<Record<string, string>>({});
+  const [taskErrors, setTaskErrors] = useState<Record<string, string>>({});
   const [taskOperations, setTaskOperations] = useState<Record<string, string>>({});
   const [cacheOperation, setCacheOperation] = useState<string | null>(null);
   const downloadsVersion = useRef(0);
@@ -41,6 +42,11 @@ export function useDownloads(runWith: RunWith) {
   async function withTask(taskId: string, label: string, work: () => Promise<void>) {
     if (activeTasks.current.has(taskId)) return;
     activeTasks.current.add(taskId);
+    setTaskErrors((current) => {
+      const next = { ...current };
+      delete next[taskId];
+      return next;
+    });
     setTaskMessages((current) => {
       const next = { ...current };
       delete next[taskId];
@@ -55,7 +61,16 @@ export function useDownloads(runWith: RunWith) {
             else delete next[taskId];
             return next;
           }),
-        work,
+        async () => {
+          try {
+            await work();
+          } catch (error) {
+            setTaskErrors((current) => ({
+              ...current,
+              [taskId]: error instanceof Error ? error.message : String(error),
+            }));
+          }
+        },
       );
     } finally {
       activeTasks.current.delete(taskId);
@@ -188,6 +203,7 @@ export function useDownloads(runWith: RunWith) {
     failedItemsOnly,
     taskOperations,
     taskMessages,
+    taskErrors,
     cacheOperation,
     loadingDownloads: cacheOperation !== null || Object.keys(taskOperations).length > 0,
     loadCacheStats,

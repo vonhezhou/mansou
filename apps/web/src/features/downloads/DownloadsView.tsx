@@ -149,6 +149,7 @@ export function DownloadsView(props: DownloadsViewProps) {
               busy={props.taskOperations ? Boolean(props.taskOperations[task.id]) : props.busy}
               operation={props.taskOperations?.[task.id]}
               message={props.taskMessages?.[task.id]}
+              error={props.taskErrors?.[task.id]}
               itemError={props.itemErrors?.[task.id]}
               key={task.id}
               task={task}

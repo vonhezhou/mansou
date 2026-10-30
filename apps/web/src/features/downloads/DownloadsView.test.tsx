@@ -35,6 +35,7 @@ beforeEach(async () => {
     completed: 1,
   }));
   props.downloadItems = { "1004": { items: [], total: 0, failedTotal: 0, offset: 0, limit: 100 } };
+  props.taskErrors = {};
   await act(async () => root.render(<DownloadsView {...props} />));
 });
 afterEach(async () => {
@@ -69,6 +70,17 @@ it("keeps the current page valid after the task list shrinks", async () => {
   await act(async () => root.render(<DownloadsView {...props} />));
   expect(container.querySelectorAll(".download-card")).toHaveLength(2);
   expect(container.querySelector('[aria-label="下载任务分页"]')).toBeNull();
+});
+
+it("shows an operation failure on the affected task even when its details are collapsed", async () => {
+  props.taskErrors = { "1004": "暂停请求超时" };
+  await act(async () => root.render(<DownloadsView {...props} />));
+  const alert = container.querySelector('[role="alert"]')!;
+  expect(alert.textContent).toContain("暂停请求超时");
+  expect(alert.closest(".download-card")?.querySelector("strong")?.textContent).toBe("Title 1004");
+  expect(container.querySelector(".task-details")).toBeNull();
+  await act(async () => button("暂停下载").click());
+  expect(props.onDownloadAction).toHaveBeenCalledWith(props.downloads[1004], "pause");
 });
 
 it("trims task filters and restores the first page when filters are cleared", async () => {

@@ -10,6 +10,7 @@ type DownloadTaskCardProps = {
   busy: boolean;
   operation?: string;
   message?: string;
+  error?: string;
   itemError?: string;
   task: DownloadTask;
   itemPage?: DownloadItemsPage;
@@ -61,6 +62,11 @@ export function DownloadTaskCard(props: DownloadTaskCardProps) {
         </p>
       )}
       {props.operation && <LoadingStatus label={props.operation} />}
+      {!props.operation && props.error && (
+        <p className="task-error" role="alert">
+          操作未完成：{props.error}
+        </p>
+      )}
       {!props.operation && props.message && (
         <p className="muted" role="status">
           {props.message}

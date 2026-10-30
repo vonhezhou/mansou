@@ -242,6 +242,7 @@ function Workspace({
           busy={downloadsBusy}
           taskOperations={downloadsState.taskOperations}
           taskMessages={downloadsState.taskMessages}
+          taskErrors={downloadsState.taskErrors}
           itemErrors={downloadsState.itemErrors}
           cacheOperation={downloadsState.cacheOperation}
           cache={downloadsState.cache}

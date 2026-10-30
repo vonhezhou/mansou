@@ -83,6 +83,37 @@ it("keeps detail errors visible and reloads them successfully", async () => {
   expect(state.downloadItems.a.items[0].imageKey).toBe("one");
 });
 
+it("keeps operation errors with their tasks and clears only the retried task's error", async () => {
+  let finish!: (value: DownloadTask) => void;
+  const pause = vi
+    .spyOn(veneraApi, "pauseDownload")
+    .mockRejectedValueOnce(new Error("暂停失败"))
+    .mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+  vi.spyOn(veneraApi, "resumeDownload").mockRejectedValueOnce(new Error("继续失败"));
+  await act(async () => state.downloadAction(task("a", "running"), "pause"));
+  await act(async () => state.downloadAction(task("b"), "resume"));
+  expect(state.taskErrors).toEqual({ a: "暂停失败", b: "继续失败" });
+  expect(state.taskOperations).toEqual({});
+  expect(errors).not.toHaveBeenCalled();
+  let pending: Promise<void>;
+  await act(async () => {
+    pending = state.downloadAction(task("a", "running"), "pause");
+  });
+  expect(state.taskErrors).toEqual({ b: "继续失败" });
+  expect(state.taskOperations.a).toBe("正在暂停任务…");
+  await act(async () => {
+    finish(task("a"));
+    await pending;
+  });
+  expect(pause).toHaveBeenCalledTimes(2);
+  expect(state.taskErrors).toEqual({ b: "继续失败" });
+  expect(state.taskOperations).toEqual({});
+});
+
 it("blocks image retries during active downloads and uses batch retry for a stopped task", async () => {
   const retry = vi.spyOn(veneraApi, "retryDownloadItem");
   const batch = vi.spyOn(veneraApi, "retryFailedDownloadItems").mockResolvedValue({
@@ -221,5 +252,6 @@ it("keeps export feedback active until preparation succeeds and does not start a
   expect(prepare).toHaveBeenCalledTimes(2);
   expect(click).toHaveBeenCalledOnce();
   expect(state.taskMessages.a).toBeUndefined();
+  expect(state.taskErrors.a).toBe("打包失败");
   expect(state.taskOperations).toEqual({});
 });
