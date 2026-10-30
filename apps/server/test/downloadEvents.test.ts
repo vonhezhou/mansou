@@ -140,3 +140,94 @@ it("reports a failed deferred snapshot and still delivers later progress", () =>
   vi.advanceTimersByTime(100);
   expect(listener.mock.calls[0][0][0].completed).toBe(2);
 });
+
+it("serializes once per broadcast for multiple SSE subscribers without cloning task objects", () => {
+  unsubscribe();
+  const clients = Array.from({ length: 4 }, () => vi.fn());
+  const stops = clients.map((client) => service.subscribeSerialized(client));
+  clients.forEach((client) => {
+    expect(JSON.parse(client.mock.calls[0][0])).toEqual(storage.listDownloads());
+    client.mockClear();
+  });
+  const stringify = vi.spyOn(JSON, "stringify");
+  const clone = vi.spyOn(globalThis, "structuredClone");
+  for (let completed = 1; completed <= 100; completed++) progress({ completed });
+  vi.advanceTimersByTime(100);
+  expect(stringify.mock.calls.filter(([value]) => Array.isArray(value))).toHaveLength(1);
+  expect(clone).not.toHaveBeenCalled();
+  clients.forEach((client) => {
+    expect(client).toHaveBeenCalledOnce();
+    expect(JSON.parse(client.mock.calls[0][0])[0].completed).toBe(100);
+    expect(client.mock.calls[0][0]).toBe(clients[0].mock.calls[0][0]);
+  });
+  service.pause(taskId);
+  clients.forEach((client) => expect(JSON.parse(client.mock.calls[1][0])[0].status).toBe("paused"));
+  stops.forEach((stop) => stop());
+});
+
+it("keeps serialized snapshots independent of mutable object subscribers", () => {
+  const stop = service.subscribe((tasks) => {
+    tasks[0].completed = -1;
+  });
+  const client = vi.fn();
+  const stopClient = service.subscribeSerialized(client);
+  client.mockClear();
+  progress({ completed: 7 });
+  vi.advanceTimersByTime(100);
+  expect(listener.mock.calls[0][0][0].completed).toBe(7);
+  expect(JSON.parse(client.mock.calls[0][0])[0].completed).toBe(7);
+  expect(storage.getDownload(taskId)?.completed).toBe(7);
+  stop();
+  stopClient();
+});
+
+it("isolates an SSE subscriber failure so other clients still receive the same snapshot", () => {
+  unsubscribe();
+  const bad = vi.fn();
+  const good = vi.fn();
+  service.subscribeSerialized(bad);
+  service.subscribeSerialized(good);
+  bad.mockImplementation(() => {
+    throw new Error("connection failed");
+  });
+  good.mockClear();
+  progress({ completed: 8 });
+  vi.advanceTimersByTime(100);
+  expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "connection failed" }));
+  expect(JSON.parse(good.mock.calls[0][0])[0].completed).toBe(8);
+});
+
+it("removes an SSE subscriber whose initial snapshot cannot be delivered", () => {
+  unsubscribe();
+  expect(() =>
+    service.subscribeSerialized(() => {
+      throw new Error("initial write failed");
+    }),
+  ).toThrow("initial write failed");
+  const all = vi.spyOn(repository, "all");
+  progress({ completed: 1 });
+  vi.advanceTimersByTime(1000);
+  expect(all).not.toHaveBeenCalled();
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it("cleans up deferred broadcasts after the last SSE subscriber leaves or the service closes", async () => {
+  unsubscribe();
+  const client = vi.fn();
+  const stop = service.subscribeSerialized(client);
+  progress({ completed: 1 });
+  expect(vi.getTimerCount()).toBe(1);
+  stop();
+  expect(vi.getTimerCount()).toBe(0);
+  service.subscribeSerialized(client);
+  expect(JSON.parse(client.mock.lastCall![0])[0].completed).toBe(1);
+  progress({ completed: 2 });
+  release();
+  await service.close();
+  client.mockClear();
+  const all = vi.spyOn(repository, "all");
+  vi.advanceTimersByTime(1000);
+  expect(all).not.toHaveBeenCalled();
+  expect(client).not.toHaveBeenCalled();
+  expect(vi.getTimerCount()).toBe(0);
+});

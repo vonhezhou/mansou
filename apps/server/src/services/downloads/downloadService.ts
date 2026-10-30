@@ -16,6 +16,7 @@ const terminal = new Set(["completed", "failed", "cancelled"]);
 export class DownloadService {
   private readonly scheduler: DownloadScheduler;
   private readonly listeners = new Set<(tasks: DownloadTask[]) => void>();
+  private readonly serializedListeners = new Set<(snapshot: string) => void>();
   private changeTimer?: ReturnType<typeof setTimeout>;
   private readonly deleting = new Map<string, Promise<DownloadTask>>();
   private readonly archives = new Map<string, { version: string; path: string }>();
@@ -353,8 +354,24 @@ export class DownloadService {
     }
     return () => {
       this.listeners.delete(listener);
-      if (!this.listeners.size) this.clearChangeTimer();
+      if (!this.hasListeners()) this.clearChangeTimer();
     };
+  }
+  subscribeSerialized(listener: (snapshot: string) => void) {
+    this.serializedListeners.add(listener);
+    try {
+      listener(JSON.stringify(this.all()));
+    } catch (error) {
+      this.serializedListeners.delete(listener);
+      throw error;
+    }
+    return () => {
+      this.serializedListeners.delete(listener);
+      if (!this.hasListeners()) this.clearChangeTimer();
+    };
+  }
+  private hasListeners() {
+    return this.listeners.size > 0 || this.serializedListeners.size > 0;
   }
   private clearChangeTimer() {
     clearTimeout(this.changeTimer);
@@ -364,7 +381,7 @@ export class DownloadService {
     if (immediate) {
       this.clearChangeTimer();
       this.publishChange();
-    } else if (this.listeners.size && !this.changeTimer) {
+    } else if (this.hasListeners() && !this.changeTimer) {
       // 进度仍立即落库，只合并广播；状态切换会立即发布并清除待发进度。
       this.changeTimer = setTimeout(() => {
         this.changeTimer = undefined;
@@ -378,13 +395,24 @@ export class DownloadService {
     }
   }
   private publishChange() {
-    if (!this.listeners.size) return;
+    if (!this.hasListeners()) return;
     const tasks = this.all();
+    // SSE 订阅者共享不可变字符串，避免每个连接重复克隆及序列化完整任务列表。
+    const serialized = this.serializedListeners.size ? JSON.stringify(tasks) : undefined;
     for (const listener of this.listeners) {
       try {
         listener(structuredClone(tasks));
       } catch (error) {
         this.onError(error);
+      }
+    }
+    if (serialized !== undefined) {
+      for (const listener of this.serializedListeners) {
+        try {
+          listener(serialized);
+        } catch (error) {
+          this.onError(error);
+        }
       }
     }
   }
@@ -410,5 +438,6 @@ export class DownloadService {
     await Promise.allSettled(this.deleting.values());
     this.clearChangeTimer();
     this.listeners.clear();
+    this.serializedListeners.clear();
   }
 }

@@ -31,8 +31,8 @@ export async function registerDownloadRoutes(
       return false;
     };
     const writer = createDownloadSnapshotWriter(reply.raw, valid);
-    const unsubscribe = context.downloads.subscribe((tasks) =>
-      writer.send(`event: downloads\ndata: ${JSON.stringify(tasks)}\n\n`),
+    const unsubscribe = context.downloads.subscribeSerialized((snapshot) =>
+      writer.send(`event: downloads\ndata: ${snapshot}\n\n`),
     );
     // Recheck persisted credentials so CLI password resets also close idle streams.
     const expiry = setInterval(valid, 1000);
