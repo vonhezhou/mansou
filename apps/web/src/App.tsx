@@ -6,7 +6,7 @@ import type { AuthSession } from "./api/auth.js";
 import { AppShell } from "./app/AppShell.js";
 import { isTabKey, type TabKey } from "./app/navigation.js";
 import type { Health } from "./types.js";
-import { DownloadsView } from "./features/downloads/DownloadsView.js";
+import { LiveDownloadsView } from "./features/downloads/LiveDownloadsView.js";
 import { SearchView } from "./features/search/SearchView.js";
 import { SourcesView } from "./features/sources/SourcesView.js";
 import { useDownloads } from "./hooks/useDownloads.js";
@@ -130,10 +130,7 @@ function Workspace({
       busy={refreshing}
       error={error}
       health={health}
-      downloadCount={
-        downloadsState.downloads.filter((task) => ["queued", "running"].includes(task.status))
-          .length
-      }
+      downloadStore={downloadsState.snapshotStore}
       sourceCount={sourcesState.sourceMetadata.length}
       onRefresh={() => {
         void checkHealth();
@@ -239,14 +236,14 @@ function Workspace({
       )}
 
       {activeTab === "downloads" && (
-        <DownloadsView
+        <LiveDownloadsView
           busy={downloadsBusy}
           taskOperations={downloadsState.taskOperations}
           taskMessages={downloadsState.taskMessages}
           itemErrors={downloadsState.itemErrors}
           cacheOperation={downloadsState.cacheOperation}
           cache={downloadsState.cache}
-          downloads={downloadsState.downloads}
+          store={downloadsState.snapshotStore}
           downloadItems={downloadsState.downloadItems}
           failedItemsOnly={downloadsState.failedItemsOnly}
           onFailedItemsOnlyChange={downloadsState.setFailedItemsOnly}

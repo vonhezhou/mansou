@@ -6,6 +6,7 @@ import type { TabKey } from "./navigation.js";
 import { SearchResults } from "../features/search/SearchResults.js";
 import { SourcesView } from "../features/sources/SourcesView.js";
 import type { SourcesViewProps } from "../features/sources/types.js";
+import { createDownloadSnapshotStore } from "../lib/downloadSnapshot.js";
 
 let root: Root;
 let container: HTMLDivElement;
@@ -42,6 +43,18 @@ function button(label: string) {
 
 it("keeps account and refresh actions reachable in settings after collapsing navigation, and persists the theme", async () => {
   const refresh = vi.fn();
+  const downloadStore = createDownloadSnapshotStore();
+  downloadStore.setSnapshot(
+    ["queued", "running"].map((status, index) => ({
+      id: String(index),
+      sourceKey: "mock",
+      comicId: "comic",
+      status,
+      phase: status,
+      total: 0,
+      completed: 0,
+    })),
+  );
   function Harness() {
     const [tab, setTab] = useState<TabKey>("search");
     return (
@@ -51,7 +64,7 @@ it("keeps account and refresh actions reachable in settings after collapsing nav
         busy={false}
         error={null}
         health={{ ok: true, name: "test", dataDir: "/data" }}
-        downloadCount={2}
+        downloadStore={downloadStore}
         sourceCount={4}
         onRefresh={refresh}
         account={<button>账号设置入口</button>}

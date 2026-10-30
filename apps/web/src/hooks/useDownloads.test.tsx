@@ -110,7 +110,7 @@ it("does not overwrite a newer live snapshot with an older list response", async
     finish([task("a", "running")]);
     await pending;
   });
-  expect(state.downloads[0].status).toBe("completed");
+  expect(state.snapshotStore.getSnapshot()[0].status).toBe("completed");
 });
 
 it("keeps export feedback active until preparation succeeds and does not start a browser download on failure", async () => {

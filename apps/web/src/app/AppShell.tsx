@@ -1,9 +1,10 @@
 import { LoadingStatus } from "./LoadingStatus.js";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { Health } from "../types.js";
 import { navigationItems, type TabKey } from "./navigation.js";
 import { Icon } from "./Icon.js";
 import { SettingsView } from "./SettingsView.js";
+import type { DownloadSnapshotStore } from "../lib/downloadSnapshot.js";
 
 type AppShellProps = {
   activeTab: TabKey;
@@ -11,7 +12,7 @@ type AppShellProps = {
   error: string | null;
   notice?: string;
   health: Health | null;
-  downloadCount: number;
+  downloadStore: DownloadSnapshotStore;
   sourceCount: number;
   children: ReactNode;
   account?: ReactNode;
@@ -20,6 +21,10 @@ type AppShellProps = {
 };
 
 export function AppShell(props: AppShellProps) {
+  const downloadCount = useSyncExternalStore(
+    props.downloadStore.subscribe,
+    props.downloadStore.getActiveCount,
+  );
   const workspaceRef = useRef<HTMLElement>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [theme, setTheme] = useState(document.documentElement.dataset.theme ?? "light");
@@ -49,11 +54,7 @@ export function AppShell(props: AppShellProps) {
   );
   function navButton(item: (typeof navigationItems)[number]) {
     const count =
-      item.key === "downloads"
-        ? props.downloadCount
-        : item.key === "sources"
-          ? props.sourceCount
-          : null;
+      item.key === "downloads" ? downloadCount : item.key === "sources" ? props.sourceCount : null;
     return (
       <button
         className={`nav-item${item.key === props.activeTab ? " active" : ""}`}
@@ -122,7 +123,7 @@ export function AppShell(props: AppShellProps) {
             </div>
             <div className="server-row">
               <span>进行中的任务</span>
-              <strong>{props.downloadCount} 个</strong>
+              <strong>{downloadCount} 个</strong>
             </div>
           </div>
           <div className="server-profile">

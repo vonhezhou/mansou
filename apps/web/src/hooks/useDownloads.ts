@@ -2,11 +2,13 @@ import { useRef, useState } from "react";
 import { veneraApi } from "../api/venera.js";
 import type { CacheStats, DownloadItem, DownloadTask } from "../types.js";
 import type { DownloadAction } from "../features/downloads/types.js";
+import { createDownloadSnapshotStore } from "../lib/downloadSnapshot.js";
 
 type RunWith = (setLoading: (value: boolean) => void, task: () => Promise<void>) => Promise<void>;
 
 export function useDownloads(runWith: RunWith) {
-  const [downloads, setDownloadSnapshot] = useState<DownloadTask[]>([]);
+  // 高频快照由下载视图和计数各自订阅，避免推动整个 Workspace 重新渲染。
+  const [snapshotStore] = useState(createDownloadSnapshotStore);
   const [downloadItems, setDownloadItems] = useState<Record<string, DownloadItem[]>>({});
   const [itemErrors, setItemErrors] = useState<Record<string, string>>({});
   const [failedItemsOnly, setFailedItemsOnly] = useState(false);
@@ -20,14 +22,14 @@ export function useDownloads(runWith: RunWith) {
 
   function setDownloads(tasks: DownloadTask[]) {
     downloadsVersion.current++;
-    setDownloadSnapshot(tasks);
+    snapshotStore.setSnapshot(tasks);
   }
 
   async function loadDownloads() {
     const version = ++downloadsVersion.current;
     const tasks = await veneraApi.listDownloads();
     // 实时事件到达后，旧的列表请求不能把进度回滚到先前快照。
-    if (version === downloadsVersion.current) setDownloadSnapshot(tasks);
+    if (version === downloadsVersion.current) snapshotStore.setSnapshot(tasks);
   }
 
   async function loadCacheStats() {
@@ -156,7 +158,7 @@ export function useDownloads(runWith: RunWith) {
 
   return {
     cache,
-    downloads,
+    snapshotStore,
     downloadItems,
     itemErrors,
     failedItemsOnly,
