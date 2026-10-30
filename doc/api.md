@@ -172,6 +172,7 @@ data: [{"id":"task-id","status":"running"}]
 
 - 首次连接会立即发送当前任务列表。
 - 下载任务状态变化时由 `DownloadService` 主动推送。
+- 纯进度变化按 100ms 窗口合并，推送窗口结束时的最新完整任务列表；创建、删除和状态切换立即推送。事件不是逐图日志，客户端应使用快照中的 `completed/total`，不能按事件次数累加进度。
 - 服务端保留 heartbeat：`: heartbeat`，当前间隔为 30 秒。
 - 浏览器 EventSource 使用同源 Cookie；其他客户端可携带 Bearer Token。
 - 凭据失效时发送 `event: auth-expired`、`data: {}` 后关闭连接；空闲连接每秒检查一次，重连重新鉴权。

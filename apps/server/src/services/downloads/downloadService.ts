@@ -16,6 +16,7 @@ const terminal = new Set(["completed", "failed", "cancelled"]);
 export class DownloadService {
   private readonly scheduler: DownloadScheduler;
   private readonly listeners = new Set<(tasks: DownloadTask[]) => void>();
+  private changeTimer?: ReturnType<typeof setTimeout>;
   private readonly deleting = new Map<string, Promise<DownloadTask>>();
   private readonly archives = new Map<string, { version: string; path: string }>();
   private readonly archiveRevisions = new Map<string, number>();
@@ -107,7 +108,7 @@ export class DownloadService {
       updatedAt: now,
     };
     this.repository.save(task);
-    this.emitChange();
+    this.emitChange(true);
     if (this.initialized) this.scheduler.kick();
     return task;
   }
@@ -184,7 +185,7 @@ export class DownloadService {
         this.repository.delete(id);
         this.archives.delete(id);
         this.archiveRevisions.delete(id);
-        this.emitChange();
+        this.emitChange(true);
         return deleted;
       })
       .finally(() => {
@@ -347,7 +348,7 @@ export class DownloadService {
       );
     this.repository.save(task);
     this.archiveRevisions.set(id, (this.archiveRevisions.get(id) ?? 0) + 1);
-    this.emitChange();
+    this.emitChange(patch.status !== undefined);
     return task;
   }
   subscribe(listener: (tasks: DownloadTask[]) => void) {
@@ -358,9 +359,33 @@ export class DownloadService {
       this.listeners.delete(listener);
       throw error;
     }
-    return () => this.listeners.delete(listener);
+    return () => {
+      this.listeners.delete(listener);
+      if (!this.listeners.size) this.clearChangeTimer();
+    };
   }
-  private emitChange() {
+  private clearChangeTimer() {
+    clearTimeout(this.changeTimer);
+    this.changeTimer = undefined;
+  }
+  private emitChange(immediate = false) {
+    if (immediate) {
+      this.clearChangeTimer();
+      this.publishChange();
+    } else if (this.listeners.size && !this.changeTimer) {
+      // 进度仍立即落库，只合并广播；状态切换会立即发布并清除待发进度。
+      this.changeTimer = setTimeout(() => {
+        this.changeTimer = undefined;
+        try {
+          this.publishChange();
+        } catch (error) {
+          this.onError(error);
+        }
+      }, 100);
+      this.changeTimer.unref();
+    }
+  }
+  private publishChange() {
     if (!this.listeners.size) return;
     const tasks = this.all();
     for (const listener of this.listeners) {
@@ -391,6 +416,7 @@ export class DownloadService {
     }
     await closing;
     await Promise.allSettled(this.deleting.values());
+    this.clearChangeTimer();
     this.listeners.clear();
   }
 }
