@@ -146,6 +146,36 @@ describe("download lifecycle", () => {
     unsubscribe();
   });
 
+  it("redownloads a missing completed file on resume while retaining other completed images", async () => {
+    const barrier = blockImage(2);
+    const task = create("missing-on-resume");
+    await barrier.entered.promise;
+    built.context.downloads.pause(task.id);
+    const records = built.context.storage.listDownloadItems(task.id);
+    expect(records).toHaveLength(2);
+    const [missing, retained] = records;
+    await rm(missing.file_path!);
+    barrier.release.resolve();
+    await barrier.finished.promise;
+    barrier.spy.mockClear();
+    built.context.downloads.resume(task.id);
+    await vi.waitFor(() =>
+      expect(built.context.downloads.find(task.id)).toMatchObject({
+        status: "completed",
+        completed: 5,
+        total: 5,
+      }),
+    );
+    expect(barrier.spy).toHaveBeenCalledTimes(4);
+    expect(barrier.spy.mock.calls.some(([input]) => input.imageKey === missing.image_key)).toBe(
+      true,
+    );
+    expect(barrier.spy.mock.calls.some(([input]) => input.imageKey === retained.image_key)).toBe(
+      false,
+    );
+    await expect(access(missing.file_path!)).resolves.toBeUndefined();
+  });
+
   it("holds its concurrency slot until cancelled IO finishes", async () => {
     const barrier = blockImage();
     const first = create("cancel");

@@ -63,14 +63,13 @@ export class DownloadRunner {
       signal.throwIfAborted();
       chapters.push({ ...episode, images: pages.images });
     }
-    let completed = 0;
     const total = chapters.reduce((sum, chapter) => sum + chapter.images.length, 0);
-    for (const chapter of chapters) {
-      for (const image of chapter.images) {
-        if (await this.repository.completedFile(task.id, image)) completed++;
-        signal.throwIfAborted();
-      }
-    }
+    let completed = await this.repository.countCompletedFiles(
+      task.id,
+      chapters.flatMap((chapter) => chapter.images),
+      this.options.concurrency,
+      signal,
+    );
     progress({ total, completed });
     for (const chapter of chapters) {
       signal.throwIfAborted();
