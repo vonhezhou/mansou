@@ -24,7 +24,7 @@ describe("storage migrations", () => {
     }
   });
 
-  it.each([1, 3, 4, 5])(
+  it.each([1, 3, 4, 5, 6])(
     "opens a version %i database without changing existing history",
     async (version) => {
       const dir = await mkdtemp(path.join(os.tmpdir(), "venera-storage-test-"));
@@ -34,6 +34,7 @@ describe("storage migrations", () => {
         const db = new Database(path.join(dir, "venera_web.sqlite"));
         try {
           db.prepare("delete from schema_migrations where version > ?").run(version);
+          if (version < 6) db.exec("drop index idx_download_items_task_order");
           db.exec(
             "create table history (id text primary key, page integer); insert into history values ('mock:comic-1', 3)",
           );
@@ -54,7 +55,7 @@ describe("storage migrations", () => {
           ]);
           expect(
             reopened.prepare("select max(version) as version from schema_migrations").get(),
-          ).toEqual({ version: 5 });
+          ).toEqual({ version: 6 });
         } finally {
           reopened.close();
         }
@@ -63,6 +64,55 @@ describe("storage migrations", () => {
       }
     },
   );
+});
+
+it("upgrades an existing version 5 database without changing image records and avoids temporary page sorting", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "venera-storage-page-index-"));
+  try {
+    const initial = createStorage(dir);
+    for (const imageKey of ["z", "a", "m"])
+      initial.saveDownloadItem({
+        taskId: "task",
+        imageKey,
+        status: imageKey === "m" ? "failed" : "completed",
+        filePath: `/downloads/${imageKey}.jpg`,
+      });
+    const before = initial.listDownloadItems("task");
+    initial.close();
+    const legacy = new Database(path.join(dir, "venera_web.sqlite"));
+    legacy.exec(
+      "drop index idx_download_items_task_order; delete from schema_migrations where version = 6",
+    );
+    legacy.close();
+    const upgraded = createStorage(dir);
+    try {
+      expect(upgraded.listDownloadItems("task")).toEqual(before);
+      expect(upgraded.listDownloadItemsPage("task", 1, 1, false)).toMatchObject({
+        total: 3,
+        failedTotal: 1,
+        items: [{ image_key: "m" }],
+      });
+      expect(
+        upgraded.listDownloadItemsPage("task", 0, 100, true).items.map((item) => item.image_key),
+      ).toEqual(["m"]);
+    } finally {
+      upgraded.close();
+    }
+    const verified = new Database(path.join(dir, "venera_web.sqlite"));
+    try {
+      const plan = verified
+        .prepare(
+          "explain query plan select * from download_items where task_id = ? order by id asc limit ? offset ?",
+        )
+        .all("task", 1, 1) as Array<{ detail: string }>;
+      expect(plan.some((step) => step.detail.includes("TEMP B-TREE"))).toBe(false);
+      expect(plan.some((step) => step.detail.includes("idx_download_items_task_order"))).toBe(true);
+    } finally {
+      verified.close();
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 describe("download item lookup", () => {

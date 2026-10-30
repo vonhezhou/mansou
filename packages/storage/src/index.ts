@@ -404,4 +404,12 @@ function migrate(db: Database.Database) {
   if (version < 4) {
     db.exec("insert into schema_migrations(version, applied_at) values (4, datetime('now'))");
   }
+  if (version < 6) {
+    db.transaction(() => {
+      db.exec(`
+        create index if not exists idx_download_items_task_order on download_items(task_id, id);
+        insert or ignore into schema_migrations(version, applied_at) values (6, datetime('now'));
+      `);
+    })();
+  }
 }
