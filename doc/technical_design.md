@@ -6,7 +6,7 @@
 
 `venera` 是 Flutter 漫画阅读应用，核心能力包括通过 JavaScript 插件扩展漫画源、聚合搜索、在线浏览、详情页、阅读器、收藏、历史、下载、图片缓存、账号与 Cookie 管理。`venera_web_poc` 已经验证了在 Node.js/TypeScript 环境中复用 Venera 插件的可行性：通过 Fastify 暴露 HTTP API，通过 Node `vm` 加载插件脚本，并提供 `ComicSource`、`Network`、`Html`、`Data`、`Log`、`App`、`Convert` 等兼容层。
 
-`mansou` 的目标是将 PoC 正式化为可长期维护、可部署在 NAS/服务器/本地桌面环境的 Web 漫画阅读项目。正式项目应复用 Venera 现有插件生态，同时提供稳定的服务端 API、现代 Web 前端、数据持久化、任务调度、插件兼容性验证、可观测性、安全隔离与部署能力。
+`mansou` 的目标是将 PoC 正式化为可长期维护、可部署在 NAS/VPS 上的多源漫画搜索与下载工具。正式项目应复用 Venera 现有插件生态，同时提供稳定的服务端 API、现代 Web 前端、数据持久化、任务调度、插件兼容性验证、可观测性、安全隔离与部署能力。
 
 ## 2. 设计原则
 

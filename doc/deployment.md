@@ -1,5 +1,7 @@
 # 部署说明
 
+需要 Docker Engine 和 Docker Compose v2。以下命令在克隆后的仓库根目录执行；当前通过源码构建镜像。完整环境变量说明见 [配置参考](configuration.md)。
+
 ## VPS 公网部署
 
 ```bash
@@ -74,17 +76,48 @@ pnpm dev
 
 Node.js 不会自动读取 `.env`；Compose 会读取它用于变量替换。HTTP 仅用于本地/可信网络开发，公网使用 HTTPS。
 
+## 日志与升级
+
+```bash
+docker compose ps
+docker compose logs --tail=100 mansou
+```
+
+升级前先按下节备份数据目录，再获取代码并重新构建：
+
+```bash
+git pull --ff-only
+docker compose up -d --build
+```
+
+升级后核对容器状态，并在服务器本机访问 `http://127.0.0.1:3210/api/v1/health`，预期返回 `{"ok":true,"name":"mansou"}`。健康检查仅说明服务可达，仍需通过浏览器验证登录、搜索与下载等业务操作。若修改了 Compose 端口绑定，按实际地址检查。
+
+当前使用 `MANSOU_*` 环境变量、`mansou.sqlite` 和新的会话标识，不自动迁移更名前的 `VENERA_*` 配置、`venera_web.sqlite` 或旧会话。早期测试环境可备份后使用独立空目录重新初始化；不要直接删除唯一的数据副本。
+
 ## 数据与备份
 
 容器 `/data` 挂载到宿主机 `./data`，包含 SQLite、管理员/会话/Token 哈希、源脚本、图片缓存和下载文件。升级容器时保留此挂载。备份与恢复应包含整个数据目录，并限制目录和备份的访问权限。
 
 数据库版本 6 会在首次打开时自动创建下载图片的 `(task_id, id)` 排序索引，保留原记录和鉴权数据，无需手动迁移命令。大数据库升级时，建索引会增加一次启动耗时和额外磁盘占用；后续启动复用已创建的索引。
 
-已有存储命令可用于备份及旧 JSON 导入：
+推荐停服后备份整个目录，在仓库外指定备份位置。例如：
+
+```bash
+docker compose stop mansou
+tar -czf ../mansou-data-backup.tar.gz data
+```
+
+确认备份成功后再运行 `docker compose start mansou`。示例文件名固定，重复备份时请更换文件名，避免覆盖上一份备份。
+
+恢复时先停止服务，将备份解压到单独目录检查，再用其中的完整 `data/` 替换宿主机挂载目录，保留原目录直到恢复验证成功。不要把备份直接合并到仍在运行的目录；数据库、WAL/SHM、插件和下载文件应来自同一份备份。恢复后启动服务并验证账号、源与下载文件。
+
+源码存储命令也可用于数据库文件备份及旧 JSON 导入：
 
 ```bash
 pnpm --filter @mansou/server storage backup
 pnpm --filter @mansou/server storage import-json
 ```
 
-管理员恢复与旧共享 Token 的升级步骤见 [鉴权说明](auth.md)。
+`storage backup` 直接复制 `mansou.sqlite`，不执行在线 SQLite 快照，也不包含插件、缓存和下载文件。因此只应在服务已正常停止、数据库连接关闭后使用；不能将其视为运行中数据库的完整一致性备份。`storage restore <备份文件路径>` 同样需要先停止服务，使用与服务一致的 `MANSOU_DATA_DIR`，且不要留下来自另一份数据库的 WAL/SHM 文件。
+
+管理员密码恢复见 [鉴权说明](auth.md)。
