@@ -7,8 +7,11 @@ type ImageProxyInput = {
   imageKey: string;
   thumbnail?: boolean;
 };
+type ImageResult = { data: Buffer; contentType: string; cached: boolean };
 
 export class ImageProxyService {
+  private readonly pending = new Map<string, Promise<ImageResult>>();
+
   constructor(
     private readonly sources: SourceRegistry,
     private readonly cache: ImageCache,
@@ -24,20 +27,39 @@ export class ImageProxyService {
       return { data, contentType: "image/svg+xml; charset=utf-8", cached: false };
     }
 
+    if (!useCache) return this.fetchBytes(input, false);
+    // 固定字段顺序，使预览与下载构造的同一图片请求共享进行中的读取和下载。
+    const key = JSON.stringify({
+      sourceKey: input.sourceKey,
+      comicId: input.comicId,
+      episodeId: input.episodeId,
+      imageKey: input.imageKey,
+      thumbnail: input.thumbnail,
+    });
+    const pending = this.pending.get(key);
+    if (pending) return pending;
+    const request = this.fetchBytes(input, true);
+    this.pending.set(key, request);
+    try {
+      return await request;
+    } finally {
+      // 仅合并进行中的请求，失败不留存，后续调用仍可重新加载。
+      this.pending.delete(key);
+    }
+  }
+
+  private async fetchBytes(input: ImageProxyInput, useCache: boolean): Promise<ImageResult> {
     if (useCache) {
       const data = await this.cache.read(input);
       if (data) return { data, contentType: this.detectContentType(data), cached: true };
     }
     const result = await this.sources.get(input.sourceKey).loadImageBytes(input);
     const data = Buffer.from(result.data);
-    const contentType = result.contentType;
+    const contentType = this.detectContentType(data);
     if (useCache) await this.cache.write(input, data);
     return {
       data,
-      contentType:
-        this.detectContentType(data) === "application/octet-stream"
-          ? contentType
-          : this.detectContentType(data),
+      contentType: contentType === "application/octet-stream" ? result.contentType : contentType,
       cached: false,
     };
   }
