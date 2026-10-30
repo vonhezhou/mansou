@@ -136,6 +136,73 @@ it("stops before downloading when cancelled during chapter loading", async () =>
   expect(repository.items(task.id).every((item) => item.status === "failed")).toBe(true);
 });
 
+it("locates retries in reverse chapter order without loading unneeded chapters", async () => {
+  const retry = runner.createImageRetry(task, new AbortController().signal);
+  await retry("a2");
+  expect(pages.mock.calls).toEqual([["comic", "a"]]);
+  for (const imageKey of ["b2", "a1", "b1"]) await retry(imageKey);
+  expect(details).toHaveBeenCalledOnce();
+  expect(pages.mock.calls).toEqual([
+    ["comic", "a"],
+    ["comic", "b"],
+  ]);
+  expect(loadBytes.mock.calls.map(([input]) => [input.imageKey, input.episodeId])).toEqual([
+    ["a2", "a"],
+    ["b2", "b"],
+    ["a1", "a"],
+    ["b1", "b"],
+  ]);
+});
+
+it("keeps the first position for duplicate keys within and across parsed chapters", async () => {
+  pages.mockImplementation(async (_comicId, episodeId) => ({
+    images: episodeId === "a" ? ["shared", "a1", "shared"] : ["b1", "shared"],
+  }));
+  const retry = runner.createImageRetry(task, new AbortController().signal);
+  await retry("b1");
+  await retry("shared");
+  expect(repository.item(task.id, "shared")?.file_path).toBe(
+    path.join(directory, "source", "Comic_comic", "First", "0001.jpg"),
+  );
+  expect(loadBytes.mock.lastCall![0]).toMatchObject({ imageKey: "shared", episodeId: "a" });
+  expect((await readFile(repository.item(task.id, "shared")!.file_path!)).toString()).toBe(
+    "shared",
+  );
+});
+
+it("retries a failed later chapter after downloading a known earlier image", async () => {
+  let failed = false;
+  pages.mockImplementation(async (_comicId, episodeId) => {
+    if (episodeId === "b" && !failed) {
+      failed = true;
+      throw new Error("temporary chapter error");
+    }
+    return { images: episodeId === "a" ? ["a1", "a2"] : ["b1", "b2"] };
+  });
+  const retry = runner.createImageRetry(task, new AbortController().signal);
+  await expect(retry("b1")).rejects.toThrow("temporary chapter error");
+  await retry("a2");
+  await retry("b2");
+  expect(pages.mock.calls).toEqual([
+    ["comic", "a"],
+    ["comic", "b"],
+    ["comic", "b"],
+  ]);
+  expect(repository.item(task.id, "a2")?.status).toBe("completed");
+  expect(repository.item(task.id, "b2")?.status).toBe("completed");
+});
+
+it("keeps parsed positions after an unknown key and does not reload exhausted chapters", async () => {
+  const retry = runner.createImageRetry(task, new AbortController().signal);
+  await expect(retry("missing")).rejects.toThrow("Image not found in task episodes: missing");
+  await retry("a2");
+  await expect(retry("also-missing")).rejects.toThrow(
+    "Image not found in task episodes: also-missing",
+  );
+  expect(pages).toHaveBeenCalledTimes(2);
+  expect(loadBytes).toHaveBeenCalledOnce();
+});
+
 it("queries only failed keys without loading complete image history", async () => {
   repository.saveItem({
     taskId: task.id,

@@ -137,8 +137,10 @@ export class DownloadRunner {
 
   createImageRetry(task: DownloadTask, signal: AbortSignal) {
     let plan: ReturnType<DownloadRunner["plan"]> | undefined;
-    const chapters = new Map<string, Promise<Map<string, number>>>();
-    // 仅在一次批量重试内复用解析结果，不跨操作缓存源数据；失败结果允许重新请求。
+    type Episode = Awaited<ReturnType<DownloadRunner["plan"]>>["episodes"][number];
+    const positions = new Map<string, { episode: Episode; index: number }>();
+    let nextEpisode = 0;
+    // 同一批次串行重试；只扩展尚未解析的章节，失败时留在原章节供下一张图片重新请求。
     return async (imageKey: string) => {
       signal.throwIfAborted();
       const completed = await this.repository.completedFile(task.id, imageKey);
@@ -148,34 +150,28 @@ export class DownloadRunner {
         plan = undefined;
         throw error;
       });
-      for (const episode of (await plan).episodes) {
+      const { episodes } = await plan;
+      signal.throwIfAborted();
+      let position = positions.get(imageKey);
+      while (!position && nextEpisode < episodes.length) {
         signal.throwIfAborted();
-        let pages = chapters.get(episode.id);
-        if (!pages) {
-          pages = this.sources
-            .get(task.sourceKey)
-            .comicPages(task.comicId, episode.id)
-            .then(({ images }) => {
-              const indices = new Map<string, number>();
-              images.forEach((key, index) => {
-                if (!indices.has(key)) indices.set(key, index);
-              });
-              return indices;
-            })
-            .catch((error) => {
-              chapters.delete(episode.id);
-              throw error;
-            });
-          chapters.set(episode.id, pages);
-        }
-        const index = (await pages).get(imageKey);
+        const episode = episodes[nextEpisode];
+        const { images } = await this.sources
+          .get(task.sourceKey)
+          .comicPages(task.comicId, episode.id);
         signal.throwIfAborted();
-        if (index === undefined) continue;
-        await ensureDir(episode.directory);
-        await this.downloadImage(task, imageKey, episode.id, episode.directory, index, signal);
-        return { item: this.repository.item(task.id, imageKey)!, downloaded: true };
+        images.forEach((key, index) => {
+          // 跨章节和章节内的重复键均保留首次位置，维持原有文件命名语义。
+          if (!positions.has(key)) positions.set(key, { episode, index });
+        });
+        nextEpisode++;
+        position = positions.get(imageKey);
       }
-      throw new Error(`Image not found in task episodes: ${imageKey}`);
+      if (!position) throw new Error(`Image not found in task episodes: ${imageKey}`);
+      const { episode, index } = position;
+      await ensureDir(episode.directory);
+      await this.downloadImage(task, imageKey, episode.id, episode.directory, index, signal);
+      return { item: this.repository.item(task.id, imageKey)!, downloaded: true };
     };
   }
 
