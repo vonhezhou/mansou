@@ -7,11 +7,109 @@ import { ImageCache } from "../src/storage/imageCache.js";
 import { ImageProxyService } from "../src/services/imageProxy.js";
 
 let directory: string;
+const releases: Array<() => void> = [];
+const active: Promise<unknown>[] = [];
 beforeEach(async () => {
   directory = await mkdtemp(path.join(os.tmpdir(), "venera-image-proxy-"));
 });
 afterEach(async () => {
+  releases.splice(0).forEach((release) => release());
+  await Promise.allSettled(active.splice(0));
   await rm(directory, { recursive: true, force: true });
+});
+
+it("reads existing cache but does not write or retain cold download bytes", async () => {
+  const { proxy, cache, loadImageBytes } = setup();
+  const write = vi.spyOn(cache, "write");
+  expect(await proxy.loadBytes(input, "read-only")).toMatchObject({
+    data: image.data,
+    cached: false,
+  });
+  expect(await cache.cacheStats()).toEqual({ files: 0, bytes: 0 });
+  expect(write).not.toHaveBeenCalled();
+  await proxy.loadBytes(input, "read-only");
+  expect(loadImageBytes).toHaveBeenCalledTimes(2);
+  await proxy.loadBytes(input);
+  expect(await proxy.loadBytes(input, "read-only")).toMatchObject({
+    data: image.data,
+    cached: true,
+  });
+  expect(loadImageBytes).toHaveBeenCalledTimes(3);
+  expect(write).toHaveBeenCalledOnce();
+});
+
+it.each([true, false])(
+  "shares mixed preview and download requests when downloadFirst=%s",
+  async (downloadFirst) => {
+    const { proxy, cache, loadImageBytes } = setup();
+    const write = vi.spyOn(cache, "write");
+    const results = await Promise.all([
+      proxy.loadBytes(input, downloadFirst ? "read-only" : true),
+      proxy.loadBytes(input, downloadFirst ? true : "read-only"),
+    ]);
+    expect(loadImageBytes).toHaveBeenCalledOnce();
+    expect(write).toHaveBeenCalledOnce();
+    expect(results.every((result) => result.data.equals(image.data))).toBe(true);
+    expect(await proxy.loadBytes(input, "read-only")).toMatchObject({ cached: true });
+  },
+);
+
+it("keeps merging requests while a preview cache write is pending without blocking a download on that write", async () => {
+  const { proxy, cache, loadImageBytes } = setup();
+  let release!: () => void;
+  let entered!: () => void;
+  const gate = new Promise<void>((done) => {
+    release = done;
+  });
+  const writing = new Promise<void>((done) => {
+    entered = done;
+  });
+  releases.push(release);
+  const original = cache.write.bind(cache);
+  const write = vi.spyOn(cache, "write").mockImplementationOnce(async (...args) => {
+    entered();
+    await gate;
+    return original(...args);
+  });
+  const preview = proxy.loadBytes(input);
+  active.push(preview);
+  await writing;
+  const download = proxy.loadBytes(input, "read-only");
+  active.push(download);
+  const anotherPreview = proxy.loadBytes(input);
+  active.push(anotherPreview);
+  try {
+    expect(await download).toMatchObject({ data: image.data, cached: false });
+    expect(loadImageBytes).toHaveBeenCalledOnce();
+    expect(write).toHaveBeenCalledOnce();
+  } finally {
+    release();
+    await Promise.all([preview, anotherPreview]);
+  }
+  expect(await proxy.loadBytes(input)).toMatchObject({ cached: true });
+});
+
+it("isolates preview cache-write failures from a concurrent download", async () => {
+  const { proxy, cache, loadImageBytes } = setup();
+  vi.spyOn(cache, "write").mockRejectedValueOnce(new Error("disk full"));
+  const [preview, download] = await Promise.allSettled([
+    proxy.loadBytes(input),
+    proxy.loadBytes(input, "read-only"),
+  ]);
+  expect(preview.status).toBe("rejected");
+  expect(download).toMatchObject({ status: "fulfilled", value: { data: image.data } });
+  expect(loadImageBytes).toHaveBeenCalledOnce();
+  await expect(proxy.loadBytes(input)).resolves.toMatchObject({ data: image.data });
+  expect(loadImageBytes).toHaveBeenCalledTimes(2);
+});
+
+it("retries a failed cache-read-only upstream request without caching its rejection", async () => {
+  const { proxy, cache, loadImageBytes } = setup();
+  loadImageBytes.mockRejectedValueOnce(new Error("upstream unavailable"));
+  await expect(proxy.loadBytes(input, "read-only")).rejects.toThrow("upstream unavailable");
+  await expect(proxy.loadBytes(input, "read-only")).resolves.toMatchObject({ data: image.data });
+  expect(loadImageBytes).toHaveBeenCalledTimes(2);
+  expect(await cache.cacheStats()).toEqual({ files: 0, bytes: 0 });
 });
 
 const input = { sourceKey: "source", comicId: "comic", episodeId: "chapter", imageKey: "image" };
@@ -27,7 +125,7 @@ function setup() {
   return { proxy: new ImageProxyService(sources, cache), cache, loadImageBytes };
 }
 
-it("shares concurrent preview and download requests including different property orders", async () => {
+it("shares concurrent cache-populating requests including different property orders", async () => {
   const { proxy, cache, loadImageBytes } = setup();
   const write = vi.spyOn(cache, "write");
   const reordered = {

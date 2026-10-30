@@ -8,9 +8,15 @@ type ImageProxyInput = {
   thumbnail?: boolean;
 };
 type ImageResult = { data: Buffer; contentType: string; cached: boolean };
+type CachePolicy = boolean | "read-only";
+type PendingImage = {
+  request: Promise<ImageResult>;
+  cacheWrite?: Promise<void>;
+  users: number;
+};
 
 export class ImageProxyService {
-  private readonly pending = new Map<string, Promise<ImageResult>>();
+  private readonly pending = new Map<string, PendingImage>();
 
   constructor(
     private readonly sources: SourceRegistry,
@@ -21,7 +27,7 @@ export class ImageProxyService {
     return this.loadBytes(input, true);
   }
 
-  async loadBytes(input: ImageProxyInput, useCache = true) {
+  async loadBytes(input: ImageProxyInput, useCache: CachePolicy = true) {
     if (input.imageKey.startsWith("mock://")) {
       const data = Buffer.from(mockSvg(input.imageKey));
       return { data, contentType: "image/svg+xml; charset=utf-8", cached: false };
@@ -37,15 +43,21 @@ export class ImageProxyService {
       thumbnail: input.thumbnail,
     };
     const key = JSON.stringify(cacheInput);
-    const pending = this.pending.get(key);
-    if (pending) return pending;
-    const request = this.fetchBytes(cacheInput, true);
-    this.pending.set(key, request);
+    let pending = this.pending.get(key);
+    if (!pending) {
+      pending = { request: this.fetchBytes(cacheInput, true), users: 0 };
+      this.pending.set(key, pending);
+    }
+    pending.users++;
     try {
-      return await request;
+      const result = await pending.request;
+      // 下载只复用已有缓存；预览仍按需写入，混合请求也只写一次。
+      if (useCache === true && !result.cached)
+        await (pending.cacheWrite ??= this.cache.write(cacheInput, result.data));
+      return result;
     } finally {
-      // 仅合并进行中的请求，失败不留存，后续调用仍可重新加载。
-      this.pending.delete(key);
+      // 缓存写入尚未完成时继续合并请求，所有调用退出后释放字节和失败结果。
+      if (--pending.users === 0) this.pending.delete(key);
     }
   }
 
@@ -57,7 +69,6 @@ export class ImageProxyService {
     const result = await this.sources.get(input.sourceKey).loadImageBytes(input);
     const data = Buffer.from(result.data);
     const contentType = this.detectContentType(data);
-    if (useCache) await this.cache.write(input, data);
     return {
       data,
       contentType: contentType === "application/octet-stream" ? result.contentType : contentType,

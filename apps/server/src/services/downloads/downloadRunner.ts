@@ -228,12 +228,13 @@ export class DownloadRunner {
     index: number,
     signal: AbortSignal,
   ) {
+    let image: Awaited<ReturnType<ImageProxyService["loadBytes"]>> | undefined;
     for (let attempt = 1; attempt <= this.options.retries; attempt++) {
       signal.throwIfAborted();
       try {
-        const image = await this.images.loadBytes(
+        image ??= await this.images.loadBytes(
           { sourceKey: task.sourceKey, comicId: task.comicId, episodeId, imageKey },
-          true,
+          "read-only",
         );
         signal.throwIfAborted();
         const filePath = await writeImage(directory, index, imageKey, image);
