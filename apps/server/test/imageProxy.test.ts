@@ -59,6 +59,28 @@ it("does not retain completed bytes in memory after the disk cache is cleared", 
   expect(loadImageBytes).toHaveBeenCalledTimes(2);
 });
 
+it("reuses disk cache between sequential preview and download requests after restart", async () => {
+  const { proxy, cache, loadImageBytes } = setup();
+  // HTTP 查询参数的顺序与下载器构造的参数顺序不同。
+  await proxy.loadBytes({
+    sourceKey: "source",
+    imageKey: "image",
+    comicId: "comic",
+    episodeId: "chapter",
+  });
+  const restarted = new ImageProxyService(
+    { get: () => ({ loadImageBytes }) as unknown as SourceProvider, list: () => [] },
+    cache,
+  );
+  expect(await restarted.loadBytes(input)).toEqual({
+    data: image.data,
+    contentType: "image/jpeg",
+    cached: true,
+  });
+  expect(loadImageBytes).toHaveBeenCalledOnce();
+  expect(await cache.cacheStats()).toEqual({ files: 1, bytes: image.data.length });
+});
+
 it("releases failed upstream and cache-write requests so subsequent calls can retry", async () => {
   const { proxy, cache, loadImageBytes } = setup();
   loadImageBytes.mockRejectedValueOnce(new Error("upstream failed"));

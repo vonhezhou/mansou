@@ -28,17 +28,18 @@ export class ImageProxyService {
     }
 
     if (!useCache) return this.fetchBytes(input, false);
-    // 固定字段顺序，使预览与下载构造的同一图片请求共享进行中的读取和下载。
-    const key = JSON.stringify({
+    // 固定字段顺序，使预览与下载共享进行中的请求及磁盘缓存。
+    const cacheInput: ImageProxyInput = {
       sourceKey: input.sourceKey,
       comicId: input.comicId,
       episodeId: input.episodeId,
       imageKey: input.imageKey,
       thumbnail: input.thumbnail,
-    });
+    };
+    const key = JSON.stringify(cacheInput);
     const pending = this.pending.get(key);
     if (pending) return pending;
-    const request = this.fetchBytes(input, true);
+    const request = this.fetchBytes(cacheInput, true);
     this.pending.set(key, request);
     try {
       return await request;
