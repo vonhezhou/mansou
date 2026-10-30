@@ -237,10 +237,11 @@ class AppStorage {
   }
 
   getDownloadItem(taskId: string, imageKey: string) {
+    // 与写入共用主键定位，避免逐图恢复时反复扫描整个任务的图片记录。
     return (
       (this.db
-        .prepare("select * from download_items where task_id = ? and image_key = ?")
-        .get(taskId, imageKey) as DownloadItem | undefined) ?? null
+        .prepare("select * from download_items where id = ? and task_id = ? and image_key = ?")
+        .get(`${taskId}:${imageKey}`, taskId, imageKey) as DownloadItem | undefined) ?? null
     );
   }
 

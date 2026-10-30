@@ -64,3 +64,47 @@ describe("storage migrations", () => {
     },
   );
 });
+
+describe("download item lookup", () => {
+  it("retrieves the exact persisted image and observes updates and deletions", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "venera-storage-items-"));
+    const storage = createStorage(dir);
+    try {
+      for (const taskId of ["first", "second"])
+        storage.saveDownloadItem({ taskId, imageKey: "shared", status: "failed" });
+      storage.saveDownloadItem({
+        taskId: "first",
+        imageKey: "shared",
+        status: "completed",
+        filePath: "/downloads/page.jpg",
+      });
+      expect(storage.getDownloadItem("first", "shared")).toMatchObject({
+        task_id: "first",
+        image_key: "shared",
+        status: "completed",
+        file_path: "/downloads/page.jpg",
+      });
+      expect(storage.getDownloadItem("second", "shared")?.status).toBe("failed");
+      expect(storage.getDownloadItem("first", "missing")).toBeNull();
+      storage.deleteDownloadItems("first");
+      expect(storage.getDownloadItem("first", "shared")).toBeNull();
+      expect(storage.getDownloadItem("second", "shared")?.status).toBe("failed");
+    } finally {
+      storage.close();
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not return a different task or image when separator-containing keys share an id", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "venera-storage-items-"));
+    const storage = createStorage(dir);
+    try {
+      storage.saveDownloadItem({ taskId: "task:part", imageKey: "image", status: "completed" });
+      expect(storage.getDownloadItem("task:part", "image")?.status).toBe("completed");
+      expect(storage.getDownloadItem("task", "part:image")).toBeNull();
+    } finally {
+      storage.close();
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
