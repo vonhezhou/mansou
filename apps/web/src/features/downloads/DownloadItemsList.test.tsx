@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { DownloadItem, DownloadTask } from "../../types.js";
@@ -21,16 +21,27 @@ const items: DownloadItem[] = Array.from({ length: 10005 }, (_, index) => ({
   status: index >= 10003 ? "failed" : "completed",
 }));
 
+function Harness({ visibleItems }: { visibleItems: DownloadItem[] }) {
+  const [offset, setOffset] = useState(0);
+  return (
+    <DownloadItemsList
+      busy={false}
+      task={task}
+      page={{
+        items: visibleItems.slice(offset, offset + 100),
+        total: visibleItems.length,
+        failedTotal: 2,
+        offset,
+        limit: 100,
+      }}
+      onPageChange={setOffset}
+      onRetryDownloadItem={retry}
+    />
+  );
+}
 async function render(visibleItems: DownloadItem[] = items) {
   await act(async () =>
-    root.render(
-      <DownloadItemsList
-        busy={false}
-        task={task}
-        items={visibleItems}
-        onRetryDownloadItem={retry}
-      />,
-    ),
+    root.render(<Harness key={visibleItems.length} visibleItems={visibleItems} />),
   );
 }
 beforeEach(async () => {

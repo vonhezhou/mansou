@@ -20,6 +20,7 @@ export type DownloadTask = {
   status: DownloadStatus;
   phase: DownloadPhase;
   total: number;
+  totalKnown?: boolean;
   completed: number;
   error?: string;
   errorCode?: string;

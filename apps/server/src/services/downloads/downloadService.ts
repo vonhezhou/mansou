@@ -70,6 +70,10 @@ export class DownloadService {
     return this.find(id) ? this.repository.items(id) : null;
   }
 
+  itemsPage(id: string, offset: number, limit: number, failedOnly: boolean) {
+    return this.find(id) ? this.repository.itemsPage(id, offset, limit, failedOnly) : null;
+  }
+
   create(input: DownloadInput) {
     this.assertOpen();
     const episodeId = input.episodeId ?? "_default";

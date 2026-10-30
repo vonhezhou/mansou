@@ -45,6 +45,7 @@ export function createApplication(
       outputDir: paths.downloads,
       concurrency: config.downloadConcurrency,
       retries: config.downloadRetries,
+      prefetchChapter: config.pluginSourceConcurrency > 1,
     }),
     config.downloadTaskConcurrency,
     onError,

@@ -38,6 +38,7 @@ export type DownloadTask = {
   status: string;
   phase: string;
   total: number;
+  totalKnown?: boolean;
   completed: number;
   error?: string;
   errorCode?: string;
@@ -56,6 +57,10 @@ export type DownloadItem = {
   error?: string;
   error_code?: string;
 };
+export type DownloadItemsPage = Omit<
+  import("@venera/contracts").components["schemas"]["DownloadItemsPage"],
+  "items"
+> & { items: DownloadItem[] };
 export type RetryFailedDownloadImagesResult = {
   task: DownloadTask | null;
   retried: number;

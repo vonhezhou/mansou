@@ -1,33 +1,34 @@
-import { useState } from "react";
 import { getDownloadImageKey } from "../../lib/downloads.js";
-import type { DownloadItem, DownloadTask } from "../../types.js";
+import type { DownloadItem, DownloadItemsPage, DownloadTask } from "../../types.js";
 
 type DownloadItemsListProps = {
   busy: boolean;
   task: DownloadTask;
-  items?: DownloadItem[];
+  page?: DownloadItemsPage;
+  onPageChange: (offset: number) => void;
   onRetryDownloadItem: (task: DownloadTask, item: DownloadItem) => void;
 };
 
-const pageSize = 100;
-
 export function DownloadItemsList(props: DownloadItemsListProps) {
-  const [page, setPage] = useState(1);
-  const pageCount = Math.max(1, Math.ceil((props.items?.length ?? 0) / pageSize));
-  const currentPage = Math.min(page, pageCount);
-  if (!props.items?.length) return null;
-
+  const data = props.page;
+  if (!data?.items.length) return null;
+  const pageCount = Math.max(1, Math.ceil(data.total / data.limit));
+  const currentPage = Math.floor(data.offset / data.limit) + 1;
   return (
     <>
       {pageCount > 1 && (
         <nav className="download-pagination" aria-label="下载明细分页">
-          <button disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>
+          <button
+            disabled={props.busy || currentPage === 1}
+            onClick={() => props.onPageChange(data.offset - data.limit)}
+          >
             上一页明细
           </button>
           <select
             aria-label="下载明细页"
             value={currentPage}
-            onChange={(event) => setPage(Number(event.target.value))}
+            disabled={props.busy}
+            onChange={(event) => props.onPageChange((Number(event.target.value) - 1) * data.limit)}
           >
             {Array.from({ length: pageCount }, (_, index) => (
               <option key={index + 1} value={index + 1}>
@@ -35,16 +36,19 @@ export function DownloadItemsList(props: DownloadItemsListProps) {
               </option>
             ))}
           </select>
-          <button disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}>
+          <button
+            disabled={props.busy || currentPage === pageCount}
+            onClick={() => props.onPageChange(data.offset + data.limit)}
+          >
             下一页明细
           </button>
           <span>
-            共 {props.items.length} 条 · 每页 {pageSize} 条
+            共 {data.total} 条 · 每页 {data.limit} 条
           </span>
         </nav>
       )}
       <div className="download-items">
-        {props.items.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((item) => {
+        {data.items.map((item) => {
           const imageKey = getDownloadImageKey(item);
           return (
             <div key={imageKey}>

@@ -249,7 +249,9 @@ function Workspace({
           onFailedItemsOnlyChange={downloadsState.setFailedItemsOnly}
           onPruneCache={() => void downloadsState.pruneCache()}
           onClearCache={() => void downloadsState.clearCache()}
-          onLoadDownloadItems={(task) => void downloadsState.loadDownloadItems(task)}
+          onLoadDownloadItems={(task, offset) =>
+            void downloadsState.loadDownloadItems(task, offset)
+          }
           onDownloadAction={(task, action) => void downloadsState.downloadAction(task, action)}
           onRetryDownloadItem={(task, item) => void downloadsState.retryDownloadItem(task, item)}
         />

@@ -267,6 +267,29 @@ class AppStorage {
       .all(taskId) as DownloadItem[];
   }
 
+  listDownloadItemsPage(taskId: string, offset: number, limit: number, failedOnly: boolean) {
+    return this.db.transaction(() => {
+      const counts = this.db
+        .prepare(
+          "select count(*) as total, coalesce(sum(case when status = 'failed' then 1 else 0 end), 0) as failedTotal, coalesce(sum(case when status = 'failed' or coalesce(error, '') != '' then 1 else 0 end), 0) as matchingTotal from download_items where task_id = ?",
+        )
+        .get(taskId) as { total: number; failedTotal: number; matchingTotal: number };
+      const filter = failedOnly ? " and (status = 'failed' or coalesce(error, '') != '')" : "";
+      const items = this.db
+        .prepare(
+          `select * from download_items where task_id = ?${filter} order by id asc limit ? offset ?`,
+        )
+        .all(taskId, limit, offset) as DownloadItem[];
+      return {
+        items,
+        total: failedOnly ? counts.matchingTotal : counts.total,
+        failedTotal: counts.failedTotal,
+        offset,
+        limit,
+      };
+    })();
+  }
+
   deleteDownloadItems(taskId: string) {
     this.db.prepare("delete from download_items where task_id = ?").run(taskId);
   }

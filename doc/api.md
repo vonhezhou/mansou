@@ -124,9 +124,14 @@ DELETE /api/v1/downloads/{taskId}?files=true
 
 ```text
 GET /api/v1/downloads/{taskId}/items
+GET /api/v1/downloads/{taskId}/items/page?offset=0&limit=100&failedOnly=false
 POST /api/v1/downloads/{taskId}/items/retry
 POST /api/v1/downloads/{taskId}/items/retry-failed
 ```
+
+明细分页接口返回 `{ items, total, failedTotal, offset, limit }`。offset 默认为 0，limit 默认为 100，允许 1–200；failedOnly 只接受 true/false，筛选 failed 状态或非空错误后再分页。total 是筛选后的记录数，failedTotal 是该任务全部 failed 状态记录数；记录按 ID 升序，越界页返回空数组与实际总数。旧 `/items` 保持完整数组响应，批量重试不受当前页限制。
+
+全本下载采用逐章发现与下载，任务字段 `totalKnown: false` 表示 total 只是当前已发现页数，不能作为最终分母；最后一章发现后变为 true。省略字段的旧任务沿用总数已知的语义。中途失败保留此前已落盘图片，恢复时核验文件并复用。
 
 单图重试请求体：
 

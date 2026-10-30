@@ -11,6 +11,7 @@ export type DownloadOptions = {
   outputDir: string;
   concurrency: number;
   retries: number;
+  prefetchChapter?: boolean;
 };
 export type DownloadProgress = (patch: Partial<DownloadTask>, log?: string) => void;
 
@@ -48,44 +49,75 @@ export class DownloadRunner {
   }
 
   async run(task: DownloadTask, signal: AbortSignal, progress: DownloadProgress) {
-    progress({ phase: "loading_details" }, "Loading comic details");
+    progress(
+      { phase: "loading_details", total: 0, completed: 0, totalKnown: false },
+      "Loading comic details",
+    );
     const plan = await this.plan(task, signal);
     progress({
       title: plan.title,
       outputDir: plan.outputDir,
       episodeId: plan.all ? "__all__" : plan.episodes[0].id,
     });
-    const chapters = [];
-    for (const episode of plan.episodes) {
+    type Chapter = (typeof plan.episodes)[number] & { images: string[] };
+    const prepare = async (episode: (typeof plan.episodes)[number]): Promise<Chapter> => {
       signal.throwIfAborted();
-      progress({ phase: "loading_pages", current: episode.id }, `Loading pages for ${episode.id}`);
       const pages = await this.sources.get(task.sourceKey).comicPages(task.comicId, episode.id);
       signal.throwIfAborted();
-      chapters.push({ ...episode, images: pages.images });
-    }
-    const total = chapters.reduce((sum, chapter) => sum + chapter.images.length, 0);
-    let completed = await this.repository.countCompletedFiles(
-      task.id,
-      chapters.flatMap((chapter) => chapter.images),
-      this.options.concurrency,
-      signal,
-    );
-    progress({ total, completed });
-    for (const chapter of chapters) {
-      signal.throwIfAborted();
-      await ensureDir(chapter.directory);
-      signal.throwIfAborted();
-      progress(
-        { phase: "downloading_images" },
-        `Downloading ${chapter.images.length} images for ${chapter.id}`,
+      return { ...episode, images: pages.images };
+    };
+    // 预取失败先转为结果，消费该章节时再抛出，避免图片下载期间出现未处理拒绝。
+    const prefetch = (episode: (typeof plan.episodes)[number]) =>
+      prepare(episode).then(
+        (value): PromiseSettledResult<Chapter> => ({ status: "fulfilled", value }),
+        (reason): PromiseSettledResult<Chapter> => ({ status: "rejected", reason }),
       );
-      await this.downloadImages(
-        task,
-        chapter,
-        signal,
-        (imageKey) => progress({ current: imageKey }),
-        () => progress({ completed: ++completed }),
-      );
+    let pending: Promise<PromiseSettledResult<Chapter>> | undefined;
+    let total = 0;
+    let completed = 0;
+    try {
+      for (let index = 0; index < plan.episodes.length; index++) {
+        signal.throwIfAborted();
+        const episode = plan.episodes[index];
+        progress(
+          { phase: "loading_pages", current: episode.id },
+          `Loading pages for ${episode.id}`,
+        );
+        const prepared = await (pending ?? prefetch(episode));
+        pending = undefined;
+        signal.throwIfAborted();
+        if (prepared.status === "rejected") throw prepared.reason;
+        const chapter = prepared.value;
+        total += chapter.images.length;
+        progress({ total, completed, totalKnown: index === plan.episodes.length - 1 });
+        await ensureDir(chapter.directory);
+        signal.throwIfAborted();
+        // 只向前预取一章，最多一个章节请求；全局源并发为 1 时关闭预取。
+        if (this.options.prefetchChapter !== false && index + 1 < plan.episodes.length)
+          pending = prefetch(plan.episodes[index + 1]);
+        progress(
+          { phase: "downloading_images" },
+          `Downloading ${chapter.images.length} images for ${chapter.id}`,
+        );
+        try {
+          await this.downloadImages(
+            task,
+            chapter,
+            signal,
+            (imageKey) => progress({ current: imageKey }),
+            (downloaded) => {
+              completed++;
+              // 已有文件也计入进度，但不为恢复扫描的每张已有图片单独写库。
+              if (downloaded) progress({ completed });
+            },
+          );
+        } finally {
+          if (!signal.aborted) progress({ completed });
+        }
+      }
+    } finally {
+      // 插件调用不能强制取消，删除或关闭前必须等待唯一的在途预取结束。
+      await pending;
     }
     signal.throwIfAborted();
     progress({ phase: "writing_metadata", current: undefined }, "Writing metadata");
@@ -152,7 +184,7 @@ export class DownloadRunner {
     chapter: { id: string; directory: string; images: string[] },
     signal: AbortSignal,
     current: (imageKey: string) => void,
-    completed: () => void,
+    completed: (downloaded: boolean) => void,
   ) {
     let next = 0;
     let failed = false;
@@ -168,10 +200,13 @@ export class DownloadRunner {
             const imageKey = chapter.images[index];
             const file = await this.repository.completedFile(task.id, imageKey);
             signal.throwIfAborted();
-            if (file) continue;
+            if (file) {
+              completed(false);
+              continue;
+            }
             current(imageKey);
             await this.downloadImage(task, imageKey, chapter.id, chapter.directory, index, signal);
-            completed();
+            completed(true);
           }
         } catch (error) {
           if (!failed) {

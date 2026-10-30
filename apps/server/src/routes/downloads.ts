@@ -73,6 +73,23 @@ export async function registerDownloadRoutes(
     return context.downloads.items(params.taskId);
   });
 
+  app.get("/downloads/:taskId/items/page", async (request) => {
+    const { taskId } = z.object({ taskId: z.string() }).parse(request.params);
+    const query = z
+      .object({
+        offset: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).default(0),
+        limit: z.coerce.number().int().min(1).max(200).default(100),
+        failedOnly: z
+          .enum(["true", "false"])
+          .transform((value) => value === "true")
+          .default("false"),
+      })
+      .parse(request.query);
+    const page = context.downloads.itemsPage(taskId, query.offset, query.limit, query.failedOnly);
+    if (!page) throw notFound("DOWNLOAD_NOT_FOUND", "Download task not found");
+    return page;
+  });
+
   app.post("/downloads/:taskId/rerun", async (request) => {
     const params = z.object({ taskId: z.string() }).parse(request.params);
     const task = context.downloads.rerun(params.taskId);

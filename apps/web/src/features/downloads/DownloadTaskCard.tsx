@@ -1,8 +1,8 @@
 import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { Icon } from "../../app/Icon.js";
-import { useState } from "react";
-import { filterDownloadItems, getDownloadProgress } from "../../lib/downloads.js";
-import type { DownloadItem, DownloadTask } from "../../types.js";
+import { useEffect } from "react";
+import { getDownloadProgress } from "../../lib/downloads.js";
+import type { DownloadItem, DownloadItemsPage, DownloadTask } from "../../types.js";
 import { DownloadItemsList } from "./DownloadItemsList.js";
 import type { DownloadAction } from "./types.js";
 
@@ -12,16 +12,22 @@ type DownloadTaskCardProps = {
   message?: string;
   itemError?: string;
   task: DownloadTask;
-  items?: DownloadItem[];
+  itemPage?: DownloadItemsPage;
+  showDetails: boolean;
+  onShowDetailsChange: (show: boolean) => void;
   failedItemsOnly: boolean;
-  onLoadDownloadItems: (task: DownloadTask) => void;
+  onLoadDownloadItems: (task: DownloadTask, offset?: number) => void;
   onDownloadAction: (task: DownloadTask, action: DownloadAction) => void;
   onRetryDownloadItem: (task: DownloadTask, item: DownloadItem) => void;
 };
 
 export function DownloadTaskCard(props: DownloadTaskCardProps) {
-  const [showDetails, setShowDetails] = useState(false);
-  const items = filterDownloadItems(props.items, props.failedItemsOnly);
+  const showDetails = props.showDetails;
+  const items = props.itemPage?.items;
+  useEffect(() => {
+    if (showDetails && !props.itemPage && !props.busy && !props.itemError)
+      props.onLoadDownloadItems(props.task);
+  }, [showDetails, props.itemPage, props.busy, props.itemError, props.failedItemsOnly]);
 
   return (
     <article className="download-card" data-status={props.task.status}>
@@ -40,10 +46,14 @@ export function DownloadTaskCard(props: DownloadTaskCardProps) {
       <div className="download-progress">
         <progress
           aria-label="下载进度"
-          value={props.task.completed}
+          value={props.task.totalKnown === false ? undefined : props.task.completed}
           max={Math.max(props.task.total, 1)}
         />
-        <span>{getDownloadProgress(props.task)}%</span>
+        <span>
+          {props.task.totalKnown === false
+            ? `已完成 ${props.task.completed} / 已发现 ${props.task.total} 页，总页数待确认`
+            : `${getDownloadProgress(props.task)}%`}
+        </span>
       </div>
       {props.task.error && (
         <p className="task-error" role="status">
@@ -64,8 +74,8 @@ export function DownloadTaskCard(props: DownloadTaskCardProps) {
             aria-expanded={showDetails}
             disabled={props.busy}
             onClick={() => {
-              if (!showDetails) props.onLoadDownloadItems(props.task);
-              setShowDetails(!showDetails);
+              if (!showDetails) props.onLoadDownloadItems(props.task, props.itemPage?.offset ?? 0);
+              props.onShowDetailsChange(!showDetails);
             }}
           >
             {showDetails ? "收起详情" : "任务详情"}
@@ -144,7 +154,7 @@ export function DownloadTaskCard(props: DownloadTaskCardProps) {
               </button>
             </div>
           )}
-          {!props.itemError && props.items && items?.length === 0 && (
+          {!props.itemError && props.itemPage && items?.length === 0 && (
             <p className="muted">
               {props.failedItemsOnly ? "没有失败的图片。" : "还没有图片下载记录。"}
             </p>
@@ -152,12 +162,13 @@ export function DownloadTaskCard(props: DownloadTaskCardProps) {
           <DownloadItemsList
             busy={props.busy}
             task={props.task}
-            items={items}
+            page={props.itemPage}
+            onPageChange={(offset) => props.onLoadDownloadItems(props.task, offset)}
             onRetryDownloadItem={props.onRetryDownloadItem}
           />
           <div className="task-actions">
             {!["queued", "running"].includes(props.task.status) &&
-              props.items?.some((item) => item.status === "failed") && (
+              Boolean(props.itemPage?.failedTotal) && (
                 <button
                   className="secondary-button"
                   disabled={props.busy}

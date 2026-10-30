@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { veneraApi } from "../api/venera.js";
-import type { CacheStats, DownloadItem, DownloadTask } from "../types.js";
+import type { CacheStats, DownloadItem, DownloadItemsPage, DownloadTask } from "../types.js";
 import type { DownloadAction } from "../features/downloads/types.js";
 import { createDownloadSnapshotStore } from "../lib/downloadSnapshot.js";
 
@@ -9,9 +9,11 @@ type RunWith = (setLoading: (value: boolean) => void, task: () => Promise<void>)
 export function useDownloads(runWith: RunWith) {
   // 高频快照由下载视图和计数各自订阅，避免推动整个 Workspace 重新渲染。
   const [snapshotStore] = useState(createDownloadSnapshotStore);
-  const [downloadItems, setDownloadItems] = useState<Record<string, DownloadItem[]>>({});
+  const [downloadItems, setDownloadItems] = useState<Record<string, DownloadItemsPage>>({});
   const [itemErrors, setItemErrors] = useState<Record<string, string>>({});
-  const [failedItemsOnly, setFailedItemsOnly] = useState(false);
+  const [failedItemsOnly, setFailedItemsOnlyState] = useState(false);
+  const failedOnlyRef = useRef(false);
+  const itemVersions = useRef(new Map<string, number>());
   const [cache, setCache] = useState<CacheStats | null>(null);
   const [taskMessages, setTaskMessages] = useState<Record<string, string>>({});
   const [taskOperations, setTaskOperations] = useState<Record<string, string>>({});
@@ -75,16 +77,38 @@ export function useDownloads(runWith: RunWith) {
     }
   }
 
-  async function fetchDownloadItems(taskId: string) {
+  function setFailedItemsOnly(value: boolean) {
+    failedOnlyRef.current = value;
+    setFailedItemsOnlyState(value);
+    setDownloadItems({});
+    setItemErrors({});
+  }
+
+  async function fetchDownloadItems(taskId: string, offset = 0) {
+    const failedOnly = failedOnlyRef.current;
+    const version = (itemVersions.current.get(taskId) ?? 0) + 1;
+    itemVersions.current.set(taskId, version);
+    const currentRequest = () =>
+      version === itemVersions.current.get(taskId) && failedOnly === failedOnlyRef.current;
     setItemErrors((current) => {
       const next = { ...current };
       delete next[taskId];
       return next;
     });
     try {
-      const items = await veneraApi.listDownloadItems(taskId);
-      setDownloadItems((current) => ({ ...current, [taskId]: items }));
+      let page = await veneraApi.listDownloadItemsPage(taskId, { offset, limit: 100, failedOnly });
+      if (!currentRequest()) return;
+      // 重试或删除后末页可能消失，仅补取一次新的末页。
+      if (page.total > 0 && page.offset >= page.total) {
+        page = await veneraApi.listDownloadItemsPage(taskId, {
+          offset: Math.floor((page.total - 1) / page.limit) * page.limit,
+          limit: page.limit,
+          failedOnly,
+        });
+      }
+      if (currentRequest()) setDownloadItems((current) => ({ ...current, [taskId]: page }));
     } catch (error) {
+      if (!currentRequest()) return;
       setItemErrors((current) => ({
         ...current,
         [taskId]: error instanceof Error ? error.message : String(error),
@@ -93,8 +117,8 @@ export function useDownloads(runWith: RunWith) {
     }
   }
 
-  async function loadDownloadItems(task: DownloadTask) {
-    await withTask(task.id, "正在加载下载明细…", () => fetchDownloadItems(task.id));
+  async function loadDownloadItems(task: DownloadTask, offset = 0) {
+    await withTask(task.id, "正在加载下载明细…", () => fetchDownloadItems(task.id, offset));
   }
 
   async function retryDownloadItem(task: DownloadTask, item: DownloadItem) {
@@ -102,7 +126,7 @@ export function useDownloads(runWith: RunWith) {
     if (!imageKey || ["queued", "running"].includes(task.status)) return;
     await withTask(task.id, "正在重试图片…", async () => {
       await veneraApi.retryDownloadItem(task.id, imageKey);
-      await fetchDownloadItems(task.id);
+      await fetchDownloadItems(task.id, downloadItems[task.id]?.offset ?? 0);
       await loadDownloads();
     });
   }
@@ -150,7 +174,7 @@ export function useDownloads(runWith: RunWith) {
       }
       if (action === "retry-failed") {
         await veneraApi.retryFailedDownloadItems(task.id);
-        await fetchDownloadItems(task.id);
+        await fetchDownloadItems(task.id, downloadItems[task.id]?.offset ?? 0);
       }
       await loadDownloads();
     });

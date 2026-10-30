@@ -508,6 +508,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/downloads/{taskId}/items/page": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["listDownloadItemsPage"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/downloads/{taskId}/items/retry": {
     parameters: {
       query?: never;
@@ -1029,6 +1045,8 @@ export interface components {
       status: "queued" | "running" | "paused" | "completed" | "failed" | "cancelled";
       phase: string;
       total: number;
+      /** @description False while chapter discovery is incomplete. Total counts discovered pages; omit for legacy tasks with a known total. */
+      totalKnown?: boolean;
       completed: number;
       error?: string;
       errorCode?: string;
@@ -1041,15 +1059,24 @@ export interface components {
     } & {
       [key: string]: unknown;
     };
+    DownloadItemsPage: {
+      items: components["schemas"]["DownloadItem"][];
+      /** @description Record count after applying failedOnly. */
+      total: number;
+      /** @description Task-wide count of records with failed status, regardless of filtering or page. */
+      failedTotal: number;
+      offset: number;
+      limit: number;
+    };
     DownloadItem: {
       id: string;
       task_id: string;
       image_key: string;
-      file_path?: string;
+      file_path?: string | null;
       status: string;
       retry_count: number;
-      error?: string;
-      error_code?: string;
+      error?: string | null;
+      error_code?: string | null;
       updated_at: string;
     };
     RetryFailedDownloadImagesResult: {
@@ -2091,6 +2118,34 @@ export interface operations {
           "application/json": components["schemas"]["DownloadItem"][];
         };
       };
+      404: components["responses"]["Error"];
+    };
+  };
+  listDownloadItemsPage: {
+    parameters: {
+      query?: {
+        offset?: number;
+        limit?: number;
+        failedOnly?: boolean;
+      };
+      header?: never;
+      path: {
+        taskId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Paginated image records, ordered by record id. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadItemsPage"];
+        };
+      };
+      400: components["responses"]["Error"];
       404: components["responses"]["Error"];
     };
   };

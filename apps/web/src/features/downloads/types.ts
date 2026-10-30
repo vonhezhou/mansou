@@ -1,4 +1,4 @@
-import type { CacheStats, DownloadItem, DownloadTask } from "../../types.js";
+import type { CacheStats, DownloadItem, DownloadItemsPage, DownloadTask } from "../../types.js";
 
 export type DownloadAction =
   | "pause"
@@ -18,12 +18,12 @@ export type DownloadsViewProps = {
   cacheOperation?: string | null;
   cache: CacheStats | null;
   downloads: DownloadTask[];
-  downloadItems: Record<string, DownloadItem[]>;
+  downloadItems: Record<string, DownloadItemsPage>;
   failedItemsOnly: boolean;
   onFailedItemsOnlyChange: (value: boolean) => void;
   onPruneCache: () => void;
   onClearCache: () => void;
-  onLoadDownloadItems: (task: DownloadTask) => void;
+  onLoadDownloadItems: (task: DownloadTask, offset?: number) => void;
   onDownloadAction: (task: DownloadTask, action: DownloadAction) => void;
   onRetryDownloadItem: (task: DownloadTask, item: DownloadItem) => void;
 };

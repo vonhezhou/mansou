@@ -700,6 +700,32 @@ export const openApiDocument = {
         },
       },
     },
+    "/api/v1/downloads/{taskId}/items/page": {
+      get: {
+        operationId: "listDownloadItemsPage",
+        tags: ["downloads"],
+        parameters: [
+          { name: "taskId", in: "path", required: true, schema: { type: "string" } },
+          { name: "offset", in: "query", schema: { type: "integer", minimum: 0, default: 0 } },
+          {
+            name: "limit",
+            in: "query",
+            schema: { type: "integer", minimum: 1, maximum: 200, default: 100 },
+          },
+          { name: "failedOnly", in: "query", schema: { type: "boolean", default: false } },
+        ],
+        responses: {
+          "200": {
+            description: "Paginated image records, ordered by record id.",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/DownloadItemsPage" } },
+            },
+          },
+          "400": { $ref: "#/components/responses/Error" },
+          "404": { $ref: "#/components/responses/Error" },
+        },
+      },
+    },
     "/api/v1/downloads/{taskId}/items/retry": {
       post: {
         operationId: "retryDownloadImage",
@@ -1462,6 +1488,11 @@ export const openApiDocument = {
           },
           phase: { type: "string" },
           total: { type: "number" },
+          totalKnown: {
+            type: "boolean",
+            description:
+              "False while chapter discovery is incomplete. Total counts discovered pages; omit for legacy tasks with a known total.",
+          },
           completed: { type: "number" },
           error: { type: "string" },
           errorCode: { type: "string" },
@@ -1486,17 +1517,32 @@ export const openApiDocument = {
           "updatedAt",
         ],
       },
+      DownloadItemsPage: {
+        type: "object",
+        properties: {
+          items: { type: "array", items: { $ref: "#/components/schemas/DownloadItem" } },
+          total: { type: "integer", description: "Record count after applying failedOnly." },
+          failedTotal: {
+            type: "integer",
+            description:
+              "Task-wide count of records with failed status, regardless of filtering or page.",
+          },
+          offset: { type: "integer" },
+          limit: { type: "integer" },
+        },
+        required: ["items", "total", "failedTotal", "offset", "limit"],
+      },
       DownloadItem: {
         type: "object",
         properties: {
           id: { type: "string" },
           task_id: { type: "string" },
           image_key: { type: "string" },
-          file_path: { type: "string" },
+          file_path: { type: ["string", "null"] },
           status: { type: "string" },
           retry_count: { type: "number" },
-          error: { type: "string" },
-          error_code: { type: "string" },
+          error: { type: ["string", "null"] },
+          error_code: { type: ["string", "null"] },
           updated_at: { type: "string" },
         },
         required: ["id", "task_id", "image_key", "status", "retry_count", "updated_at"],

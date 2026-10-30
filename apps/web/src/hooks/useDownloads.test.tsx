@@ -65,16 +65,22 @@ it("prevents duplicate commands for one task while allowing another task to proc
 
 it("keeps detail errors visible and reloads them successfully", async () => {
   const load = vi
-    .spyOn(veneraApi, "listDownloadItems")
+    .spyOn(veneraApi, "listDownloadItemsPage")
     .mockRejectedValueOnce(new Error("连接失败"))
-    .mockResolvedValueOnce([{ imageKey: "one", status: "failed" }]);
+    .mockResolvedValueOnce({
+      items: [{ imageKey: "one", status: "failed" }],
+      total: 1,
+      failedTotal: 1,
+      offset: 0,
+      limit: 100,
+    });
   await act(async () => state.loadDownloadItems(task("a")));
   expect(state.itemErrors.a).toBe("连接失败");
   expect(state.taskOperations).toEqual({});
   await act(async () => state.loadDownloadItems(task("a")));
   expect(load).toHaveBeenCalledTimes(2);
   expect(state.itemErrors.a).toBeUndefined();
-  expect(state.downloadItems.a[0].imageKey).toBe("one");
+  expect(state.downloadItems.a.items[0].imageKey).toBe("one");
 });
 
 it("blocks image retries during active downloads and uses batch retry for a stopped task", async () => {
@@ -84,14 +90,24 @@ it("blocks image retries during active downloads and uses batch retry for a stop
     retried: 1,
     results: [{ imageKey: "one", ok: true }],
   });
-  vi.spyOn(veneraApi, "listDownloadItems").mockResolvedValue([]);
+  vi.spyOn(veneraApi, "listDownloadItemsPage").mockResolvedValue({
+    items: [],
+    total: 0,
+    failedTotal: 0,
+    offset: 0,
+    limit: 100,
+  });
   await act(async () =>
     state.retryDownloadItem(task("a", "running"), { imageKey: "one", status: "failed" }),
   );
   expect(retry).not.toHaveBeenCalled();
   await act(async () => state.downloadAction(task("a"), "retry-failed"));
   expect(batch).toHaveBeenCalledWith("a");
-  expect(veneraApi.listDownloadItems).toHaveBeenCalledWith("a");
+  expect(veneraApi.listDownloadItemsPage).toHaveBeenCalledWith("a", {
+    offset: 0,
+    limit: 100,
+    failedOnly: false,
+  });
 });
 
 it("does not overwrite a newer live snapshot with an older list response", async () => {
@@ -111,6 +127,58 @@ it("does not overwrite a newer live snapshot with an older list response", async
     await pending;
   });
   expect(state.snapshotStore.getSnapshot()[0].status).toBe("completed");
+});
+
+it("requests the current filter from the server and ignores the old filter's response", async () => {
+  let finish!: (value: Awaited<ReturnType<typeof veneraApi.listDownloadItemsPage>>) => void;
+  const load = vi.spyOn(veneraApi, "listDownloadItemsPage").mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = state.loadDownloadItems(task("a"));
+  });
+  await act(async () => state.setFailedItemsOnly(true));
+  await act(async () => {
+    finish({
+      items: [{ imageKey: "old", status: "completed" }],
+      total: 1,
+      failedTotal: 0,
+      offset: 0,
+      limit: 100,
+    });
+    await pending;
+  });
+  expect(state.downloadItems.a).toBeUndefined();
+  load.mockResolvedValueOnce({
+    items: [{ imageKey: "failed", status: "failed" }],
+    total: 1,
+    failedTotal: 1,
+    offset: 0,
+    limit: 100,
+  });
+  await act(async () => state.loadDownloadItems(task("a")));
+  expect(load).toHaveBeenLastCalledWith("a", { offset: 0, limit: 100, failedOnly: true });
+  expect(state.downloadItems.a.items[0].imageKey).toBe("failed");
+});
+
+it("fetches the new last page once if the requested page disappears after records change", async () => {
+  const load = vi
+    .spyOn(veneraApi, "listDownloadItemsPage")
+    .mockResolvedValueOnce({ items: [], total: 101, failedTotal: 0, offset: 200, limit: 100 })
+    .mockResolvedValueOnce({
+      items: [{ imageKey: "last", status: "completed" }],
+      total: 101,
+      failedTotal: 0,
+      offset: 100,
+      limit: 100,
+    });
+  await act(async () => state.loadDownloadItems(task("a"), 200));
+  expect(load).toHaveBeenCalledTimes(2);
+  expect(load).toHaveBeenLastCalledWith("a", { offset: 100, limit: 100, failedOnly: false });
+  expect(state.downloadItems.a.offset).toBe(100);
 });
 
 it("keeps export feedback active until preparation succeeds and does not start a browser download on failure", async () => {

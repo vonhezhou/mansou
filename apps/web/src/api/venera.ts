@@ -4,6 +4,7 @@ import type {
   CacheStats,
   Details,
   DownloadItem,
+  DownloadItemsPage,
   DownloadTask,
   Health,
   RepositorySource,
@@ -121,6 +122,17 @@ export const veneraApi = {
     episodeId?: string;
     all?: boolean;
   }) => api<DownloadTask>("/downloads", { method: "POST", body: JSON.stringify(input) }),
+  listDownloadItemsPage: (
+    taskId: string,
+    options: { offset?: number; limit?: number; failedOnly?: boolean } = {},
+  ) => {
+    const query = new URLSearchParams({
+      offset: String(options.offset ?? 0),
+      limit: String(options.limit ?? 100),
+      failedOnly: String(options.failedOnly ?? false),
+    });
+    return api<DownloadItemsPage>(`/downloads/${encodeURIComponent(taskId)}/items/page?${query}`);
+  },
   listDownloads: () => api<DownloadTask[]>("/downloads"),
   listDownloadItems: (taskId: string) =>
     api<DownloadItem[]>(`/downloads/${encodeURIComponent(taskId)}/items`),
