@@ -88,17 +88,27 @@ export class ImageCache {
 
   private async scan() {
     const entries: Array<[string, CacheEntry]> = [];
-    for (const file of await listFiles(this.directory)) {
-      if (/\.bin\.[\da-f-]+\.tmp$/.test(file)) {
-        await rm(file, { force: true });
-        continue;
+    const files = await listFiles(this.directory);
+    let next = 0;
+    const workers = Array.from({ length: Math.min(8, files.length) }, async () => {
+      while (next < files.length) {
+        const file = files[next++];
+        if (/\.bin\.[\da-f-]+\.tmp$/.test(file)) {
+          await rm(file, { force: true });
+          continue;
+        }
+        try {
+          const info = await stat(file);
+          entries.push([file, { size: info.size, atimeMs: info.atimeMs }]);
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        }
       }
-      try {
-        const info = await stat(file);
-        entries.push([file, { size: info.size, atimeMs: info.atimeMs }]);
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-      }
+    });
+    // 维护仍在串行队列中，所有在途查询结束后才能替换索引或开始下一次清理。
+    const results = await Promise.allSettled(workers);
+    for (const result of results) {
+      if (result.status === "rejected") throw result.reason;
     }
     // Map 的顺序即淘汰顺序；读取和写入会将条目移到末尾。
     this.entries = new Map(entries.sort((a, b) => a[1].atimeMs - b[1].atimeMs));
