@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { veneraApi } from "../../api/venera.js";
+import { LoadingStatus } from "../../app/LoadingStatus.js";
 import type { SourceAuth } from "../../types.js";
 
 export function SourceAccountPanel({ sourceKey }: { sourceKey: string }) {
@@ -7,10 +8,17 @@ export function SourceAccountPanel({ sourceKey }: { sourceKey: string }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [cookies, setCookies] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [operation, setOperation] = useState<"login" | "logout" | null>(null);
+  const submitting = useRef(false);
+  const busy = loading || operation !== null;
   const [error, setError] = useState("");
   useEffect(() => {
     let active = true;
+    setLoading(true);
+    setAuth(null);
+    setError("");
     if (sourceKey)
       veneraApi
         .getSourceAuth(sourceKey)
@@ -18,15 +26,20 @@ export function SourceAccountPanel({ sourceKey }: { sourceKey: string }) {
           if (active) setAuth(value);
         })
         .catch((error) => {
-          if (active) setError(String(error));
+          if (active) setError(error instanceof Error ? error.message : String(error));
+        })
+        .finally(() => {
+          if (active) setLoading(false);
         });
+    else setLoading(false);
     return () => {
       active = false;
     };
-  }, [sourceKey]);
+  }, [sourceKey, loadAttempt]);
   async function submit(logout = false) {
-    if (!auth) return;
-    setBusy(true);
+    if (!auth || loading || submitting.current) return;
+    submitting.current = true;
+    setOperation(logout ? "logout" : "login");
     setError("");
     try {
       setAuth(
@@ -47,13 +60,21 @@ export function SourceAccountPanel({ sourceKey }: { sourceKey: string }) {
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error));
     } finally {
-      setBusy(false);
+      submitting.current = false;
+      setOperation(null);
     }
   }
   return (
     <section className="source-panel">
       <h3>源账号</h3>
       {error && <p role="alert">{error}</p>}
+      {!auth && !loading && error && (
+        <button onClick={() => setLoadAttempt((attempt) => attempt + 1)}>重试加载源账号</button>
+      )}
+      {loading && <LoadingStatus label="正在加载源账号状态…" />}
+      {operation && (
+        <LoadingStatus label={operation === "logout" ? "正在退出此源…" : "正在登录此源…"} />
+      )}
       {auth ? (
         <>
           <p>{auth.loggedIn ? "已登录此源" : "未登录此源"}</p>
@@ -116,9 +137,7 @@ export function SourceAccountPanel({ sourceKey }: { sourceKey: string }) {
             <p className="muted">此源支持网页登录，当前服务尚不支持该流程。</p>
           )}
         </>
-      ) : (
-        !error && <p className="muted">正在加载源账号状态…</p>
-      )}
+      ) : null}
     </section>
   );
 }

@@ -5,6 +5,7 @@ import { SourceAccountPanel } from "./SourceAccountPanel.js";
 import { SourceSettingsPanel } from "./SourceSettingsPanel.js";
 import { SourceRepositoryPanel } from "./SourceRepositoryPanel.js";
 import { veneraApi } from "../../api/venera.js";
+import type { SourceAuth } from "../../types.js";
 let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
@@ -28,6 +29,82 @@ async function input(element: HTMLInputElement, value: string) {
     element.dispatchEvent(new Event("input", { bubbles: true }));
   });
 }
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
+  return { promise, resolve, reject };
+}
+const passwordAuth: SourceAuth = {
+  loggedIn: false,
+  methods: ["password"],
+  cookieFields: [],
+  webview: "unavailable",
+};
+
+it("recovers a failed source account load without reloading the page", async () => {
+  const response = deferred<SourceAuth>();
+  const load = vi
+    .spyOn(veneraApi, "getSourceAuth")
+    .mockRejectedValueOnce(new Error("账号状态暂不可用"))
+    .mockReturnValueOnce(response.promise);
+  await render(<SourceAccountPanel sourceKey="one" />);
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe("账号状态暂不可用");
+  await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
+  expect(load).toHaveBeenCalledTimes(2);
+  expect(load).toHaveBeenLastCalledWith("one");
+  expect(container.textContent).toContain("正在加载源账号状态");
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+  expect(container.querySelector("button")).toBeNull();
+  await act(async () => response.resolve(passwordAuth));
+  expect(container.textContent).toContain("未登录此源");
+  expect(container.querySelector("form")).not.toBeNull();
+});
+
+it("blocks duplicate login submissions and lets a failed login recover before logout", async () => {
+  vi.spyOn(veneraApi, "getSourceAuth").mockResolvedValue(passwordAuth);
+  const response = deferred<SourceAuth>();
+  const login = vi
+    .spyOn(veneraApi, "loginSource")
+    .mockReturnValueOnce(response.promise)
+    .mockResolvedValueOnce({ ...passwordAuth, loggedIn: true });
+  const logoutResponse = deferred<SourceAuth>();
+  const logout = vi.spyOn(veneraApi, "logoutSource").mockReturnValue(logoutResponse.promise);
+  await render(<SourceAccountPanel sourceKey="one" />);
+  await input(container.querySelector('input[autocomplete="username"]')!, "user");
+  await input(container.querySelector('input[type="password"]')!, "secret");
+  const form = container.querySelector("form")!;
+  const submit = () => form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  await act(async () => {
+    submit();
+    submit();
+  });
+  expect(login).toHaveBeenCalledOnce();
+  expect(container.textContent).toContain("正在登录此源");
+  expect(container.querySelector<HTMLInputElement>('input[type="password"]')!.disabled).toBe(true);
+  await act(async () => response.reject(new Error("密码错误")));
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe("密码错误");
+  expect(container.querySelector<HTMLInputElement>('input[type="password"]')!.disabled).toBe(false);
+  await act(async () => {
+    submit();
+  });
+  expect(login).toHaveBeenCalledTimes(2);
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+  expect(container.querySelector<HTMLInputElement>('input[type="password"]')!.value).toBe("");
+  await act(async () =>
+    [...container.querySelectorAll("button")]
+      .find((button) => button.textContent === "退出此源")!
+      .click(),
+  );
+  expect(container.textContent).toContain("正在退出此源");
+  expect(logout).toHaveBeenCalledWith("one");
+  await act(async () => logoutResponse.resolve(passwordAuth));
+  expect(container.textContent).toContain("未登录此源");
+  expect(container.textContent).not.toContain("正在退出此源");
+});
 it("offers separate script selections for repository variants sharing the same key", async () => {
   await render(
     <SourceRepositoryPanel
