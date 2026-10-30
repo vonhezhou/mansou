@@ -19,7 +19,11 @@ export function DownloadActions(props: DownloadActionsProps) {
         </button>
         <button onClick={() => props.onCreateDownload("all")}>下载全本</button>
       </div>
-      {props.downloadCreateStatus && <p className="muted">{props.downloadCreateStatus}</p>}
+      {props.downloadCreateStatus && (
+        <p className="muted" role="status">
+          {props.downloadCreateStatus}
+        </p>
+      )}
     </>
   );
 }

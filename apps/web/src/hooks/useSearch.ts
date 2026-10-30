@@ -368,7 +368,7 @@ export function useSearch(options: UseSearchOptions) {
   }
 
   async function createDownload(mode: "first" | "selected" | "all") {
-    if (!details) return;
+    if (!details || (mode === "selected" && selectedEpisodeIds.length === 0)) return;
     const requestId = detailRequest.current;
     setCountProgress(null);
     setPreviewSummary(null);
@@ -391,21 +391,39 @@ export function useSearch(options: UseSearchOptions) {
               }));
         let success = 0;
         let failed = 0;
+        const failedEpisodeIds: string[] = [];
+        let firstFailure = "";
         setDownloadCreateStatus(`创建中：0/${requests.length}`);
         for (const request of requests) {
           try {
             await veneraApi.createDownload(request);
             success += 1;
-          } catch {
+          } catch (error) {
             failed += 1;
+            if ("episodeId" in request) failedEpisodeIds.push(request.episodeId);
+            if (!firstFailure) {
+              const chapter =
+                "episodeId" in request
+                  ? (details.chapters?.[request.episodeId] ?? request.episodeId)
+                  : "全本";
+              firstFailure = `${chapter}：${error instanceof Error ? error.message : String(error)}`;
+            }
           }
           if (requestId === detailRequest.current)
             setDownloadCreateStatus(
               `创建中：${success + failed}/${requests.length}，成功 ${success}，失败 ${failed}`,
             );
         }
-        if (requestId === detailRequest.current)
-          setDownloadCreateStatus(`创建完成：成功 ${success}，失败 ${failed}`);
+        if (requestId === detailRequest.current) {
+          if (mode === "selected" && failed > 0) setSelectedEpisodeIds(failedEpisodeIds);
+          setDownloadCreateStatus(
+            `创建完成：成功 ${success}，失败 ${failed}` +
+              (failed ? `。首个失败：${firstFailure}` : "") +
+              (mode === "selected" && failed > 0
+                ? "。已仅保留失败章节的勾选，可再次点击“下载所选章节”重试。"
+                : ""),
+          );
+        }
         if (failed === 0 && requestId === detailRequest.current) {
           setDetails(null);
           setPreviewImages([]);

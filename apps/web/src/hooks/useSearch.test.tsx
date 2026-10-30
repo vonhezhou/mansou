@@ -87,6 +87,70 @@ it("keeps failed downloads visible in the detail dialog", async () => {
   expect(navigate).not.toHaveBeenCalled();
   expect(state.details?.id).toBe("comic");
   expect(state.downloadCreateStatus).toContain("失败 1");
+  expect(state.downloadCreateStatus).toContain("下载失败");
+});
+
+it("keeps only failed chapters selected so retry does not resubmit successful chapters", async () => {
+  vi.spyOn(veneraApi, "comicDetails").mockResolvedValue({
+    id: "comic",
+    title: "漫画",
+    chapters: { a: "第一章", b: "第二章", c: "第三章" },
+  });
+  const create = vi
+    .spyOn(veneraApi, "createDownload")
+    .mockResolvedValueOnce({ id: "a" } as Awaited<ReturnType<typeof veneraApi.createDownload>>)
+    .mockRejectedValueOnce(new Error("漫画源请求超时"))
+    .mockResolvedValue({ id: "task" } as Awaited<ReturnType<typeof veneraApi.createDownload>>);
+  await act(async () => state.openComic({ id: "comic", title: "漫画" }));
+  await act(async () => state.selectEpisodes("all"));
+  await act(async () => state.createDownload("selected"));
+  expect(state.selectedEpisodeIds).toEqual(["b"]);
+  expect(state.downloadCreateStatus).toContain("成功 2，失败 1");
+  expect(state.downloadCreateStatus).toContain("第二章：漫画源请求超时");
+  expect(state.downloadCreateStatus).toContain("已仅保留失败章节");
+  expect(navigate).not.toHaveBeenCalled();
+  await act(async () => state.createDownload("selected"));
+  expect(create.mock.calls.map(([request]) => request.episodeId)).toEqual(["a", "b", "c", "b"]);
+  expect(navigate).toHaveBeenCalledWith("downloads");
+});
+
+it("does not navigate or submit downloads when no chapters are selected", async () => {
+  vi.spyOn(veneraApi, "comicDetails").mockResolvedValue({
+    id: "comic",
+    title: "漫画",
+    chapters: { a: "第一章" },
+  });
+  const create = vi.spyOn(veneraApi, "createDownload");
+  await act(async () => state.openComic({ id: "comic", title: "漫画" }));
+  await act(async () => state.createDownload("selected"));
+  expect(create).not.toHaveBeenCalled();
+  expect(navigate).not.toHaveBeenCalled();
+});
+
+it("does not replace a new comic's selection when an old batch fails after closing details", async () => {
+  vi.spyOn(veneraApi, "comicDetails").mockResolvedValue({
+    id: "comic",
+    title: "漫画",
+    chapters: { a: "第一章", b: "第二章" },
+  });
+  const response = deferred<Awaited<ReturnType<typeof veneraApi.createDownload>>>();
+  vi.spyOn(veneraApi, "createDownload").mockReturnValue(response.promise);
+  await act(async () => state.openComic({ id: "comic", title: "漫画" }));
+  await act(async () => state.toggleSelectedEpisode("a"));
+  let pending: Promise<void>;
+  await act(async () => {
+    pending = state.createDownload("selected");
+  });
+  await act(async () => state.closeDetails());
+  await act(async () => state.openComic({ id: "other", title: "另一本" }));
+  await act(async () => state.toggleSelectedEpisode("b"));
+  await act(async () => {
+    response.reject(new Error("旧章节失败"));
+    await pending;
+  });
+  expect(state.selectedEpisodeIds).toEqual(["b"]);
+  expect(state.downloadCreateStatus).toBeNull();
+  expect(navigate).not.toHaveBeenCalled();
 });
 
 it("shows pending details immediately and ignores a response after the dialog is closed", async () => {
