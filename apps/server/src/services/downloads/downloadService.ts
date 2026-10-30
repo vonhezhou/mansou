@@ -265,13 +265,14 @@ export class DownloadService {
     if (!task) return null;
     return this.scheduler.execute(id, async (signal) => {
       const results = [];
+      const retryImage = this.runner.createImageRetry(task, signal);
       for (const item of this.repository.items(id).filter((item) => item.status === "failed")) {
         signal.throwIfAborted();
         try {
           results.push({
             imageKey: item.image_key,
             ok: true,
-            result: await this.retry(task, item.image_key, signal),
+            result: await this.retry(task, item.image_key, signal, retryImage),
           });
         } catch (error) {
           signal.throwIfAborted();
@@ -285,8 +286,13 @@ export class DownloadService {
       return { task: this.find(id), retried: results.length, results };
     });
   }
-  private async retry(task: DownloadTask, imageKey: string, signal: AbortSignal) {
-    const result = await this.runner.retryImage(task, imageKey, signal);
+  private async retry(
+    task: DownloadTask,
+    imageKey: string,
+    signal: AbortSignal,
+    retryImage = (key: string) => this.runner.retryImage(task, key, signal),
+  ) {
+    const result = await retryImage(imageKey);
     signal.throwIfAborted();
     const latest = this.find(task.id)!;
     this.update(task.id, {
