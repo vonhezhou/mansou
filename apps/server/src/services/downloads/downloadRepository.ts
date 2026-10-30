@@ -10,6 +10,9 @@ export class DownloadRepository {
   queuedIds() {
     return this.storage.listQueuedDownloadIds();
   }
+  forComic(sourceKey: string, comicId: string) {
+    return this.storage.listComicDownloads(sourceKey, comicId);
+  }
   find(id: string) {
     return this.storage.getDownload(id);
   }

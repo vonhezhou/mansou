@@ -158,6 +158,15 @@ class AppStorage {
     return rows.map((row) => row.id);
   }
 
+  listComicDownloads(sourceKey: string, comicId: string) {
+    const rows = this.db
+      .prepare(
+        "select task_json from downloads where source_key = ? and comic_id = ? order by created_at asc",
+      )
+      .all(sourceKey, comicId) as Array<{ task_json: string }>;
+    return rows.map((row) => JSON.parse(row.task_json) as DownloadTask);
+  }
+
   getDownload(id: string): DownloadTask | null {
     const row = this.db.prepare("select task_json from downloads where id = ?").get(id) as
       | { task_json: string }

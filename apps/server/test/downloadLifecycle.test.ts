@@ -81,6 +81,24 @@ describe("download lifecycle", () => {
     expect(built.context.storage.listDownloadItems(task.id)).toEqual([]);
   });
 
+  it("blocks new chapters of a comic while its previous task is being deleted", async () => {
+    const barrier = blockImage();
+    const task = create("deleting-comic");
+    await barrier.entered.promise;
+    const deleting = built.context.downloads.delete(task.id, true);
+    expect(() =>
+      built.context.downloads.create({
+        sourceKey: "mock",
+        comicId: task.comicId,
+        episodeId: "chapter-2",
+      }),
+    ).toThrow("Wait for the previous download to be deleted");
+    expect(create("other-comic").comicId).toBe("other-comic");
+    barrier.release.resolve();
+    await deleting;
+    expect(create(task.comicId).id).not.toBe(task.id);
+  });
+
   it("resumes only after the previous run ends and eventually completes", async () => {
     const barrier = blockImage();
     const task = create("resume");

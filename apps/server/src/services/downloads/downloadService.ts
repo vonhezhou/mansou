@@ -72,21 +72,13 @@ export class DownloadService {
   create(input: DownloadInput) {
     this.assertOpen();
     const episodeId = input.episodeId ?? "_default";
-    if (
-      this.all().some(
-        (task) =>
-          this.deleting.has(task.id) &&
-          task.sourceKey === input.sourceKey &&
-          task.comicId === input.comicId,
-      )
-    ) {
+    const tasks = this.repository.forComic(input.sourceKey, input.comicId);
+    if (tasks.some((task) => this.deleting.has(task.id))) {
       throw new AppError("DOWNLOAD_BUSY", "Wait for the previous download to be deleted");
     }
-    const existing = this.all().find(
+    const existing = tasks.find(
       (task) =>
         !this.deleting.has(task.id) &&
-        task.sourceKey === input.sourceKey &&
-        task.comicId === input.comicId &&
         Boolean(task.all) === Boolean(input.all) &&
         (input.all || task.episodeId === episodeId || task.episodeId === "__all__") &&
         ["queued", "running", "paused", "completed"].includes(task.status),
