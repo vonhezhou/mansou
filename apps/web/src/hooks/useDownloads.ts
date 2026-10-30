@@ -11,6 +11,7 @@ export function useDownloads(runWith: RunWith) {
   const [itemErrors, setItemErrors] = useState<Record<string, string>>({});
   const [failedItemsOnly, setFailedItemsOnly] = useState(false);
   const [cache, setCache] = useState<CacheStats | null>(null);
+  const [taskMessages, setTaskMessages] = useState<Record<string, string>>({});
   const [taskOperations, setTaskOperations] = useState<Record<string, string>>({});
   const [cacheOperation, setCacheOperation] = useState<string | null>(null);
   const downloadsVersion = useRef(0);
@@ -36,6 +37,11 @@ export function useDownloads(runWith: RunWith) {
   async function withTask(taskId: string, label: string, work: () => Promise<void>) {
     if (activeTasks.current.has(taskId)) return;
     activeTasks.current.add(taskId);
+    setTaskMessages((current) => {
+      const next = { ...current };
+      delete next[taskId];
+      return next;
+    });
     try {
       await runWith(
         (loading) =>
@@ -109,7 +115,7 @@ export function useDownloads(runWith: RunWith) {
       resume: "正在继续下载…",
       cancel: "正在取消任务…",
       rerun: "正在重新创建任务…",
-      "download-local": "正在请求下载文件…",
+      "download-local": "正在准备 CBZ 文件，较大的漫画需要一些时间…",
       delete: "正在删除任务…",
       "delete-files": "正在删除任务与文件…",
       "retry-failed": "正在重试失败图片…",
@@ -120,11 +126,16 @@ export function useDownloads(runWith: RunWith) {
       if (action === "cancel") await veneraApi.cancelDownload(task.id);
       if (action === "rerun") await veneraApi.rerunDownload(task.id);
       if (action === "download-local") {
+        await veneraApi.exportDownloadCbz(task.id);
         const link = document.createElement("a");
         link.href = veneraApi.downloadDownloadCbzUrl(task.id);
-        link.target = "_blank";
+        link.download = "";
         link.rel = "noreferrer";
         link.click();
+        setTaskMessages((current) => ({
+          ...current,
+          [task.id]: "文件已准备，已请求浏览器开始下载。",
+        }));
         return;
       }
       if (action === "delete" || action === "delete-files") {
@@ -150,6 +161,7 @@ export function useDownloads(runWith: RunWith) {
     itemErrors,
     failedItemsOnly,
     taskOperations,
+    taskMessages,
     cacheOperation,
     loadingDownloads: cacheOperation !== null || Object.keys(taskOperations).length > 0,
     loadCacheStats,

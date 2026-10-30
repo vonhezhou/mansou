@@ -37,7 +37,7 @@ function Workspace({
   const [detailSourceKey, setDetailSourceKey] = useState(sourceKey);
   const [activeTab, setActiveTab] = useState<TabKey>(readInitialTab);
   const [health, setHealth] = useState<Health | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const [refreshing, setRefreshing] = useState(true);
   const [downloadsReconnecting, setDownloadsReconnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const downloadsState = useDownloads(runWith);
@@ -122,7 +122,7 @@ function Workspace({
   }
 
   const sourcesBusy = sourcesState.managingSources || refreshing;
-  const downloadsBusy = downloadsState.loadingDownloads;
+  const downloadsBusy = downloadsState.loadingDownloads || refreshing;
 
   return (
     <AppShell
@@ -154,8 +154,15 @@ function Workspace({
       {activeTab === "search" && (
         <SearchView
           busy={searchState.searchBusy}
+          sourcesLoading={refreshing}
           searching={searchState.searching}
           detailsBusy={searchState.detailsBusy}
+          detailOperation={searchState.detailOperation}
+          detailSummary={searchState.detailSummary}
+          detailWorkError={searchState.detailWorkError}
+          onRetryPreview={() => void searchState.previewEpisode(searchState.previewEpisodeId)}
+          countingPages={searchState.countingPages}
+          onStopCounting={searchState.stopCounting}
           aggregatePendingKeys={searchState.aggregatePendingKeys}
           onCancelSearch={searchState.cancelSearch}
           loadingDetails={searchState.loadingDetails}
@@ -235,6 +242,7 @@ function Workspace({
         <DownloadsView
           busy={downloadsBusy}
           taskOperations={downloadsState.taskOperations}
+          taskMessages={downloadsState.taskMessages}
           itemErrors={downloadsState.itemErrors}
           cacheOperation={downloadsState.cacheOperation}
           cache={downloadsState.cache}

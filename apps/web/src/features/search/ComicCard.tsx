@@ -1,3 +1,4 @@
+import { AsyncImage } from "../../app/AsyncImage.js";
 import type { Comic } from "@venera/contracts";
 import { Icon } from "../../app/Icon.js";
 import { imageUrl } from "../../api/venera.js";
@@ -18,7 +19,7 @@ export function ComicCard(props: ComicCardProps) {
       onClick={() => props.onOpenComic(props.comic, props.sourceKey)}
       aria-label={`查看 ${props.comic.title} 的详情`}
     >
-      <img
+      <AsyncImage
         src={imageUrl(
           props.sourceKey,
           props.comic.cover ?? "mock://cover/0",

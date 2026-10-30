@@ -3,7 +3,7 @@ import { createServer, type Server } from "node:http";
 import { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { readConfig } from "../src/config/config.js";
 const config = readConfig();
@@ -210,4 +210,31 @@ it("preserves a safe upstream restriction through the worker and HTTP error boun
     message: "拷贝漫画上游限制了当前访问。请按官方提示更新正版客户端，并等待约 1 小时后再试。",
   });
   expect(response.body).not.toContain("upstream-secret");
+});
+
+it("preserves thumbnail=false for full-image hooks and rejects malformed image flags", async () => {
+  const load = vi
+    .spyOn(context.imageProxy, "load")
+    .mockResolvedValue({ data: Buffer.from([1]), contentType: "image/png", cached: false });
+  try {
+    for (const [value, expected] of [
+      ["false", false],
+      ["true", true],
+    ] as const) {
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/v1/image?sourceKey=mock&imageKey=page&thumbnail=${value}`,
+      });
+      expect(response.statusCode).toBe(200);
+      expect(load).toHaveBeenLastCalledWith(expect.objectContaining({ thumbnail: expected }));
+    }
+    const invalid = await app.inject({
+      method: "GET",
+      url: "/api/v1/image?sourceKey=mock&imageKey=page&thumbnail=invalid",
+    });
+    expect(invalid.statusCode).toBe(400);
+    expect(load).toHaveBeenCalledTimes(2);
+  } finally {
+    load.mockRestore();
+  }
 });

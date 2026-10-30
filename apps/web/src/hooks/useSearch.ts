@@ -46,6 +46,9 @@ export function useSearch(options: UseSearchOptions) {
     () => () => {
       searchRequest.current++;
       searchController.current?.abort();
+      previewController.current?.abort();
+      countController.current?.abort();
+      detailRequest.current++;
     },
     [],
   );
@@ -93,6 +96,37 @@ export function useSearch(options: UseSearchOptions) {
   const [previewingChapter, setPreviewingChapter] = useState(false);
   const [countingPages, setCountingPages] = useState(false);
   const [creatingDownload, setCreatingDownload] = useState(false);
+  const [previewSummary, setPreviewSummary] = useState<string | null>(null);
+  const [detailWorkError, setDetailWorkError] = useState<string | null>(null);
+  const [previewEpisodeId, setPreviewEpisodeId] = useState<string | null>(null);
+  const [countProgress, setCountProgress] = useState<{
+    completed: number;
+    total: number;
+    failed: number;
+    stopped?: boolean;
+  } | null>(null);
+  const previewController = useRef<AbortController | null>(null);
+  const countController = useRef<AbortController | null>(null);
+
+  function resetDetailWork() {
+    previewController.current?.abort();
+    countController.current?.abort();
+    previewController.current = null;
+    countController.current = null;
+    setPreviewingChapter(false);
+    setCountingPages(false);
+    setCreatingDownload(false);
+    setCountProgress(null);
+    setPreviewSummary(null);
+    setDetailWorkError(null);
+  }
+
+  function stopCounting() {
+    countController.current?.abort();
+    countController.current = null;
+    setCountingPages(false);
+    setCountProgress((current) => (current ? { ...current, stopped: true } : null));
+  }
 
   function syncAggregateSources(sources: Source[]) {
     setAggregateSourceKeys((current) =>
@@ -208,6 +242,7 @@ export function useSearch(options: UseSearchOptions) {
 
   async function openComic(comic: Comic, nextSourceKey = options.sourceKey) {
     const request = ++detailRequest.current;
+    resetDetailWork();
     setPendingComic({ comic, sourceKey: nextSourceKey });
     setDetailError(null);
     setDetails(null);
@@ -239,84 +274,141 @@ export function useSearch(options: UseSearchOptions) {
 
   async function previewEpisode(nextEpisodeId = episodeId) {
     if (!details || !nextEpisodeId) return;
-    await options.runWith(setPreviewingChapter, async () => {
-      const data = await veneraApi.episodePages(
-        options.detailSourceKey,
-        details.comicId ?? details.id,
-        nextEpisodeId,
-      );
-      setEpisodeId(nextEpisodeId);
-      setPreviewImages(data.images ?? []);
-      setEpisodePageCounts((current) => ({
-        ...current,
-        [nextEpisodeId]: data.images?.length ?? 0,
-      }));
-    });
+    const request = detailRequest.current;
+    previewController.current?.abort();
+    const controller = new AbortController();
+    previewController.current = controller;
+    setPreviewEpisodeId(nextEpisodeId);
+    setPreviewSummary(null);
+    setDetailWorkError(null);
+    setCountProgress(null);
+    await options.runWith(
+      (loading) => {
+        if (request === detailRequest.current && previewController.current === controller)
+          setPreviewingChapter(loading);
+      },
+      async () => {
+        try {
+          const data = await veneraApi.episodePages(
+            options.detailSourceKey,
+            details.comicId ?? details.id,
+            nextEpisodeId,
+            controller.signal,
+          );
+          if (controller.signal.aborted || request !== detailRequest.current) return;
+          setEpisodeId(nextEpisodeId);
+          setPreviewImages(data.images ?? []);
+          setPreviewSummary(
+            data.images?.length ? null : "该章节暂未返回图片，请稍后重试或更换章节。",
+          );
+          setEpisodePageCounts((current) => ({
+            ...current,
+            [nextEpisodeId]: data.images?.length ?? 0,
+          }));
+        } catch (error) {
+          if (!controller.signal.aborted && request === detailRequest.current)
+            setDetailWorkError(error instanceof Error ? error.message : String(error));
+        }
+      },
+    );
   }
 
   async function countAllPages() {
     if (!details) return;
     const chapterIds = Object.keys(details.chapters ?? {});
-    if (chapterIds.length === 0) return;
-    await options.runWith(setCountingPages, async () => {
-      const nextCounts = { ...episodePageCounts };
-      for (const chapterId of chapterIds) {
-        if (nextCounts[chapterId] !== undefined) continue;
-        try {
-          const pages = await veneraApi.episodePages(
-            options.detailSourceKey,
-            details.comicId ?? details.id,
-            chapterId,
-          );
-          nextCounts[chapterId] = pages.images?.length ?? 0;
-          setEpisodePageCounts({ ...nextCounts });
-        } catch {
-          // 单章失败不应阻断已可统计的章节，也不把不完整结果伪装成总页数。
+    if (!chapterIds.length) return;
+    setPreviewSummary(null);
+    setDetailWorkError(null);
+    const request = detailRequest.current;
+    countController.current?.abort();
+    const controller = new AbortController();
+    countController.current = controller;
+    const nextCounts = { ...episodePageCounts };
+    let completed = chapterIds.filter((id) => nextCounts[id] !== undefined).length;
+    let failed = 0;
+    setCountProgress({ completed, total: chapterIds.length, failed });
+    await options.runWith(
+      (loading) => {
+        if (request === detailRequest.current && countController.current === controller)
+          setCountingPages(loading);
+      },
+      async () => {
+        for (const chapterId of chapterIds) {
+          if (controller.signal.aborted || request !== detailRequest.current) return;
+          if (nextCounts[chapterId] !== undefined) continue;
+          try {
+            const pages = await veneraApi.episodePages(
+              options.detailSourceKey,
+              details.comicId ?? details.id,
+              chapterId,
+              controller.signal,
+            );
+            if (controller.signal.aborted || request !== detailRequest.current) return;
+            nextCounts[chapterId] = pages.images?.length ?? 0;
+            setEpisodePageCounts({ ...nextCounts });
+          } catch {
+            if (controller.signal.aborted || request !== detailRequest.current) return;
+            // 失败章保留为未统计，后续可以重试，不能误报为零页。
+            failed++;
+          }
+          setCountProgress({ completed: ++completed, total: chapterIds.length, failed });
         }
-      }
-    });
+      },
+    );
   }
 
   async function createDownload(mode: "first" | "selected" | "all") {
     if (!details) return;
-    await options.runWith(setCreatingDownload, async () => {
-      const comicId = details.comicId ?? details.id;
-      const firstEpisode = Object.keys(details.chapters ?? {})[0] ?? "_default";
-      const episodeIds = mode === "selected" ? selectedEpisodeIds : [firstEpisode];
-      const requests =
-        mode === "all"
-          ? [{ sourceKey: options.detailSourceKey, comicId, all: true }]
-          : episodeIds.map((id) => ({
-              sourceKey: options.detailSourceKey,
-              comicId,
-              episodeId: id,
-            }));
-      let success = 0;
-      let failed = 0;
-      setDownloadCreateStatus(`创建中：0/${requests.length}`);
-      for (const request of requests) {
-        try {
-          await veneraApi.createDownload(request);
-          success += 1;
-        } catch {
-          failed += 1;
+    const requestId = detailRequest.current;
+    setCountProgress(null);
+    setPreviewSummary(null);
+    setDetailWorkError(null);
+    await options.runWith(
+      (loading) => {
+        if (requestId === detailRequest.current) setCreatingDownload(loading);
+      },
+      async () => {
+        const comicId = details.comicId ?? details.id;
+        const firstEpisode = Object.keys(details.chapters ?? {})[0] ?? "_default";
+        const episodeIds = mode === "selected" ? selectedEpisodeIds : [firstEpisode];
+        const requests =
+          mode === "all"
+            ? [{ sourceKey: options.detailSourceKey, comicId, all: true }]
+            : episodeIds.map((id) => ({
+                sourceKey: options.detailSourceKey,
+                comicId,
+                episodeId: id,
+              }));
+        let success = 0;
+        let failed = 0;
+        setDownloadCreateStatus(`创建中：0/${requests.length}`);
+        for (const request of requests) {
+          try {
+            await veneraApi.createDownload(request);
+            success += 1;
+          } catch {
+            failed += 1;
+          }
+          if (requestId === detailRequest.current)
+            setDownloadCreateStatus(
+              `创建中：${success + failed}/${requests.length}，成功 ${success}，失败 ${failed}`,
+            );
         }
-        setDownloadCreateStatus(
-          `创建中：${success + failed}/${requests.length}，成功 ${success}，失败 ${failed}`,
-        );
-      }
-      setDownloadCreateStatus(`创建完成：成功 ${success}，失败 ${failed}`);
-      if (failed === 0) {
-        setDetails(null);
-        setPreviewImages([]);
-        options.setActiveTab("downloads");
-      }
-      await options.loadDownloads();
-    });
+        if (requestId === detailRequest.current)
+          setDownloadCreateStatus(`创建完成：成功 ${success}，失败 ${failed}`);
+        if (failed === 0 && requestId === detailRequest.current) {
+          setDetails(null);
+          setPreviewImages([]);
+          options.setActiveTab("downloads");
+        }
+        await options.loadDownloads();
+      },
+    );
   }
 
   function closeDetails() {
     detailRequest.current++;
+    resetDetailWork();
     setLoadingDetails(false);
     setPendingComic(null);
     setDetailError(null);
@@ -369,6 +461,22 @@ export function useSearch(options: UseSearchOptions) {
     results,
     searchBusy,
     detailsBusy,
+    detailOperation: previewingChapter
+      ? `正在获取「${details?.chapters?.[previewEpisodeId ?? ""] ?? "当前章节"}」的图片列表…`
+      : countingPages
+        ? `正在统计章节页数：${countProgress?.completed ?? 0}/${countProgress?.total ?? 0} 章，失败 ${countProgress?.failed ?? 0} 章…`
+        : creatingDownload
+          ? (downloadCreateStatus ?? "正在创建下载任务…")
+          : null,
+    detailSummary:
+      previewSummary ??
+      (!countingPages && countProgress
+        ? `${countProgress.stopped ? "统计已停止" : "统计已结束"}，已处理 ${countProgress.completed}/${countProgress.total} 章${countProgress.failed ? `，${countProgress.failed} 章失败，可重新统计` : ""}。`
+        : null),
+    detailWorkError,
+    previewEpisodeId,
+    countingPages,
+    stopCounting,
     searching,
     cancelSearch,
     searchMaxPage,

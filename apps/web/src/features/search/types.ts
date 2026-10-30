@@ -3,8 +3,15 @@ import type { AggregatedSearchItem, Details, Source } from "../../types.js";
 
 export type SearchViewProps = {
   busy: boolean;
+  sourcesLoading?: boolean;
   searching?: boolean;
   detailsBusy?: boolean;
+  detailOperation?: string | null;
+  detailSummary?: string | null;
+  detailWorkError?: string | null;
+  onRetryPreview?: () => void;
+  countingPages?: boolean;
+  onStopCounting?: () => void;
   aggregatePendingKeys?: string[];
   onCancelSearch?: () => void;
   loadingDetails?: boolean;

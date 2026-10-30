@@ -1,3 +1,4 @@
+import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { useEffect, useRef, useState } from "react";
 import type { SettingsResponse } from "../../types.js";
 import { veneraApi } from "../../api/venera.js";
@@ -59,6 +60,7 @@ export function SourceSettingsPanel(props: SourceSettingsPanelProps) {
   return (
     <section className="source-panel">
       <h3>{title}</h3>
+      {actionBusy && <LoadingStatus label="正在执行源设置操作…" />}
       {error && <p role="alert">{error}</p>}
       <form
         onSubmit={(event) => {

@@ -54,7 +54,7 @@ it("opens details without loading chapter images or changing the search source",
   expect(pages).not.toHaveBeenCalled();
   expect(changeSource).not.toHaveBeenCalled();
   await act(async () => state.previewEpisode("chapter"));
-  expect(pages).toHaveBeenCalledWith("detail-source", "comic", "chapter");
+  expect(pages).toHaveBeenCalledWith("detail-source", "comic", "chapter", expect.any(AbortSignal));
   expect(state.previewImages).toEqual(["page.jpg"]);
   await act(async () => state.closeDetails());
   expect(state.details).toBeNull();
@@ -267,4 +267,120 @@ it("limits aggregate concurrency and does not start queued sources after cancell
     await pending;
   });
   expect(search).toHaveBeenCalledTimes(3);
+});
+
+it("stops chapter counting, preserves completed counts and does not request remaining chapters", async () => {
+  vi.spyOn(veneraApi, "comicDetails").mockResolvedValue({
+    id: "book",
+    title: "漫画",
+    chapters: { a: "第一章", b: "第二章", c: "第三章" },
+  });
+  const pendingPages = deferred<Awaited<ReturnType<typeof veneraApi.episodePages>>>();
+  const pages = vi
+    .spyOn(veneraApi, "episodePages")
+    .mockResolvedValueOnce({ images: ["one"] })
+    .mockReturnValueOnce(pendingPages.promise);
+  await act(async () => state.openComic({ id: "book", title: "漫画" }));
+  let counting: Promise<void>;
+  await act(async () => {
+    counting = state.countAllPages();
+  });
+  expect(state.detailOperation).toContain("1/3");
+  expect(pages).toHaveBeenCalledTimes(2);
+  await act(async () => state.stopCounting());
+  expect(pages.mock.calls[1][3]?.aborted).toBe(true);
+  expect(state.countingPages).toBe(false);
+  await act(async () => {
+    pendingPages.resolve({ images: ["late"] });
+    await counting;
+  });
+  expect(pages).toHaveBeenCalledTimes(2);
+  expect(state.episodePageCounts).toEqual({ a: 1 });
+  expect(state.detailSummary).toContain("统计已停止");
+});
+
+it("aborts a chapter preview on close and ignores its response after another comic opens", async () => {
+  vi.spyOn(veneraApi, "comicDetails").mockResolvedValue({
+    id: "book",
+    title: "漫画",
+    chapters: { a: "第一章" },
+  });
+  const response = deferred<Awaited<ReturnType<typeof veneraApi.episodePages>>>();
+  const pages = vi.spyOn(veneraApi, "episodePages").mockReturnValue(response.promise);
+  await act(async () => state.openComic({ id: "book", title: "漫画" }));
+  let preview: Promise<void>;
+  await act(async () => {
+    preview = state.previewEpisode("a");
+  });
+  expect(state.detailOperation).toContain("第一章");
+  await act(async () => state.closeDetails());
+  expect(pages.mock.calls[0][3]?.aborted).toBe(true);
+  expect(state.detailsBusy).toBe(false);
+  await act(async () => state.openComic({ id: "other", title: "另一本" }));
+  await act(async () => {
+    response.resolve({ images: ["old-page"] });
+    await preview;
+  });
+  expect(state.previewImages).toEqual([]);
+  expect(state.episodePageCounts).toEqual({});
+});
+
+it("counts failed chapters as failures and retries only the chapters still missing counts", async () => {
+  vi.spyOn(veneraApi, "comicDetails").mockResolvedValue({
+    id: "book",
+    title: "漫画",
+    chapters: { a: "第一章", b: "第二章" },
+  });
+  const pages = vi
+    .spyOn(veneraApi, "episodePages")
+    .mockRejectedValueOnce(new Error("暂不可用"))
+    .mockResolvedValueOnce({ images: ["b"] })
+    .mockResolvedValueOnce({ images: ["a"] });
+  await act(async () => state.openComic({ id: "book", title: "漫画" }));
+  await act(async () => state.countAllPages());
+  expect(state.episodePageCounts).toEqual({ b: 1 });
+  expect(state.detailSummary).toContain("1 章失败");
+  await act(async () => state.countAllPages());
+  expect(pages.mock.calls.map((call) => call[2])).toEqual(["a", "b", "a"]);
+  expect(state.episodePageCounts).toEqual({ a: 1, b: 1 });
+});
+
+it("exposes chapter preview errors in the detail state and clears them on a successful retry", async () => {
+  vi.spyOn(veneraApi, "comicDetails").mockResolvedValue({
+    id: "book",
+    title: "漫画",
+    chapters: { a: "第一章" },
+  });
+  vi.spyOn(veneraApi, "episodePages")
+    .mockRejectedValueOnce(new Error("源暂不可用"))
+    .mockResolvedValueOnce({ images: [] });
+  await act(async () => state.openComic({ id: "book", title: "漫画" }));
+  await act(async () => state.previewEpisode("a"));
+  expect(state.detailWorkError).toBe("源暂不可用");
+  expect(state.detailsBusy).toBe(false);
+  await act(async () => state.previewEpisode("a"));
+  expect(state.detailWorkError).toBeNull();
+  expect(state.detailSummary).toContain("暂未返回图片");
+});
+
+it("keeps creating requested downloads in the background without redirecting after the dialog closes", async () => {
+  vi.spyOn(veneraApi, "comicDetails").mockResolvedValue({
+    id: "book",
+    title: "漫画",
+    chapters: { a: "第一章" },
+  });
+  const response = deferred<Awaited<ReturnType<typeof veneraApi.createDownload>>>();
+  vi.spyOn(veneraApi, "createDownload").mockReturnValue(response.promise);
+  await act(async () => state.openComic({ id: "book", title: "漫画" }));
+  let creating: Promise<void>;
+  await act(async () => {
+    creating = state.createDownload("all");
+  });
+  await act(async () => state.closeDetails());
+  await act(async () => {
+    response.resolve({ id: "task" } as Awaited<ReturnType<typeof veneraApi.createDownload>>);
+    await creating;
+  });
+  expect(navigate).not.toHaveBeenCalled();
+  expect(state.detailsBusy).toBe(false);
 });

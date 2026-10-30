@@ -39,7 +39,7 @@ export function DownloadsView(props: DownloadsViewProps) {
             onClearCache={props.onClearCache}
           />
         </details>
-        {props.downloads.length === 0 && <p className="muted">暂无下载任务。</p>}
+        {!props.busy && props.downloads.length === 0 && <p className="muted">暂无下载任务。</p>}
         <details className="disclosure">
           <summary>筛选下载任务</summary>
           <div className="download-filters">
@@ -83,6 +83,7 @@ export function DownloadsView(props: DownloadsViewProps) {
             <DownloadTaskCard
               busy={props.taskOperations ? Boolean(props.taskOperations[task.id]) : props.busy}
               operation={props.taskOperations?.[task.id]}
+              message={props.taskMessages?.[task.id]}
               itemError={props.itemErrors?.[task.id]}
               key={task.id}
               task={task}

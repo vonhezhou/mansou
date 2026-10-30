@@ -1,3 +1,4 @@
+import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { useEffect, useState, type ReactNode, type FormEvent } from "react";
 import { authApi, type AuthSession } from "../../api/auth.js";
 import { setCsrfToken } from "../../api/client.js";
@@ -12,16 +13,20 @@ export function AuthGate({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [connecting, setConnecting] = useState(true);
   function accept(next: AuthSession) {
     setCsrfToken(next.csrfToken ?? "");
     setSession(next);
   }
   async function reload() {
+    setConnecting(true);
     try {
       accept(await authApi.session());
       setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setConnecting(false);
     }
   }
   useEffect(() => {
@@ -68,8 +73,10 @@ export function AuthGate({
         )}
         {!session ? (
           <>
-            <p>正在连接服务…</p>
-            <button onClick={() => void reload()}>重试</button>
+            {connecting && <LoadingStatus label="正在连接服务…" />}
+            <button disabled={connecting} onClick={() => void reload()}>
+              重试
+            </button>
           </>
         ) : !session.initialized ? (
           <p>管理员尚未初始化，请联系服务器管理员完成账号设置。</p>
@@ -97,7 +104,7 @@ export function AuthGate({
               />
             </label>
             <button type="submit" disabled={busy}>
-              {busy ? "正在登录…" : "登录"}
+              {busy ? <LoadingStatus label="正在登录…" /> : "登录"}
             </button>
           </form>
         )}

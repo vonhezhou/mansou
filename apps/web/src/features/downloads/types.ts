@@ -13,6 +13,7 @@ export type DownloadAction =
 export type DownloadsViewProps = {
   busy: boolean;
   taskOperations?: Record<string, string>;
+  taskMessages?: Record<string, string>;
   itemErrors?: Record<string, string>;
   cacheOperation?: string | null;
   cache: CacheStats | null;

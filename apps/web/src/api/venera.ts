@@ -31,7 +31,9 @@ export function imageUrl(
   episodeId?: string,
   thumbnail = false,
 ) {
-  const params = new URLSearchParams({ sourceKey, imageKey, thumbnail: String(thumbnail) });
+  const params = new URLSearchParams({ sourceKey, imageKey });
+  // 原图使用默认加载路径，也避免复用旧版错误 thumbnail=false 响应的浏览器缓存。
+  if (thumbnail) params.set("thumbnail", "true");
   if (comicId) params.set("comicId", comicId);
   if (episodeId) params.set("episodeId", episodeId);
   return `${apiBase}/image?${params}`;
@@ -108,8 +110,11 @@ export const veneraApi = {
   },
   comicDetails: (sourceKey: string, comicId: string) =>
     api<Details>(comicDetailPath(sourceKey, comicId)),
-  episodePages: (sourceKey: string, comicId: string, episodeId: string) =>
-    api<{ images: string[] }>(episodePagesPath(sourceKey, comicId, episodeId)),
+  episodePages: (sourceKey: string, comicId: string, episodeId: string, signal?: AbortSignal) =>
+    api<{ images: string[] }>(
+      episodePagesPath(sourceKey, comicId, episodeId),
+      signal ? { signal } : undefined,
+    ),
   createDownload: (input: {
     sourceKey: string;
     comicId: string;

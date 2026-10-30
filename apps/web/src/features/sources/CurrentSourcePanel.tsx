@@ -1,3 +1,4 @@
+import { LoadingStatus } from "../../app/LoadingStatus.js";
 import type { Ref } from "react";
 import type { SettingsResponse, SourceMetadata } from "../../types.js";
 import { SourceAccountPanel } from "./SourceAccountPanel.js";
@@ -52,6 +53,7 @@ export function CurrentSourcePanel(props: CurrentSourcePanelProps) {
           加载设置
         </button>
       </div>
+      {props.busy && <LoadingStatus label="正在处理当前源设置…" />}
       <div className="current-source-sections">
         <SourceSettingsPanel
           key={`settings:${props.sourceKey}`}

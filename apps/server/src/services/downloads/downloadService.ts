@@ -1,6 +1,7 @@
+import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { rm } from "node:fs/promises";
+import { rm, stat, rename } from "node:fs/promises";
 import type { DownloadTask } from "@venera/storage";
 import { AppError } from "../../errors.js";
 import { zipDirectory } from "./archive.js";
@@ -16,6 +17,8 @@ export class DownloadService {
   private readonly scheduler: DownloadScheduler;
   private readonly listeners = new Set<(tasks: DownloadTask[]) => void>();
   private readonly deleting = new Map<string, Promise<DownloadTask>>();
+  private readonly archives = new Map<string, { version: string; path: string }>();
+  private readonly archiveRevisions = new Map<string, number>();
   private initialized = false;
   private closing?: Promise<void>;
   constructor(
@@ -182,6 +185,8 @@ export class DownloadService {
         }
         const deleted = this.find(id) ?? task;
         this.repository.delete(id);
+        this.archives.delete(id);
+        this.archiveRevisions.delete(id);
         this.emitChange();
         return deleted;
       })
@@ -203,12 +208,52 @@ export class DownloadService {
     const directory = task.outputDir;
     return this.scheduler.execute(id, async (signal) => {
       signal.throwIfAborted();
+      const version = this.archiveVersion(directory);
+      const cached = this.archives.get(id);
+      if (cached?.version === version) {
+        try {
+          await stat(cached.path);
+          signal.throwIfAborted();
+          return { taskId: id, path: cached.path };
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        }
+      }
+      this.archives.delete(id);
       const cbzPath = `${directory}.cbz`;
-      await zipDirectory(directory, cbzPath);
-      signal.throwIfAborted();
-      return { taskId: id, path: cbzPath };
+      const temporary = `${cbzPath}.${randomUUID()}.tmp`;
+      try {
+        await zipDirectory(directory, temporary);
+        signal.throwIfAborted();
+        await rename(temporary, cbzPath);
+        if (this.archiveVersion(directory) === version)
+          this.archives.set(id, { version, path: cbzPath });
+        return { taskId: id, path: cbzPath };
+      } finally {
+        await rm(temporary, { force: true });
+      }
     });
   }
+  private archiveVersion(directory: string) {
+    const contains = (parent: string, child: string) => {
+      const relative = path.relative(parent, child);
+      return (
+        !relative ||
+        (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative))
+      );
+    };
+    // 全本与单章任务可能共享目录，任一相关任务更新都使归档失效。
+    return JSON.stringify(
+      this.all()
+        .filter(
+          (task) =>
+            task.outputDir &&
+            (contains(directory, task.outputDir) || contains(task.outputDir, directory)),
+        )
+        .map((task) => [task.id, task.updatedAt, this.archiveRevisions.get(task.id) ?? 0]),
+    );
+  }
+
   async openCbz(id: string) {
     const result = await this.exportCbz(id);
     return result ? { ...result, stream: createReadStream(result.path) } : null;
@@ -298,6 +343,7 @@ export class DownloadService {
         -100,
       );
     this.repository.save(task);
+    this.archiveRevisions.set(id, (this.archiveRevisions.get(id) ?? 0) + 1);
     this.emitChange();
     return task;
   }

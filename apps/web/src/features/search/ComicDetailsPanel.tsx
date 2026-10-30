@@ -1,3 +1,4 @@
+import { AsyncImage } from "../../app/AsyncImage.js";
 import { imageUrl } from "../../api/venera.js";
 import type { Details } from "../../types.js";
 import { ChapterSelector } from "./ChapterSelector.js";
@@ -34,8 +35,10 @@ export function ComicDetailsPanel(props: ComicDetailsPanelProps) {
         <>
           <div className="detail-heading">
             {props.details.cover && (
-              <img
+              <AsyncImage
                 className="detail-cover"
+                animate
+                loading="eager"
                 src={imageUrl(
                   props.detailSourceKey,
                   props.details.cover,

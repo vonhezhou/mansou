@@ -1,3 +1,4 @@
+import { LoadingStatus } from "./LoadingStatus.js";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Health } from "../types.js";
 import { navigationItems, type TabKey } from "./navigation.js";
@@ -109,8 +110,11 @@ export function AppShell(props: AppShellProps) {
             {themeButton}
           </div>
           <div className="server-card">
-            <span className={`health ${props.health?.ok ? "online" : "offline"}`} role="status">
-              {props.health?.ok ? "服务运行正常" : "服务未连接"}
+            <span
+              className={`health ${props.health?.ok ? "online" : props.busy ? "connecting" : "offline"}`}
+              role="status"
+            >
+              {props.health?.ok ? "服务运行正常" : props.busy ? "正在连接服务…" : "服务未连接"}
             </span>
             <div className="server-row">
               <span>已安装漫画源</span>
@@ -144,6 +148,11 @@ export function AppShell(props: AppShellProps) {
           {navigationItems.map(navButton)}
         </nav>
         <main ref={workspaceRef} id="workspace" className="workspace" tabIndex={-1}>
+          {props.busy && (
+            <div className="workspace-alert">
+              <LoadingStatus label="正在更新漫画源、下载任务与缓存信息…" />
+            </div>
+          )}
           {props.notice && (
             <p className="workspace-alert connection-notice" role="status">
               {props.notice}

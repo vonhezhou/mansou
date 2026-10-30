@@ -13,7 +13,10 @@ export async function registerImageRoutes(
         imageKey: z.string(),
         comicId: z.string().optional(),
         episodeId: z.string().optional(),
-        thumbnail: z.coerce.boolean().optional(),
+        thumbnail: z
+          .enum(["true", "false"])
+          .transform((value) => value === "true")
+          .optional(),
       })
       .parse(request.query);
     const image = await context.imageProxy.load(query);

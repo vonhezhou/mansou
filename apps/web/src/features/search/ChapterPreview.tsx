@@ -1,3 +1,4 @@
+import { AsyncImage } from "../../app/AsyncImage.js";
 import { imageUrl } from "../../api/venera.js";
 import type { Details } from "../../types.js";
 
@@ -23,8 +24,10 @@ export function ChapterPreview(props: ChapterPreviewProps) {
           <div className="page-thumbnails">
             {props.previewImages.slice(0, 8).map((image, index) => (
               <figure key={`${image}-${index}`}>
-                <img
-                  id={`page-${index + 1}`}
+                <AsyncImage
+                  className="preview-image"
+                  retryable
+                  animate
                   src={imageUrl(
                     props.detailSourceKey,
                     image,

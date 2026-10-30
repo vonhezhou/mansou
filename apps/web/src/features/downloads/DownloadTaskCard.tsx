@@ -9,6 +9,7 @@ import type { DownloadAction } from "./types.js";
 type DownloadTaskCardProps = {
   busy: boolean;
   operation?: string;
+  message?: string;
   itemError?: string;
   task: DownloadTask;
   items?: DownloadItem[];
@@ -50,6 +51,11 @@ export function DownloadTaskCard(props: DownloadTaskCardProps) {
         </p>
       )}
       {props.operation && <LoadingStatus label={props.operation} />}
+      {!props.operation && props.message && (
+        <p className="muted" role="status">
+          {props.message}
+        </p>
+      )}
       <footer className="download-card-footer">
         <span className="muted">{formatTime(props.task.createdAt)}</span>
         <div className="task-actions">

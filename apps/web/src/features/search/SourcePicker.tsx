@@ -1,3 +1,4 @@
+import { LoadingStatus } from "../../app/LoadingStatus.js";
 import type { Source } from "../../types.js";
 
 type SourcePickerProps = {
@@ -44,7 +45,9 @@ export function SourcePicker(props: SourcePickerProps) {
           );
         })}
       </div>
-      {sources.length === 0 ? (
+      {sources.length === 0 && props.busy ? (
+        <LoadingStatus label="正在加载漫画源…" />
+      ) : sources.length === 0 ? (
         <p className="muted">暂无可搜索的漫画源，请在源管理中安装或启用。</p>
       ) : aggregate && props.aggregateSourceKeys.length === 0 ? (
         <p className="muted">请选择至少一个漫画源。</p>

@@ -112,3 +112,33 @@ it("does not overwrite a newer live snapshot with an older list response", async
   });
   expect(state.downloads[0].status).toBe("completed");
 });
+
+it("keeps export feedback active until preparation succeeds and does not start a browser download on failure", async () => {
+  let finish!: (value: { path: string }) => void;
+  const prepare = vi
+    .spyOn(veneraApi, "exportDownloadCbz")
+    .mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    )
+    .mockRejectedValueOnce(new Error("打包失败"));
+  const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+  let pending: Promise<void>;
+  await act(async () => {
+    pending = state.downloadAction(task("a", "completed"), "download-local");
+  });
+  expect(state.taskOperations.a).toContain("正在准备 CBZ");
+  expect(click).not.toHaveBeenCalled();
+  await act(async () => {
+    finish({ path: "/server/book.cbz" });
+    await pending;
+  });
+  expect(click).toHaveBeenCalledOnce();
+  expect(state.taskMessages.a).toContain("已请求浏览器");
+  await act(async () => state.downloadAction(task("a", "completed"), "download-local"));
+  expect(prepare).toHaveBeenCalledTimes(2);
+  expect(click).toHaveBeenCalledOnce();
+  expect(state.taskMessages.a).toBeUndefined();
+  expect(state.taskOperations).toEqual({});
+});

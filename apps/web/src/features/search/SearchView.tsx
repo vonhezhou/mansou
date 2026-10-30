@@ -46,7 +46,7 @@ export function SearchView(props: SearchViewProps) {
           searchMode={props.searchMode}
           sourceKey={props.sourceKey}
           aggregateSourceKeys={props.aggregateSourceKeys}
-          busy={props.busy}
+          busy={props.busy || Boolean(props.sourcesLoading)}
           onSourceChange={props.onSourceChange}
           onToggleAggregateSource={props.onToggleAggregateSource}
         />
@@ -106,6 +106,26 @@ export function SearchView(props: SearchViewProps) {
               )}
             </div>
           )}
+          {props.details && props.detailWorkError && (
+            <div className="alert detail-operation" role="alert">
+              <p>{props.detailWorkError}</p>
+              <button onClick={props.onRetryPreview}>重试加载章节</button>
+            </div>
+          )}
+          {props.details && (props.detailOperation || props.detailSummary) && (
+            <div className="detail-operation">
+              {props.detailOperation ? (
+                <LoadingStatus label={props.detailOperation} />
+              ) : (
+                <span role="status">{props.detailSummary}</span>
+              )}
+              {props.countingPages && (
+                <button className="secondary-button" onClick={props.onStopCounting}>
+                  停止统计，保留已有结果
+                </button>
+              )}
+            </div>
+          )}
           {props.details && (
             <fieldset disabled={props.detailsBusy ?? props.busy} className="detail-content">
               <ComicDetailsPanel
@@ -114,7 +134,7 @@ export function SearchView(props: SearchViewProps) {
                 episodeId={props.episodeId}
                 selectedEpisodeIds={props.selectedEpisodeIds}
                 episodePageCounts={props.episodePageCounts}
-                downloadCreateStatus={props.downloadCreateStatus}
+                downloadCreateStatus={props.detailOperation ? null : props.downloadCreateStatus}
                 onPreviewEpisode={props.onPreviewEpisode}
                 onCountAllPages={props.onCountAllPages}
                 onToggleSelectedEpisode={props.onToggleSelectedEpisode}
