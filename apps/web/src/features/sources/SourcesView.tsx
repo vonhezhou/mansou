@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { Icon } from "../../app/Icon.js";
 import { CurrentSourcePanel } from "./CurrentSourcePanel.js";
@@ -7,9 +7,21 @@ import { SourceRepositoryPanel } from "./SourceRepositoryPanel.js";
 import type { SourcesViewProps } from "./types.js";
 
 export function SourcesView(props: SourcesViewProps) {
+  const [repositoryLoaded, setRepositoryLoaded] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const settingsRef = useRef<HTMLDetailsElement>(null);
   const sourceSelectRef = useRef<HTMLSelectElement>(null);
   const repositoryRef = useRef<HTMLDetailsElement>(null);
+  const focusTarget = useRef<"repository" | "settings" | null>(null);
+  useLayoutEffect(() => {
+    if (props.busy) return;
+    if (focusTarget.current === "repository") {
+      repositoryRef.current?.querySelector("input")?.focus({ preventScroll: true });
+    } else if (focusTarget.current === "settings") {
+      sourceSelectRef.current?.focus({ preventScroll: true });
+    }
+    focusTarget.current = null;
+  }, [repositoryLoaded, settingsLoaded, props.busy]);
   const enabledSources = props.sourceMetadata.filter(
     (source) => source.enabled === true || source.enabled === 1,
   ).length;
@@ -35,9 +47,11 @@ export function SourcesView(props: SourcesViewProps) {
           className="button-with-icon"
           onClick={() => {
             if (repositoryRef.current) {
+              focusTarget.current = repositoryLoaded ? null : "repository";
+              setRepositoryLoaded(true);
               repositoryRef.current.open = true;
-              repositoryRef.current.scrollIntoView({ block: "nearest" });
               repositoryRef.current.querySelector("input")?.focus({ preventScroll: true });
+              repositoryRef.current.scrollIntoView({ block: "nearest" });
             }
           }}
         >
@@ -50,7 +64,13 @@ export function SourcesView(props: SourcesViewProps) {
           <LoadingStatus label={props.operation.label} />
         )}
       </div>
-      <details className="disclosure" ref={repositoryRef}>
+      <details
+        className="disclosure"
+        ref={repositoryRef}
+        onToggle={(event) => {
+          if (event.currentTarget.open) setRepositoryLoaded(true);
+        }}
+      >
         <summary>
           <span className="summary-icon" aria-hidden="true">
             <Icon name="plus" />
@@ -59,15 +79,17 @@ export function SourcesView(props: SourcesViewProps) {
             安装新源<small>从仓库添加更多漫画来源</small>
           </span>
         </summary>
-        <SourceRepositoryPanel
-          busy={props.busy}
-          operation={props.operation}
-          availableSources={props.availableSources}
-          sourceMetadata={props.sourceMetadata}
-          onInstallSource={props.onInstallSource}
-          onRefreshRepository={props.onRefreshRepository}
-          onReloadSources={props.onReloadSources}
-        />
+        {repositoryLoaded && (
+          <SourceRepositoryPanel
+            busy={props.busy}
+            operation={props.operation}
+            availableSources={props.availableSources}
+            sourceMetadata={props.sourceMetadata}
+            onInstallSource={props.onInstallSource}
+            onRefreshRepository={props.onRefreshRepository}
+            onReloadSources={props.onReloadSources}
+          />
+        )}
       </details>
       <InstalledSourcesList
         busy={props.busy}
@@ -79,13 +101,21 @@ export function SourcesView(props: SourcesViewProps) {
         onConfigureSource={(key) => {
           configureSource(key);
           if (settingsRef.current) {
+            focusTarget.current = settingsLoaded ? null : "settings";
+            setSettingsLoaded(true);
             settingsRef.current.open = true;
-            settingsRef.current.scrollIntoView({ block: "start" });
             sourceSelectRef.current?.focus({ preventScroll: true });
+            settingsRef.current.scrollIntoView({ block: "start" });
           }
         }}
       />
-      <details className="disclosure" ref={settingsRef}>
+      <details
+        className="disclosure"
+        ref={settingsRef}
+        onToggle={(event) => {
+          if (event.currentTarget.open) setSettingsLoaded(true);
+        }}
+      >
         <summary>
           <span className="summary-icon" aria-hidden="true">
             <Icon name="settings" />
@@ -94,27 +124,29 @@ export function SourcesView(props: SourcesViewProps) {
             源设置与 Cookie<small>管理单个源的连接和访问配置</small>
           </span>
         </summary>
-        <CurrentSourcePanel
-          selectRef={sourceSelectRef}
-          busy={props.busy}
-          sourceKey={props.sourceKey}
-          sourceMetadata={props.sourceMetadata}
-          sourceSettings={props.sourceSettings}
-          sourceSettingsKey={props.sourceSettingsKey}
-          settingsJson={props.settingsJson}
-          cookieUrl={props.cookieUrl}
-          cookieText={props.cookieText}
-          onSourceChange={configureSource}
-          onSettingsJsonChange={props.onSettingsJsonChange}
-          onCookieUrlChange={props.onCookieUrlChange}
-          onCookieTextChange={props.onCookieTextChange}
-          onLoadSourceSettings={() => props.onLoadSourceSettings(props.sourceKey)}
-          onEnableSource={(source) => props.onSetSourceEnabled(source, true)}
-          onSaveSourceSettings={props.onSaveSourceSettings}
-          onResetSourceSettings={props.onResetSourceSettings}
-          onImportCookies={props.onImportCookies}
-          onClearCookies={props.onClearCookies}
-        />
+        {settingsLoaded && (
+          <CurrentSourcePanel
+            selectRef={sourceSelectRef}
+            busy={props.busy}
+            sourceKey={props.sourceKey}
+            sourceMetadata={props.sourceMetadata}
+            sourceSettings={props.sourceSettings}
+            sourceSettingsKey={props.sourceSettingsKey}
+            settingsJson={props.settingsJson}
+            cookieUrl={props.cookieUrl}
+            cookieText={props.cookieText}
+            onSourceChange={configureSource}
+            onSettingsJsonChange={props.onSettingsJsonChange}
+            onCookieUrlChange={props.onCookieUrlChange}
+            onCookieTextChange={props.onCookieTextChange}
+            onLoadSourceSettings={() => props.onLoadSourceSettings(props.sourceKey)}
+            onEnableSource={(source) => props.onSetSourceEnabled(source, true)}
+            onSaveSourceSettings={props.onSaveSourceSettings}
+            onResetSourceSettings={props.onResetSourceSettings}
+            onImportCookies={props.onImportCookies}
+            onClearCookies={props.onClearCookies}
+          />
+        )}
       </details>
     </section>
   );

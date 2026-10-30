@@ -120,6 +120,25 @@ it("isolates search from progress and active-count changes while keeping counts 
 
 it("keeps source management independent of progress without losing its input state", async () => {
   await click('.sidebar [aria-label="漫画源"]');
+  expect(container.querySelector(".current-source-panel")).toBeNull();
+  expect(container.querySelector(".repository-panel")).toBeNull();
+  expect(mansouApi.getSourceAuth).not.toHaveBeenCalled();
+  const settings = container.querySelectorAll<HTMLDetailsElement>(".disclosure")[1];
+  await act(async () => {
+    settings.open = true;
+    settings.dispatchEvent(new Event("toggle"));
+  });
+  expect(mansouApi.getSourceAuth).toHaveBeenCalledOnce();
+  // 收起后保留已挂载内容，再展开不重复加载账号或丢失输入。
+  await act(async () => {
+    settings.open = false;
+    settings.dispatchEvent(new Event("toggle"));
+  });
+  await act(async () => {
+    settings.open = true;
+    settings.dispatchEvent(new Event("toggle"));
+  });
+  expect(mansouApi.getSourceAuth).toHaveBeenCalledOnce();
   renders.sources.mockClear();
   const select = container.querySelector(".current-source-panel select");
   await snapshot("running", 30);
