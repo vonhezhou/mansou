@@ -158,7 +158,6 @@ it("opens the selected source configuration without mixing it with repository in
       busy: false,
       sourceKey: key,
       sourceMetadata: metadata,
-      installSource: "",
       availableSources: [],
       sourceSettings: null,
       sourceSettingsKey: "",
@@ -170,11 +169,11 @@ it("opens the selected source configuration without mixing it with repository in
         setKey(value);
       },
       onSetSourceEnabled: enabled,
-      onInstallSourceChange: vi.fn(),
       onSettingsJsonChange: vi.fn(),
       onCookieUrlChange: vi.fn(),
       onCookieTextChange: vi.fn(),
-      onInstallSelectedSource: vi.fn(),
+      onInstallSource: vi.fn(),
+      onUninstallSource: vi.fn(),
       onRefreshRepository: vi.fn(),
       onUpdateSource: vi.fn(),
       onReloadSources: vi.fn(),
@@ -195,7 +194,8 @@ it("opens the selected source configuration without mixing it with repository in
   );
   expect(container.querySelector(".current-source-panel")?.closest("details")?.open).toBe(true);
   expect(container.querySelector("details")?.open).toBe(false);
-  expect(container.querySelector(".current-source-panel")?.textContent).toContain("Cookie：b");
+  expect(container.querySelector(".current-source-panel")?.textContent).toContain("此源已禁用");
+  expect(container.querySelector(".current-source-panel")?.textContent).not.toContain("Cookie：b");
   await click(cards[1]?.querySelector('[role="switch"]'));
   expect(enabled).toHaveBeenCalledWith(metadata[1], true);
 });

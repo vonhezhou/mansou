@@ -23,6 +23,11 @@ export async function registerSourceRoutes(
     return context.sources.all().find((source) => source.key === params.sourceKey) ?? null;
   });
 
+  app.delete("/sources/:sourceKey", async (request) => {
+    const params = z.object({ sourceKey: z.string().min(1) }).parse(request.params);
+    return context.sources.uninstall(params.sourceKey);
+  });
+
   app.put("/sources/:sourceKey/enabled", async (request, reply) => {
     const params = z.object({ sourceKey: z.string() }).parse(request.params);
     const body = z.object({ enabled: z.boolean() }).parse(request.body);

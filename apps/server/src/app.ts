@@ -1,7 +1,7 @@
 import { createApplication, type Application } from "./application.js";
 import { readConfig, validateConfig, type AppConfig } from "./config/config.js";
 import { AppError } from "./errors.js";
-import { applicationStatus } from "./routes/errors.js";
+import { applicationStatus, publicPluginErrorMessage } from "./routes/errors.js";
 import { readAuthConfig, type AuthConfig } from "./auth/config.js";
 import { registerAuthHook } from "./auth/http.js";
 import { registerAuthRoutes } from "./routes/auth.js";
@@ -68,7 +68,9 @@ export async function buildApp(
           code,
           message:
             statusCode >= 500
-              ? "Internal server error"
+              ? error instanceof PluginRuntimeError
+                ? publicPluginErrorMessage(error.code)
+                : "Internal server error"
               : error instanceof Error
                 ? error.message
                 : String(error),

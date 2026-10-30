@@ -90,10 +90,9 @@ it("keeps the source operation visible until both mutation and source refresh fi
 
 it("clears the source operation when installation fails", async () => {
   vi.spyOn(mansouApi, "installSource").mockRejectedValue(new Error("安装失败"));
-  await act(async () => state.setInstallSource("example.js"));
   const afterInstall = vi.fn();
   await act(async () => {
-    await expect(state.installSelectedSource(afterInstall)).rejects.toThrow("安装失败");
+    await expect(state.installSource("example.js", afterInstall)).rejects.toThrow("安装失败");
   });
   expect(afterInstall).not.toHaveBeenCalled();
   expect(state.sourceOperation).toBeNull();
@@ -108,3 +107,45 @@ function deferred<T>() {
   });
   return { promise, resolve, reject };
 }
+
+it("clears a stale selected source when the last enabled source is removed", async () => {
+  vi.mocked(mansouApi.listInstalledSources).mockResolvedValue([]);
+  vi.mocked(mansouApi.listAvailableSources).mockResolvedValue(repository);
+  await act(async () => state.loadSources());
+  expect(changeSource).toHaveBeenCalledWith("");
+});
+
+it("requires confirmation before uninstalling and only refreshes after success", async () => {
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+  const uninstall = vi.spyOn(mansouApi, "uninstallSource").mockResolvedValue({ ok: true });
+  const refresh = vi.fn().mockResolvedValue(undefined);
+  await act(async () => state.uninstallSource(metadata[0], refresh));
+  expect(uninstall).not.toHaveBeenCalled();
+  confirm.mockReturnValue(true);
+  await act(async () => state.uninstallSource(metadata[0], refresh));
+  expect(uninstall).toHaveBeenCalledWith("mock");
+  expect(refresh).toHaveBeenCalledOnce();
+  uninstall.mockRejectedValue(new Error("下载进行中"));
+  await act(async () => {
+    await expect(state.uninstallSource(metadata[0], refresh)).rejects.toThrow("下载进行中");
+  });
+  expect(refresh).toHaveBeenCalledOnce();
+  expect(state.sourceOperation).toBeNull();
+});
+
+it("keeps the configuration source separate from the search source and loads its settings", async () => {
+  vi.mocked(mansouApi.listSourceMetadata).mockResolvedValue([
+    ...metadata,
+    { key: "disabled", name: "Disabled", enabled: false },
+  ]);
+  const settings = vi
+    .spyOn(mansouApi, "getSourceSettings")
+    .mockResolvedValue({ schema: {}, values: {} });
+  await act(async () => state.loadSources());
+  await act(async () => state.changeManagedSource("disabled"));
+  await act(async () => state.changeSourceKey("mock"));
+  expect(state.managedSourceKey).toBe("disabled");
+  await act(async () => state.loadSourceSettings());
+  expect(settings).toHaveBeenCalledWith("disabled");
+  expect(state.sourceSettingsKey).toBe("disabled");
+});

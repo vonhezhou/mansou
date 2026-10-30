@@ -208,8 +208,7 @@ function Workspace({
         <SourcesView
           busy={sourcesBusy}
           operation={sourcesState.sourceOperation}
-          sourceKey={sourceKey}
-          installSource={sourcesState.installSource}
+          sourceKey={sourcesState.managedSourceKey}
           availableSources={sourcesState.availableSources}
           sourceMetadata={sourcesState.sourceMetadata}
           sourceSettings={sourcesState.sourceSettings}
@@ -217,16 +216,16 @@ function Workspace({
           settingsJson={sourcesState.settingsJson}
           cookieUrl={sourcesState.cookieUrl}
           cookieText={sourcesState.cookieText}
-          onSourceChange={sourcesState.changeSourceKey}
-          onInstallSourceChange={sourcesState.setInstallSource}
+          onSourceChange={sourcesState.changeManagedSource}
           onSettingsJsonChange={sourcesState.setSettingsJson}
           onCookieUrlChange={sourcesState.setCookieUrl}
           onCookieTextChange={sourcesState.setCookieText}
-          onInstallSelectedSource={() => void sourcesState.installSelectedSource(refreshSources)}
+          onInstallSource={(source) => void sourcesState.installSource(source, refreshSources)}
+          onUninstallSource={(source) => void sourcesState.uninstallSource(source, refreshSources)}
           onUpdateSource={(key) => void sourcesState.updateSource(key, refreshSources)}
           onRefreshRepository={() => void sourcesState.refreshRepository()}
           onReloadSources={() => void sourcesState.reloadSources(refreshSources)}
-          onLoadSourceSettings={() => void sourcesState.loadSourceSettings()}
+          onLoadSourceSettings={(key) => void sourcesState.loadSourceSettings(key)}
           onSetSourceEnabled={(source, enabled) =>
             void sourcesState.setSourceEnabled(source, enabled, refreshSources)
           }

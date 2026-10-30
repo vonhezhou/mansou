@@ -70,6 +70,7 @@ export type SettingsResponse = import("@mansou/contracts").components["schemas"]
 export type SourceAuth = import("@mansou/contracts").components["schemas"]["SourceAuth"];
 export type SourceLogin = import("@mansou/contracts").components["schemas"]["SourceLogin"];
 export type SourceMetadata = {
+  canUninstall?: boolean;
   availableVersion?: string;
   key: string;
   name: string;

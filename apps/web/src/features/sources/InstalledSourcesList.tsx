@@ -7,6 +7,7 @@ type InstalledSourcesListProps = {
   operation?: SourceOperation | null;
   sourceMetadata: SourceMetadata[];
   onConfigureSource: (key: string) => void;
+  onUninstallSource: (source: SourceMetadata) => void;
   onUpdateSource: (key: string) => void;
   onSetSourceEnabled: (source: SourceMetadata, enabled: boolean) => void;
 };
@@ -25,7 +26,7 @@ export function InstalledSourcesList(props: InstalledSourcesListProps) {
             const pending = props.operation?.sourceKey === source.key ? props.operation : null;
             const switching = pending?.kind === "enable" || pending?.kind === "disable";
             return (
-              <article key={source.key}>
+              <article key={source.key} aria-busy={!!pending}>
                 <span className="source-avatar" aria-hidden="true">
                   {source.name.slice(0, 1)}
                 </span>
@@ -48,11 +49,15 @@ export function InstalledSourcesList(props: InstalledSourcesListProps) {
                   <span>
                     版本 <b>{source.version ?? "未提供"}</b>
                   </span>
-                  <span className={enabled ? "source-enabled" : "muted"}>
-                    {switching
+                  <span role="status" className={enabled ? "source-enabled" : "muted"}>
+                    {pending
                       ? pending.kind === "enable"
                         ? "启用中…"
-                        : "禁用中…"
+                        : pending.kind === "disable"
+                          ? "禁用中…"
+                          : pending.kind === "uninstall"
+                            ? "卸载中…"
+                            : "更新中…"
                       : enabled
                         ? "已启用"
                         : "已禁用"}
@@ -71,6 +76,17 @@ export function InstalledSourcesList(props: InstalledSourcesListProps) {
                   >
                     配置
                   </button>
+                  {source.canUninstall === false ? (
+                    <span className="muted">内置源，仅可禁用</span>
+                  ) : (
+                    <button
+                      className="danger-subtle"
+                      disabled={props.busy}
+                      onClick={() => props.onUninstallSource(source)}
+                    >
+                      {pending?.kind === "uninstall" ? "卸载中…" : "卸载"}
+                    </button>
+                  )}
                 </div>
               </article>
             );

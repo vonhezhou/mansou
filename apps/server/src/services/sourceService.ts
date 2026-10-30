@@ -36,7 +36,20 @@ export class SourceService implements SourceRegistry {
     }));
   }
   loadScript(filePath: string) {
-    return this.mutate(() => this.manager.load(filePath));
+    return this.mutate(() => this.loadSourceScript(filePath));
+  }
+  private async loadSourceScript(filePath: string) {
+    const loaded = await this.manager.load(filePath);
+    const existing = this.storage.getSource(loaded.key);
+    this.storage.upsertSource({
+      key: loaded.key,
+      name: loaded.name,
+      version: loaded.version,
+      scriptPath: filePath,
+      scriptUrl: existing?.script_url ?? undefined,
+      hash: existing?.hash ?? undefined,
+    });
+    return loaded;
   }
   loadInstalled() {
     return (this.reloadPromise ??= this.mutate(() => this.reload()).finally(() => {
@@ -53,7 +66,7 @@ export class SourceService implements SourceRegistry {
         this.storage.getSource(path.basename(filePath, ".js"));
       if (metadata?.enabled === 0) continue;
       try {
-        loaded.push(await this.manager.load(filePath));
+        loaded.push(await this.loadSourceScript(filePath));
       } catch {
         /* Manager records load errors for the diagnostics endpoint. */
       }
@@ -103,8 +116,32 @@ export class SourceService implements SourceRegistry {
       return this.storage.setSourceEnabled(key, enabled);
     });
   }
+  uninstall(key: string) {
+    return this.mutate(async () => {
+      const source = this.storage.getSource(key);
+      if (!source) throw new AppError("SOURCE_NOT_FOUND", "漫画源不存在");
+      if (
+        this.storage
+          .listDownloads()
+          .some(
+            (task) =>
+              task.sourceKey === key && (task.status === "queued" || task.status === "running"),
+          )
+      )
+        throw new AppError("DOWNLOAD_BUSY", "请先暂停或取消该源的下载任务，再卸载");
+      await this.repository.removeScript(source.script_path);
+      await this.manager.unload(key);
+      this.storage.deleteSource(key);
+      return { ok: true };
+    });
+  }
   metadata() {
-    return this.repository.withAvailableUpdates(this.storage.listSources());
+    return this.repository.withAvailableUpdates(
+      this.storage.listSources().map((source) => ({
+        ...source,
+        canUninstall: this.repository.canUninstall(source.script_path),
+      })),
+    );
   }
   searchOptions(key: string) {
     this.get(key);

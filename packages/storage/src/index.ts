@@ -105,6 +105,15 @@ class AppStorage {
     return this.getSource(key);
   }
 
+  deleteSource(key: string) {
+    this.db.transaction(() => {
+      this.db.prepare("delete from source_settings where source_key = ?").run(key);
+      this.db.prepare("delete from source_cookies where source_key = ?").run(key);
+      this.db.prepare("delete from plugin_data where source_key = ?").run(key);
+      this.db.prepare("delete from sources where key = ?").run(key);
+    })();
+  }
+
   getSourceSettings(sourceKey: string) {
     const rows = this.db
       .prepare("select key, value_json from source_settings where source_key = ?")

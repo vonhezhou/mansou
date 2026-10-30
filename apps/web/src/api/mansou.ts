@@ -53,6 +53,8 @@ export const mansouApi = {
     api("/sources/install", { method: "POST", body: JSON.stringify({ source }) }),
   refreshRepository: () =>
     api<{ sources: RepositorySource[] }>("/source-repository/refresh", { method: "POST" }),
+  uninstallSource: (key: string) =>
+    api(`/sources/${encodeURIComponent(key)}`, { method: "DELETE" }),
   reloadSources: () => api("/sources/reload", { method: "POST" }),
   setSourceEnabled: (sourceKey: string, enabled: boolean) =>
     api(`/sources/${encodeURIComponent(sourceKey)}/enabled`, {

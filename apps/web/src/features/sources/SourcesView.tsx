@@ -14,6 +14,12 @@ export function SourcesView(props: SourcesViewProps) {
     (source) => source.enabled === true || source.enabled === 1,
   ).length;
 
+  function configureSource(key: string) {
+    props.onSourceChange(key);
+    const source = props.sourceMetadata.find((source) => source.key === key);
+    if (source?.enabled === true || source?.enabled === 1) props.onLoadSourceSettings(key);
+  }
+
   return (
     <section className="inner-page source-tools">
       <header className="page-title">
@@ -31,7 +37,7 @@ export function SourcesView(props: SourcesViewProps) {
             if (repositoryRef.current) {
               repositoryRef.current.open = true;
               repositoryRef.current.scrollIntoView({ block: "nearest" });
-              repositoryRef.current.querySelector("select")?.focus();
+              repositoryRef.current.querySelector("input")?.focus({ preventScroll: true });
             }
           }}
         >
@@ -39,7 +45,11 @@ export function SourcesView(props: SourcesViewProps) {
           安装漫画源
         </button>
       </header>
-      {props.operation && <LoadingStatus label={props.operation.label} />}
+      <div className="source-operation-status">
+        {props.operation && !props.operation.sourceKey && (
+          <LoadingStatus label={props.operation.label} />
+        )}
+      </div>
       <details className="disclosure" ref={repositoryRef}>
         <summary>
           <span className="summary-icon" aria-hidden="true">
@@ -52,10 +62,9 @@ export function SourcesView(props: SourcesViewProps) {
         <SourceRepositoryPanel
           busy={props.busy}
           operation={props.operation}
-          installSource={props.installSource}
           availableSources={props.availableSources}
-          onInstallSourceChange={props.onInstallSourceChange}
-          onInstallSelectedSource={props.onInstallSelectedSource}
+          sourceMetadata={props.sourceMetadata}
+          onInstallSource={props.onInstallSource}
           onRefreshRepository={props.onRefreshRepository}
           onReloadSources={props.onReloadSources}
         />
@@ -66,8 +75,9 @@ export function SourcesView(props: SourcesViewProps) {
         sourceMetadata={props.sourceMetadata}
         onSetSourceEnabled={props.onSetSourceEnabled}
         onUpdateSource={props.onUpdateSource}
+        onUninstallSource={props.onUninstallSource}
         onConfigureSource={(key) => {
-          props.onSourceChange(key);
+          configureSource(key);
           if (settingsRef.current) {
             settingsRef.current.open = true;
             settingsRef.current.scrollIntoView({ block: "start" });
@@ -94,11 +104,12 @@ export function SourcesView(props: SourcesViewProps) {
           settingsJson={props.settingsJson}
           cookieUrl={props.cookieUrl}
           cookieText={props.cookieText}
-          onSourceChange={props.onSourceChange}
+          onSourceChange={configureSource}
           onSettingsJsonChange={props.onSettingsJsonChange}
           onCookieUrlChange={props.onCookieUrlChange}
           onCookieTextChange={props.onCookieTextChange}
-          onLoadSourceSettings={props.onLoadSourceSettings}
+          onLoadSourceSettings={() => props.onLoadSourceSettings(props.sourceKey)}
+          onEnableSource={(source) => props.onSetSourceEnabled(source, true)}
           onSaveSourceSettings={props.onSaveSourceSettings}
           onResetSourceSettings={props.onResetSourceSettings}
           onImportCookies={props.onImportCookies}

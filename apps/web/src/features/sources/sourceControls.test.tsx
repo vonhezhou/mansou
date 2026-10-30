@@ -1,6 +1,7 @@
 import { act, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
+import { CurrentSourcePanel } from "./CurrentSourcePanel.js";
 import { SourceAccountPanel } from "./SourceAccountPanel.js";
 import { SourceSettingsPanel } from "./SourceSettingsPanel.js";
 import { SourceRepositoryPanel } from "./SourceRepositoryPanel.js";
@@ -105,29 +106,28 @@ it("blocks duplicate login submissions and lets a failed login recover before lo
   expect(container.textContent).toContain("未登录此源");
   expect(container.textContent).not.toContain("正在退出此源");
 });
-it("offers separate script selections for repository variants sharing the same key", async () => {
+it("installs the exact repository variant from its card and filters sources by name", async () => {
+  const install = vi.fn();
   await render(
     <SourceRepositoryPanel
       busy={false}
-      installSource="variant.js"
+      sourceMetadata={[]}
       availableSources={[
         { key: "example", name: "普通版", fileName: "example.js" },
         { key: "example", name: "多账号版", fileName: "variant.js" },
       ]}
-      onInstallSourceChange={vi.fn()}
-      onInstallSelectedSource={vi.fn()}
+      onInstallSource={install}
       onRefreshRepository={vi.fn()}
       onReloadSources={vi.fn()}
     />,
   );
-  const select = container.querySelector("select")!;
-  expect([...select.options].map((option) => option.value)).toEqual([
-    "",
-    "example.js",
-    "variant.js",
-  ]);
-  expect(select.selectedOptions[0].textContent).toContain("多账号版");
-  expect(container.textContent).toContain("2 个可安装源");
+  const cards = container.querySelectorAll(".repository-source-card");
+  expect(cards).toHaveLength(2);
+  await act(async () => cards[1].querySelector<HTMLButtonElement>("button")!.click());
+  expect(install).toHaveBeenCalledWith("variant.js");
+  await input(container.querySelector('input[type="search"]')!, "多账号");
+  expect(container.querySelectorAll(".repository-source-card")).toHaveLength(1);
+  expect(container.querySelector(".repository-source-card")?.textContent).toContain("多账号版");
 });
 it("submits plugin credentials for the selected source and clears secrets after login", async () => {
   const auth = {
@@ -193,4 +193,48 @@ it("renders typed source settings and invokes a callback through its source endp
   await act(async () => button.click());
   expect(invoke).toHaveBeenCalledWith("one", "refresh");
   expect(JSON.parse(change.mock.calls[0][0])).toEqual({ label: "updated" });
+});
+
+it("blocks disabled-source settings and account requests until the source is enabled", async () => {
+  const auth = vi.spyOn(mansouApi, "getSourceAuth").mockResolvedValue(passwordAuth);
+  const enable = vi.fn();
+  const load = vi.fn();
+  const source = { key: "one", name: "One", enabled: false };
+  const props = {
+    busy: false,
+    sourceKey: "one",
+    sourceMetadata: [source],
+    sourceSettings: null,
+    sourceSettingsKey: "",
+    settingsJson: "{}",
+    cookieUrl: "",
+    cookieText: "",
+    onSourceChange: vi.fn(),
+    onSettingsJsonChange: vi.fn(),
+    onCookieUrlChange: vi.fn(),
+    onCookieTextChange: vi.fn(),
+    onLoadSourceSettings: load,
+    onEnableSource: enable,
+    onSaveSourceSettings: vi.fn(),
+    onResetSourceSettings: vi.fn(),
+    onImportCookies: vi.fn(),
+    onClearCookies: vi.fn(),
+  };
+  await render(<CurrentSourcePanel {...props} />);
+  expect(auth).not.toHaveBeenCalled();
+  expect(container.textContent).toContain("此源已禁用");
+  const loadButton = [...container.querySelectorAll("button")].find(
+    (button) => button.textContent === "加载设置",
+  )!;
+  expect(loadButton.disabled).toBe(true);
+  await act(async () =>
+    [...container.querySelectorAll("button")]
+      .find((button) => button.textContent === "启用此源")!
+      .click(),
+  );
+  expect(enable).toHaveBeenCalledWith(source);
+  await render(<CurrentSourcePanel {...props} sourceMetadata={[{ ...source, enabled: true }]} />);
+  expect(auth).toHaveBeenCalledWith("one");
+  expect(container.textContent).not.toContain("此源已禁用");
+  expect(container.textContent).toContain("Cookie：one");
 });

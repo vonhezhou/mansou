@@ -11,12 +11,12 @@ export function useSources(
   sourceKey: string,
   setSourceKey: (value: string) => void,
 ) {
+  const [managedSourceKey, setManagedSourceKey] = useState("");
   const [sources, setSources] = useState<Source[]>([]);
   const [availableSources, setAvailableSources] = useState<RepositorySource[]>([]);
   const [sourceMetadata, setSourceMetadata] = useState<SourceMetadata[]>([]);
   const [sourceSettings, setSourceSettings] = useState<SettingsResponse | null>(null);
   const [sourceSettingsKey, setSourceSettingsKey] = useState("");
-  const [installSource, setInstallSource] = useState("");
   const [settingsJson, setSettingsJson] = useState("{}");
   const [cookieUrl, setCookieUrl] = useState("");
   const [cookieText, setCookieText] = useState("");
@@ -24,12 +24,18 @@ export function useSources(
   const [managingSources, setManagingSources] = useState(false);
 
   useEffect(() => {
+    if (!sourceMetadata.some((source) => source.key === managedSourceKey))
+      changeManagedSource(sourceMetadata[0]?.key ?? "");
+  }, [sourceMetadata, managedSourceKey]);
+
+  function changeManagedSource(value: string) {
+    setManagedSourceKey(value);
     setSourceSettings(null);
     setSourceSettingsKey("");
     setSettingsJson("{}");
     setCookieUrl("");
     setCookieText("");
-  }, [sourceKey]);
+  }
 
   async function loadSources() {
     const [loaded, metadata] = await Promise.all([
@@ -38,8 +44,7 @@ export function useSources(
     ]);
     setSources(loaded);
     setSourceMetadata(metadata);
-    if (loaded[0] && !loaded.some((source) => source.key === sourceKey))
-      changeSourceKey(loaded[0].key);
+    if (!loaded.some((source) => source.key === sourceKey)) changeSourceKey(loaded[0]?.key ?? "");
     let repository = await mansouApi.listAvailableSources();
     if (repository.length === 0) {
       repository = (await mansouApi.refreshRepository()).sources;
@@ -51,14 +56,9 @@ export function useSources(
 
   function changeSourceKey(value: string) {
     setSourceKey(value);
-    setSourceSettings(null);
-    setSourceSettingsKey("");
-    setSettingsJson("{}");
-    setCookieUrl("");
-    setCookieText("");
   }
 
-  async function loadSourceSettings(nextSourceKey = sourceKey) {
+  async function loadSourceSettings(nextSourceKey = managedSourceKey) {
     await runWith(setManagingSources, async () => {
       const data = await mansouApi.getSourceSettings(nextSourceKey);
       setSourceSettings(data);
@@ -69,16 +69,16 @@ export function useSources(
 
   async function saveSourceSettings() {
     await runWith(setManagingSources, async () => {
-      await mansouApi.updateSourceSettings(sourceKey, JSON.parse(settingsJson));
-      await loadSourceSettings(sourceKey);
+      await mansouApi.updateSourceSettings(managedSourceKey, JSON.parse(settingsJson));
+      await loadSourceSettings(managedSourceKey);
     });
   }
 
   async function resetSourceSettings() {
     await runWith(setManagingSources, async () => {
-      const data = await mansouApi.clearSourceSettings(sourceKey);
+      const data = await mansouApi.clearSourceSettings(managedSourceKey);
       setSourceSettings(data);
-      setSourceSettingsKey(sourceKey);
+      setSourceSettingsKey(managedSourceKey);
       setSettingsJson(JSON.stringify(data.values ?? {}, null, 2));
     });
   }
@@ -89,15 +89,15 @@ export function useSources(
         .split("\n")
         .map((line) => line.trim())
         .filter(Boolean);
-      await mansouApi.importCookies(sourceKey, cookieUrl, cookies);
+      await mansouApi.importCookies(managedSourceKey, cookieUrl, cookies);
       setCookieText("");
     });
   }
 
   async function clearCookies() {
-    if (!window.confirm(`清空源「${sourceKey}」的 Cookie？`)) return;
+    if (!window.confirm(`清空源「${managedSourceKey}」的 Cookie？`)) return;
     await runWith(setManagingSources, async () => {
-      await mansouApi.clearCookies(sourceKey);
+      await mansouApi.clearCookies(managedSourceKey);
       setCookieText("");
     });
   }
@@ -111,12 +111,30 @@ export function useSources(
     }
   }
 
-  async function installSelectedSource(afterInstall: () => Promise<void>) {
-    if (!installSource) return;
-    await withSourceOperation({ kind: "install", label: "正在安装漫画源…" }, async () => {
-      await mansouApi.installSource(installSource);
-      await afterInstall();
-    });
+  async function installSource(source: string, afterInstall: () => Promise<void>) {
+    await withSourceOperation(
+      { kind: "install", sourceKey: source, label: "正在安装漫画源…" },
+      async () => {
+        await mansouApi.installSource(source);
+        await afterInstall();
+      },
+    );
+  }
+
+  async function uninstallSource(source: SourceMetadata, afterUninstall: () => Promise<void>) {
+    if (
+      !window.confirm(
+        `卸载「${source.name}」？源配置、账号和 Cookie 将被清除，下载记录与文件会保留。未完成的下载需要重新安装该源后才能继续。`,
+      )
+    )
+      return;
+    await withSourceOperation(
+      { kind: "uninstall", sourceKey: source.key, label: `正在卸载「${source.name}」…` },
+      async () => {
+        await mansouApi.uninstallSource(source.key);
+        await afterUninstall();
+      },
+    );
   }
 
   async function updateSource(key: string, afterUpdate: () => Promise<void>) {
@@ -166,10 +184,11 @@ export function useSources(
   }
 
   return {
+    managedSourceKey,
+    changeManagedSource,
     availableSources,
     cookieText,
     cookieUrl,
-    installSource,
     managingSources,
     sourceOperation,
     settingsJson,
@@ -180,7 +199,6 @@ export function useSources(
     loadSources,
     setCookieText,
     setCookieUrl,
-    setInstallSource,
     setSettingsJson,
     changeSourceKey,
     loadSourceSettings,
@@ -188,7 +206,8 @@ export function useSources(
     resetSourceSettings,
     importCookies,
     clearCookies,
-    installSelectedSource,
+    installSource,
+    uninstallSource,
     refreshRepository,
     updateSource,
     reloadSources,

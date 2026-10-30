@@ -198,7 +198,8 @@ export interface paths {
     get: operations["getSource"];
     put?: never;
     post?: never;
-    delete?: never;
+    /** Uninstall source and clear its configuration, retaining downloads */
+    delete: operations["uninstallSource"];
     options?: never;
     head?: never;
     patch?: never;
@@ -936,6 +937,7 @@ export interface components {
       key: string;
       name: string;
       version?: string;
+      canUninstall?: boolean;
       enabled: number;
       script_path?: string;
       script_url?: string;
@@ -1446,6 +1448,32 @@ export interface operations {
           "application/json": components["schemas"]["SourceSummary"] | null;
         };
       };
+    };
+  };
+  uninstallSource: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            ok: boolean;
+          };
+        };
+      };
+      404: components["responses"]["Error"];
+      409: components["responses"]["Error"];
     };
   };
   setSourceEnabled: {

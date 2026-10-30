@@ -1,4 +1,5 @@
 import path from "node:path";
+import { AppError } from "../errors.js";
 import { isNewerVersion } from "@mansou/plugin-runtime/version";
 import { readdir, readFile, writeFile, rename, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -136,6 +137,15 @@ export class SourceRepositoryService {
       installed.push(this.paths.bundledMockSource);
     }
     return installed;
+  }
+
+  canUninstall(filePath: string | null) {
+    return !!filePath && path.dirname(path.resolve(filePath)) === path.resolve(this.paths.scripts);
+  }
+
+  async removeScript(filePath: string | null) {
+    if (!this.canUninstall(filePath)) throw new AppError("SOURCE_BUILTIN", "内置源仅支持禁用");
+    await rm(filePath!, { force: true });
   }
 
   async readScript(filePath: string) {

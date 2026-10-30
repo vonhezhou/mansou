@@ -224,6 +224,28 @@ export const openApiDocument = {
           },
         },
       },
+      delete: {
+        operationId: "uninstallSource",
+        tags: ["sources"],
+        summary: "Uninstall source and clear its configuration, retaining downloads",
+        parameters: [{ name: "sourceKey", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["ok"],
+                  properties: { ok: { type: "boolean" } },
+                },
+              },
+            },
+          },
+          "404": { $ref: "#/components/responses/Error" },
+          "409": { $ref: "#/components/responses/Error" },
+        },
+      },
     },
     "/api/v1/sources/{sourceKey}/enabled": {
       put: {
@@ -1324,6 +1346,7 @@ export const openApiDocument = {
           key: { type: "string" },
           name: { type: "string" },
           version: { type: "string" },
+          canUninstall: { type: "boolean" },
           enabled: { type: "number" },
           script_path: { type: "string" },
           script_url: { type: "string" },
