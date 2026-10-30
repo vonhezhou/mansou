@@ -22,14 +22,18 @@ async function archiveFiles(
   prefix: string,
 ): Promise<Array<{ full: string; relative: string }>> {
   const files: Array<{ full: string; relative: string }> = [];
-  for (const entry of (await readdir(dir)).sort()) {
+  const entries = await readdir(dir, { withFileTypes: true });
+  entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  for (const info of entries) {
+    const entry = info.name;
     if (entry.endsWith(".cbz") || /\.cbz\.[\da-f-]+\.tmp$/.test(entry) || entry === "metadata.json")
       continue;
     const full = path.join(dir, entry);
     const relative = prefix ? `${prefix}/${entry}` : entry;
-    const info = await stat(full);
-    if (info.isDirectory()) files.push(...(await archiveFiles(full, relative)));
-    else if (info.isFile()) files.push({ full, relative });
+    // 普通目录项已带类型；仅符号链接需要查询目标，保持原有的跟随行为。
+    const type = info.isSymbolicLink() ? await stat(full) : info;
+    if (type.isDirectory()) files.push(...(await archiveFiles(full, relative)));
+    else if (type.isFile()) files.push({ full, relative });
   }
   return files;
 }

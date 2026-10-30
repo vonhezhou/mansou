@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, readdir, rm, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { inflateRawSync } from "node:zlib";
@@ -84,6 +84,38 @@ it("stores compressed image bytes without recompressing and preserves nested arc
   expect(entries[0].data).toEqual(Buffer.from([0xff, 0xd8, 1, 2, 3, 0xff, 0xd9]));
   expect(entries[1].method).toBe(8);
   expect(entries[1].data.toString()).toBe("notes ".repeat(100));
+});
+
+it("preserves filename ordering and follows file and directory symlinks", async () => {
+  await writeFile(path.join(images, "chapter", "0001.jpg"), "nested image");
+  await writeFile(path.join(images, "z.jpg"), "last image");
+  await writeFile(path.join(images, "Upper.jpg"), "uppercase image");
+  await symlink("chapter/0001.jpg", path.join(images, "a.jpg"));
+  await symlink("chapter", path.join(images, "b"));
+  const output = path.join(directory, "links.cbz");
+  await archive.zipDirectory(images, output);
+  const entries = zipEntries(await readFile(output));
+  expect(entries.map((entry) => entry.name)).toEqual([
+    "Upper.jpg",
+    "a.jpg",
+    "b/0001.jpg",
+    "chapter/0001.jpg",
+    "z.jpg",
+  ]);
+  expect(entries.map((entry) => entry.data.toString())).toEqual([
+    "uppercase image",
+    "nested image",
+    "nested image",
+    "nested image",
+    "last image",
+  ]);
+});
+
+it("rejects broken symlinks before opening an output file", async () => {
+  await symlink("missing.jpg", path.join(images, "broken.jpg"));
+  const output = path.join(directory, "broken.cbz");
+  await expect(archive.zipDirectory(images, output)).rejects.toMatchObject({ code: "ENOENT" });
+  await expect(readFile(output)).rejects.toMatchObject({ code: "ENOENT" });
 });
 
 it("reuses a prepared archive but rebuilds after removal, task updates or related chapter updates", async () => {
