@@ -90,3 +90,15 @@
   border-radius: var(--radius-md);
   background: var(--color-surface-2);
 }
+.chapter-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-block: 16px;
+}
+
+.chapter-filter input {
+  flex: 1 1 180px;
+  min-width: 0;
+}
