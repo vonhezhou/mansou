@@ -1,5 +1,5 @@
 import { parentPort, workerData } from "node:worker_threads";
-import { searchOne, loadCatalog, loadChapter } from "@mansou/novel-engine";
+import { searchOne, loadCatalog, loadChapter, SourceError } from "@mansou/novel-engine";
 
 const port = parentPort!;
 let nextId = 0;
@@ -11,7 +11,7 @@ port.on("message", (message) => {
   const call = pending.get(message.id);
   if (!call) return;
   pending.delete(message.id);
-  if (message.error) call.reject(new Error(message.error));
+  if (message.error) call.reject(new SourceError(message.code ?? "SOURCE_ERROR", message.error));
   else {
     const response = new Response(message.body, {
       status: message.status,
@@ -50,6 +50,7 @@ try {
 } catch (error) {
   port.postMessage({
     type: "error",
+    code: error instanceof SourceError ? error.code : "SOURCE_ERROR",
     message: error instanceof Error ? error.message : String(error),
   });
 }

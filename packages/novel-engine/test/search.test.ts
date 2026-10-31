@@ -163,9 +163,14 @@ test("聚合隔离 HTTP 错误和规则不匹配；不会把验证脚本标记�
 });
 
 test("响应体大小有限制，超时覆盖响应体读取，取消后不再启动队列任务", async () => {
-  let requests = 0;
+  const controller = new AbortController();
+  const cancelledPaths: string[] = [];
   const upstream = createServer((req, res) => {
-    requests++;
+    if (req.url!.startsWith("/cancel/")) {
+      cancelledPaths.push(req.url!);
+      // 在确认首个请求已到达后取消，隔离前一阶段超时请求的迟到事件。
+      queueMicrotask(() => controller.abort());
+    }
     if (req.url!.startsWith("/large")) res.end("x".repeat(2 * 1024 * 1024 + 1));
     else {
       res.writeHead(200);
@@ -182,20 +187,16 @@ test("响应体大小有限制，超时覆盖响应体读取，取消后不再�
       timeoutMs: 100,
     });
     assert.equal(slow.error?.code, "TIMEOUT");
-    const previous = requests;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 100);
     const result = await searchAll(
-      registerSources([source(`${base}/one`), source(`${base}/two`)]),
+      registerSources([source(`${base}/one`, "/cancel/one"), source(`${base}/two`, "/cancel/two")]),
       "x",
       1,
       { timeoutMs: 2000, concurrency: 1, signal: controller.signal },
     );
-    clearTimeout(timer);
     assert.equal(result.cancelled, true);
     assert.equal(result.completedSources, 1);
     assert.equal(result.sources[0]!.error?.code, "CANCELLED");
-    assert.equal(requests, previous + 1);
+    assert.deepEqual(cancelledPaths, ["/cancel/one?q=x&p=1"]);
   } finally {
     await close(upstream);
   }

@@ -125,3 +125,90 @@ it("网页从搜索结果加载有序目录、提交范围下载，并仅为完�
     "下载 TXT",
   );
 });
+it.each(["关闭目录", "切换页面", "卸载页面"])(
+  "加载目录时%s 会取消请求并忽略迟到响应",
+  async (action) => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    let catalogSignal: AbortSignal | undefined;
+    let completeCatalog!: (response: Response) => void;
+    const json = (value: unknown) =>
+      new Response(JSON.stringify(value), { headers: { "content-type": "application/json" } });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, options?: RequestInit) => {
+        if (url.endsWith("/sources"))
+          return json({
+            subscriptions: [{ id: "local", enabled: true }],
+            sources: [
+              {
+                id: origin.sourceId,
+                groupId: "local",
+                name: origin.sourceName,
+                enabled: true,
+                searchSupported: true,
+                downloadSupported: true,
+              },
+            ],
+          });
+        if (url.endsWith("/downloads")) return json([]);
+        if (url.endsWith("/search"))
+          return json({
+            keyword: "凡人",
+            page: 1,
+            results: [{ name: origin.name, author: origin.author, origins: [origin] }],
+            sources: [],
+            totalSources: 1,
+            completedSources: 1,
+          });
+        if (url.endsWith("/catalog")) {
+          catalogSignal = options?.signal ?? undefined;
+          return new Promise<Response>((resolve) => {
+            completeCatalog = resolve;
+          });
+        }
+        throw new Error(`Unexpected path ${url}`);
+      }),
+    );
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => root!.render(<NovelsView />));
+    const button = (text: string) =>
+      [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+        (button) => button.textContent === text,
+      )!;
+    await act(async () => {
+      const input = container.querySelector("input")!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+        input,
+        "凡人",
+      );
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () =>
+      container
+        .querySelector("form")!
+        .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })),
+    );
+    await act(async () => button("测试书源 · 目录与下载").click());
+    expect(catalogSignal).toBeDefined();
+    if (action === "卸载页面") {
+      await act(async () => root!.unmount());
+      root = undefined;
+    } else await act(async () => button(action === "关闭目录" ? "关闭目录" : "书源与订阅").click());
+    expect(catalogSignal!.aborted).toBe(true);
+    // 即使外部边界迟到返回成功，也不能把已关闭的目录重新显示。
+    await act(async () =>
+      completeCatalog(
+        json({
+          tocComplete: true,
+          tocPages: 1,
+          chapters: [{ title: "迟到章节", url: "https://novels.test/late" }],
+        }),
+      ),
+    );
+    expect(container.querySelector('[aria-label="小说目录"]')).toBeNull();
+    expect(container.textContent).not.toContain("迟到章节");
+    expect(container.textContent).not.toContain("AbortError");
+  },
+);

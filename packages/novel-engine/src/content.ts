@@ -139,15 +139,30 @@ export async function loadCatalog(
     const page = url === detail.url ? detail : await load(url, detail.url);
     const rows = page.parser.elements(listRule);
     if (!rows.length) throw new SourceError("PARSE_MISMATCH", `目录列表未匹配：${url}`);
-    rows.each((_, row) => {
+    rows.each((index, row) => {
       const title = page.parser.string(toc.chapterName, row);
       const link = links(page.parser.string(toc.chapterUrl, row), page.url)[0];
+      // 表格目录可能用纯空白单元格补齐列数；只跳过没有任何条目信息的占位。
+      const element = page.parser.$(row);
+      if (
+        !title &&
+        !link &&
+        !element.text().trim() &&
+        !element.children().length &&
+        !element.attr("href")
+      )
+        return;
+      // 不能把部分条目解析成功当作完整目录，避免下载静默缺章。
+      if (!title || !link)
+        throw new SourceError(
+          "PARSE_MISMATCH",
+          `目录第 ${index + 1} 项缺少${!title ? "标题" : "链接"}：${page.url}`,
+        );
+      if (known.has(link)) return;
       if (chapters.length >= 50000)
         throw new SourceError("RESPONSE_TOO_LARGE", "目录超过 50000 章");
-      if (title && link && !known.has(link)) {
-        known.add(link);
-        chapters.push({ title, url: link });
-      }
+      known.add(link);
+      chapters.push({ title, url: link });
     });
     if (toc.nextTocUrl)
       for (const next of links(

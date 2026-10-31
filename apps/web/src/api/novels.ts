@@ -33,8 +33,13 @@ export const novelApi = {
     call<NovelState>(`/subscriptions/${encodeURIComponent(id)}`, undefined, "DELETE"),
   search: (keyword: string, page: number, sourceIds: string[], signal?: AbortSignal) =>
     call<NovelSearch>("/search", { keyword, page, sourceIds }, "POST", signal),
-  catalog: (origin: NovelOrigin) =>
-    call<NovelCatalog>("/catalog", { sourceId: origin.sourceId, bookUrl: origin.bookUrl }),
+  catalog: (origin: NovelOrigin, signal?: AbortSignal) =>
+    call<NovelCatalog>(
+      "/catalog",
+      { sourceId: origin.sourceId, bookUrl: origin.bookUrl },
+      "POST",
+      signal,
+    ),
   tasks: () => api<NovelTask[]>("/novels/downloads"),
   download: (origin: NovelOrigin, all: boolean, start: number, limit: number) =>
     call<NovelTask>("/downloads", { sourceId: origin.sourceId, book: origin, all, start, limit }),

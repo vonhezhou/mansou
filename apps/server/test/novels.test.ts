@@ -1,3 +1,4 @@
+import { request as httpRequest } from "node:http";
 import { NovelEngineExecutor } from "../src/services/novels/engineExecutor.js";
 import { mkdtemp, rm, readFile, stat } from "node:fs/promises";
 import path from "node:path";
@@ -54,6 +55,7 @@ async function setup() {
   let db: StorageDatabase = createStorage(dir);
   cleanups.push(async () => db.close());
   const calls: string[] = [];
+  const sitePages = { ...pages };
   let collection: unknown = [raw];
   let failSubscription = false,
     failSecond = false;
@@ -65,9 +67,9 @@ async function setup() {
     if (pathname === "/subscription")
       return response(JSON.stringify(collection), url, failSubscription ? 503 : 200);
     return response(
-      pages[pathname] ?? "missing",
+      sitePages[pathname] ?? "missing",
       url,
-      (failSecond && pathname === "/2") || !pages[pathname] ? 503 : 200,
+      (failSecond && pathname === "/2") || !sitePages[pathname] ? 503 : 200,
     );
   };
   let engine = new NovelEngineExecutor(fetcher, 1000);
@@ -94,6 +96,9 @@ async function setup() {
     },
     get downloads() {
       return downloads;
+    },
+    setPage(pathname: string, html: string) {
+      sitePages[pathname] = html;
     },
     setCollection(value: unknown) {
       collection = value;
@@ -316,4 +321,124 @@ it("关闭引擎同时终止在途网络与排队操作，不遗留等待者", a
   await engine.close();
   expect((await settled).every((result) => result.status === "rejected")).toBe(true);
   expect(signals.every((signal) => signal.aborted)).toBe(true);
+});
+it.each([
+  { row: '<a class="chapter" href="/3"></a>', missing: "标题" },
+  { row: '<a class="chapter">第三章</a>', missing: "链接" },
+])("目录条目缺少$missing 时拒绝下载，不能把部分目录导出为成功 TXT", async ({ row, missing }) => {
+  const env = await setup();
+  env.setPage("/toc2", `<a class="chapter" href="/2">第二章</a>${row}`);
+  const source = env.sources.import(raw).sources[0];
+  await expect(env.sources.catalog(source.id, book.bookUrl)).rejects.toMatchObject({
+    code: "PARSE_MISMATCH",
+    message: expect.stringContaining(`缺少${missing}`),
+  });
+  const task = env.downloads.create({ sourceId: source.id, book, all: true });
+  await waitTask(env.downloads, "failed");
+  expect(env.downloads.all()[0]).toMatchObject({
+    completed: 0,
+    error: expect.stringContaining(`缺少${missing}`),
+  });
+  expect(env.calls).not.toContain("/1");
+  await expect(env.downloads.openTxt(task.id)).rejects.toMatchObject({
+    code: "DOWNLOAD_NOT_COMPLETED",
+  });
+});
+it.each([
+  { code: "HTTP_ERROR", source: raw, body: "服务不可用", status: 503 },
+  { code: "RESPONSE_TOO_LARGE", source: raw, body: "x".repeat(2 * 1024 * 1024 + 1), status: 200 },
+  { code: "UNSUPPORTED_RULE", source: { ...raw, jsLib: "unsupported" }, body: "", status: 200 },
+])("Worker 往返保留 $code 错误码", async ({ code, source, body, status }) => {
+  const engine = new NovelEngineExecutor(
+    async (input) => response(body, String(input), status),
+    1000,
+  );
+  cleanups.push(() => engine.close());
+  await expect(engine.execute("catalog", [source, book.bookUrl])).rejects.toMatchObject({ code });
+});
+it("单次网络超时跨 Worker 仍返回 TIMEOUT", async () => {
+  const engine = new NovelEngineExecutor(
+    async (_input, init) =>
+      new Promise((_resolve, reject) => {
+        init!.signal!.addEventListener("abort", () => reject(init!.signal!.reason), { once: true });
+      }),
+    30,
+  );
+  cleanups.push(() => engine.close());
+  await expect(engine.execute("catalog", [raw, book.bookUrl])).rejects.toMatchObject({
+    code: "TIMEOUT",
+  });
+});
+it("客户端断开目录请求时终止上游请求，下一次目录请求仍可用", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "mansou-novels-cancel-"));
+  cleanups.push(() => rm(dir, { recursive: true, force: true }));
+  let upstreamSignal: AbortSignal | undefined;
+  let hold = true;
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const url = String(input);
+    if (hold) {
+      upstreamSignal = init!.signal!;
+      return new Promise((_resolve, reject) =>
+        upstreamSignal!.addEventListener("abort", () => reject(upstreamSignal!.reason), {
+          once: true,
+        }),
+      );
+    }
+    return response(pages[new URL(url).pathname], url);
+  });
+  const { app, context } = await buildApp(
+    { ...readAuthConfig(), mode: "none" },
+    { ...readConfig(), dataDir: dir },
+  );
+  cleanups.push(() => app.close());
+  await initializeApp(context);
+  const sourceId = context.novelSources.import(raw).sources[0].id;
+  await app.listen({ host: "127.0.0.1", port: 0 });
+  const address = app.server.address();
+  if (!address || typeof address === "string") throw new Error("测试服务未监听");
+  const request = httpRequest({
+    hostname: "127.0.0.1",
+    port: address.port,
+    path: "/api/v1/novels/catalog",
+    method: "POST",
+    headers: { "content-type": "application/json" },
+  });
+  request.on("error", () => {});
+  cleanups.push(async () => {
+    request.destroy();
+  });
+  request.end(JSON.stringify({ sourceId, bookUrl: book.bookUrl }));
+  await vi.waitFor(() => expect(upstreamSignal).toBeDefined());
+  request.destroy();
+  await vi.waitFor(() => expect(upstreamSignal!.aborted).toBe(true));
+  hold = false;
+  const next = await app.inject({
+    method: "POST",
+    url: "/api/v1/novels/catalog",
+    payload: { sourceId, bookUrl: book.bookUrl },
+  });
+  expect(next.statusCode).toBe(200);
+  expect(next.json().chapters).toHaveLength(2);
+});
+it("表格的纯空白补列项不误报缺章，但不能掩盖目录选择器不匹配", async () => {
+  const env = await setup();
+  const source = {
+    ...raw,
+    ruleToc: { chapterList: ".ccss", chapterName: "a@text", chapterUrl: "a@href" },
+  };
+  env.setPage(
+    "/toc",
+    '<table><tr><td class="ccss"><a href="/1">第一章</a></td><td class="ccss"> &nbsp; </td><td class="ccss">\n</td></tr></table>',
+  );
+  const sourceId = env.sources.import(source).sources[0].id;
+  const catalog = await env.sources.catalog(sourceId, book.bookUrl);
+  expect(catalog.tocComplete).toBe(true);
+  expect(catalog.chapters.map((chapter) => chapter.title)).toEqual(["第一章"]);
+  env.sources.import({
+    ...source,
+    ruleToc: { ...source.ruleToc, chapterName: ".missing@text", chapterUrl: ".missing@href" },
+  });
+  await expect(env.sources.catalog(sourceId, book.bookUrl)).rejects.toMatchObject({
+    code: "PARSE_MISMATCH",
+  });
 });

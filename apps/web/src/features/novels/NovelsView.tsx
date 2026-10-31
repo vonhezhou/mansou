@@ -27,6 +27,7 @@ export function NovelsView() {
   const [start, setStart] = useState(1);
   const [limit, setLimit] = useState(3);
   const searchController = useRef<AbortController | null>(null);
+  const catalogController = useRef<AbortController | null>(null);
   const active = useRef(true);
   const run = useCallback(async (work: () => Promise<void>) => {
     setBusy(true);
@@ -66,6 +67,7 @@ export function NovelsView() {
       active.current = false;
       clearInterval(timer);
       searchController.current?.abort();
+      catalogController.current?.abort();
     };
   }, [run, reloadTasks]);
   const available = state.sources.filter(
@@ -90,6 +92,7 @@ export function NovelsView() {
   }
   async function search(page = 1, term = keyword, ids = sourceIds) {
     searchController.current?.abort();
+    catalogController.current?.abort();
     const controller = new AbortController();
     searchController.current = controller;
     setSearching(true);
@@ -107,14 +110,26 @@ export function NovelsView() {
       if (active.current && searchController.current === controller) setSearching(false);
     }
   }
+  function closeCatalog() {
+    catalogController.current?.abort();
+    setOrigin(undefined);
+    setCatalog(undefined);
+  }
   async function select(value: NovelOrigin) {
+    catalogController.current?.abort();
+    const controller = new AbortController();
+    catalogController.current = controller;
     setOrigin(value);
     setCatalog(undefined);
     setStart(1);
     setLimit(3);
     await run(async () => {
-      const details = await novelApi.catalog(value);
-      if (active.current) setCatalog(details);
+      try {
+        const details = await novelApi.catalog(value, controller.signal);
+        if (active.current && !controller.signal.aborted) setCatalog(details);
+      } catch (error) {
+        if (!controller.signal.aborted) throw error;
+      }
     });
   }
   const download = (all: boolean) =>
@@ -148,7 +163,10 @@ export function NovelsView() {
             key={key}
             className={tab === key ? "" : "secondary-button"}
             aria-current={tab === key ? "page" : undefined}
-            onClick={() => setTab(key)}
+            onClick={() => {
+              if (key !== "search") closeCatalog();
+              setTab(key);
+            }}
           >
             {label}
           </button>
@@ -323,14 +341,7 @@ export function NovelsView() {
                 <h2>
                   {origin.name} · {origin.sourceName}
                 </h2>
-                <button
-                  className="secondary-button"
-                  disabled={busy}
-                  onClick={() => {
-                    setOrigin(undefined);
-                    setCatalog(undefined);
-                  }}
-                >
+                <button className="secondary-button" onClick={closeCatalog}>
                   关闭目录
                 </button>
               </div>

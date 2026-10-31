@@ -1,7 +1,20 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { SourceError } from "@mansou/novel-engine";
 import type { Application } from "../application.js";
+
+async function withCancellation<T>(reply: FastifyReply, work: (signal: AbortSignal) => Promise<T>) {
+  const controller = new AbortController();
+  const cancel = () => {
+    if (!reply.raw.writableFinished) controller.abort();
+  };
+  reply.raw.on("close", cancel);
+  try {
+    return await work(controller.signal);
+  } finally {
+    reply.raw.off("close", cancel);
+  }
+}
 
 export async function registerNovelRoutes(
   app: FastifyInstance,
@@ -69,25 +82,15 @@ export async function registerNovelRoutes(
             sourceIds: z.array(z.string().max(200)).max(100).optional(),
           })
           .parse(request.body);
-        const controller = new AbortController();
-        const cancel = () => {
-          if (!reply.raw.writableFinished) controller.abort();
-        };
-        reply.raw.on("close", cancel);
-        try {
-          return await context.novelSources.search(
-            body.keyword,
-            body.page,
-            body.sourceIds,
-            controller.signal,
-          );
-        } finally {
-          reply.raw.off("close", cancel);
-        }
+        return withCancellation(reply, (signal) =>
+          context.novelSources.search(body.keyword, body.page, body.sourceIds, signal),
+        );
       });
-      api.post("/catalog", async (request) => {
+      api.post("/catalog", async (request, reply) => {
         const body = z.object({ sourceId: z.string(), bookUrl: httpUrl }).parse(request.body);
-        return context.novelSources.catalog(body.sourceId, body.bookUrl);
+        return withCancellation(reply, (signal) =>
+          context.novelSources.catalog(body.sourceId, body.bookUrl, signal),
+        );
       });
       api.get("/downloads", async () => context.novelDownloads.all());
       api.post("/downloads", async (request) =>

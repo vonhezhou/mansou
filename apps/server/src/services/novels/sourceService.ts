@@ -2,6 +2,7 @@ import { NovelEngineExecutor } from "./engineExecutor.js";
 import { createHash, randomUUID } from "node:crypto";
 import {
   parseSources,
+  SourceError,
   assertSupported,
   assertDownloadSupported,
   fetchHtml,
@@ -223,6 +224,7 @@ export class NovelSourceService {
       fetcher: this.fetcher,
       signal,
       runSource: async (source, key, page, options) => {
+        const started = performance.now();
         try {
           return await this.engine.execute<SourceOutcome>(
             "search",
@@ -234,10 +236,10 @@ export class NovelSourceService {
             sourceId: source.id,
             sourceName: source.source.bookSourceName,
             status: "error",
-            elapsedMs: this.timeoutMs,
+            elapsedMs: Math.round(performance.now() - started),
             books: [],
             error: {
-              code: "SOURCE_ERROR",
+              code: error instanceof SourceError ? error.code : "SOURCE_ERROR",
               message: error instanceof Error ? error.message : String(error),
             },
           };

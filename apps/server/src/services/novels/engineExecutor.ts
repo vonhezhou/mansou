@@ -85,7 +85,7 @@ export class NovelEngineExecutor {
           running.on("message", (message) => {
             if (message.type === "result") finish(undefined, message.result);
             else if (message.type === "error")
-              finish(new SourceError("SOURCE_ERROR", message.message));
+              finish(new SourceError(message.code ?? "SOURCE_ERROR", message.message));
             else if (message.type === "fetch")
               void this.fetch(message.url, message.options, requestSignal)
                 .then(
@@ -93,6 +93,7 @@ export class NovelEngineExecutor {
                   (error) =>
                     running.postMessage({
                       id: message.id,
+                      code: error instanceof SourceError ? error.code : "SOURCE_ERROR",
                       error: error instanceof Error ? error.message : String(error),
                     }),
                 )
@@ -114,33 +115,43 @@ export class NovelEngineExecutor {
     }
   }
   private async fetch(url: string, options: RequestInit, signal: AbortSignal) {
-    const response = await this.fetcher(url, {
-      ...options,
-      signal: AbortSignal.any([signal, AbortSignal.timeout(this.timeoutMs)]),
-    });
-    const reader = response.body?.getReader();
-    const chunks: Uint8Array[] = [];
-    let size = 0;
+    const requestSignal = AbortSignal.any([signal, AbortSignal.timeout(this.timeoutMs)]);
     try {
-      if (reader)
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          size += value.byteLength;
-          if (size > 2 * 1024 * 1024) throw new Error("书源响应超过 2 MiB");
-          chunks.push(value);
-        }
-    } finally {
-      await reader?.cancel().catch(() => {});
-      reader?.releaseLock();
+      const response = await this.fetcher(url, { ...options, signal: requestSignal });
+      const reader = response.body?.getReader();
+      const chunks: Uint8Array[] = [];
+      let size = 0;
+      try {
+        if (reader)
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            size += value.byteLength;
+            if (size > 2 * 1024 * 1024)
+              throw new SourceError("RESPONSE_TOO_LARGE", "书源响应超过 2 MiB");
+            chunks.push(value);
+          }
+      } finally {
+        await reader?.cancel().catch(() => {});
+        reader?.releaseLock();
+      }
+      return {
+        url: response.url || url,
+        status: response.status,
+        headers: [...response.headers],
+        body: size ? Buffer.concat(chunks) : null,
+      };
+    } catch (error) {
+      if (error instanceof SourceError) throw error;
+      if (requestSignal.aborted)
+        throw new SourceError(
+          signal.aborted ? "CANCELLED" : "TIMEOUT",
+          signal.aborted ? "书源请求已取消" : "书源请求超时",
+        );
+      throw error;
     }
-    return {
-      url: response.url || url,
-      status: response.status,
-      headers: [...response.headers],
-      body: size ? Buffer.concat(chunks) : null,
-    };
   }
+
   async close() {
     this.closed = true;
     for (const controller of this.controllers) controller.abort();
