@@ -6,7 +6,7 @@ import {
   type NovelSearch,
 } from "../../api/novels.js";
 import { LoadingStatus } from "../../app/LoadingStatus.js";
-import { useNovelSources } from "../../hooks/useNovelSources.js";
+import type { NovelSourcesState } from "../../hooks/useNovelSources.js";
 import type { TabKey } from "../../app/navigation.js";
 import { SearchControls } from "../search/SearchControls.js";
 import { SourcePicker } from "../search/SourcePicker.js";
@@ -14,13 +14,15 @@ import { NovelSearchResults } from "./NovelSearchResults.js";
 import { NovelDetailsDialog } from "./NovelDetailsDialog.js";
 
 export function NovelsView({
+  sourceState,
   onNavigate,
   onDownloadCreated,
 }: {
+  sourceState: NovelSourcesState;
   onNavigate: (tab: TabKey) => void;
   onDownloadCreated: () => Promise<void>;
 }) {
-  const { state, busy, error, run } = useNovelSources();
+  const { state, busy, error, run } = sourceState;
   const [keyword, setKeyword] = useState("");
   const [sourceIds, setSourceIds] = useState<string[]>();
   const [sourceKey, setSourceKey] = useState("");

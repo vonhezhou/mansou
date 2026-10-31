@@ -1,10 +1,21 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { useNovelSources } from "../../hooks/useNovelSources.js";
 import { NovelsView } from "./NovelsView.js";
 
 const navigate = vi.fn();
 const reloadDownloads = vi.fn(async () => {});
+function SearchHarness() {
+  const sourceState = useNovelSources();
+  return (
+    <NovelsView
+      sourceState={sourceState}
+      onNavigate={navigate}
+      onDownloadCreated={reloadDownloads}
+    />
+  );
+}
 let root: Root | undefined;
 let container: HTMLDivElement;
 beforeEach(() => {
@@ -115,9 +126,7 @@ it("网页从搜索结果加载有序目录、提交范围下载，并仅为完�
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(async () =>
-    root!.render(<NovelsView onNavigate={navigate} onDownloadCreated={reloadDownloads} />),
-  );
+  await act(async () => root!.render(<SearchHarness />));
   const button = (text: string) =>
     [...container.querySelectorAll<HTMLButtonElement>("button")].find(
       (button) => button.textContent === text,
@@ -205,9 +214,7 @@ it.each(["关闭目录", "卸载页面", "加载失败", "Escape"])(
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
-    await act(async () =>
-      root!.render(<NovelsView onNavigate={navigate} onDownloadCreated={reloadDownloads} />),
-    );
+    await act(async () => root!.render(<SearchHarness />));
     const button = (text: string) =>
       [...container.querySelectorAll<HTMLButtonElement>("button")].find(
         (button) => button.textContent === text,
@@ -316,9 +323,7 @@ it("单源与聚合选择显式传递源身份，反选为空不能意外搜索�
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(async () =>
-    root!.render(<NovelsView onNavigate={navigate} onDownloadCreated={reloadDownloads} />),
-  );
+  await act(async () => root!.render(<SearchHarness />));
   const button = (text: string) =>
     [...container.querySelectorAll<HTMLButtonElement>("button")].find(
       (button) => button.textContent === text,

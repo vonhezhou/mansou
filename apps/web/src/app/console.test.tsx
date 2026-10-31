@@ -84,6 +84,7 @@ it("opens settings from the server profile after collapsing navigation, keeps ac
         downloadStore={downloadStore}
         novelDownloadStore={createDownloadSnapshotStore()}
         sourceCount={4}
+        novelSourceCount={0}
         onRefresh={refresh}
         account={<button>账号设置入口</button>}
       >

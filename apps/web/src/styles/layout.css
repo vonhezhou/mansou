@@ -367,6 +367,7 @@ button.server-profile:hover {
     gap: 4px;
   }
   .mobile-nav .nav-item {
+    position: relative;
     flex-direction: column;
     justify-content: center;
     gap: 4px;
@@ -376,7 +377,19 @@ button.server-profile:hover {
     min-width: 0;
   }
   .mobile-nav .nav-item b {
-    display: none;
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 3px;
+    font-size: 9px;
+    color: var(--color-primary);
+    background: var(--color-primary-soft);
+  }
+  .mobile-nav .nav-item.active b {
+    color: #fff;
+    background: var(--color-primary-strong);
   }
   .mobile-nav .nav-item.active,
   .mobile-nav .nav-item:hover {

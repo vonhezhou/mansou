@@ -15,6 +15,7 @@ type AppShellProps = {
   health: Health | null;
   downloadStore: DownloadSnapshotStore;
   sourceCount: number;
+  novelSourceCount: number;
   novelDownloadStore: Pick<DownloadSnapshotStore, "subscribe" | "getActiveCount">;
   children: ReactNode;
   account?: ReactNode;
@@ -71,7 +72,9 @@ export function AppShell(props: AppShellProps) {
         ? downloadCount + novelDownloadCount
         : item.key === "sources"
           ? props.sourceCount
-          : null;
+          : item.key === "novel-sources"
+            ? props.novelSourceCount
+            : null;
     return (
       <button
         className={`nav-item${item.key === props.activeTab ? " active" : ""}`}

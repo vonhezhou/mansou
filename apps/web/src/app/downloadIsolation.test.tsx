@@ -3,9 +3,25 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { App } from "../App.js";
 import { authApi } from "../api/auth.js";
-import { novelApi, type NovelTask } from "../api/novels.js";
+import { novelApi, type NovelTask, type NovelState } from "../api/novels.js";
 import { mansouApi } from "../api/mansou.js";
 import type { DownloadTask } from "../types.js";
+
+const initialNovelState: NovelState = {
+  subscriptions: [{ id: "local", name: "自定义书源", enabled: true, count: 1 }],
+  sources: [
+    {
+      id: "novel-source",
+      name: "小说测试源",
+      groupId: "local",
+      url: "https://novel.test",
+      hash: "fixture",
+      enabled: true,
+      searchSupported: true,
+      downloadSupported: true,
+    },
+  ],
+};
 
 const renders = vi.hoisted(() => ({ search: vi.fn(), sources: vi.fn() }));
 vi.mock("../features/search/SearchView.js", async (importOriginal) => {
@@ -102,7 +118,7 @@ beforeEach(async () => {
   vi.spyOn(mansouApi, "getCacheStats").mockResolvedValue({ files: 0, bytes: 0 });
   vi.spyOn(mansouApi, "listDownloads").mockResolvedValue([task()]);
   vi.spyOn(novelApi, "tasks").mockResolvedValue([]);
-  vi.spyOn(novelApi, "state").mockResolvedValue({ sources: [], subscriptions: [] });
+  vi.spyOn(novelApi, "state").mockResolvedValue(initialNovelState);
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -246,19 +262,6 @@ it("从小说详情创建下载后进入统一下载页并刷新任务快照", a
     sourceName: "小说测试源",
     bookUrl: "https://novel.test/book",
   };
-  vi.mocked(novelApi.state).mockResolvedValue({
-    subscriptions: [{ id: "local", enabled: true }],
-    sources: [
-      {
-        id: book.sourceId,
-        name: book.sourceName,
-        groupId: "local",
-        enabled: true,
-        searchSupported: true,
-        downloadSupported: true,
-      },
-    ],
-  } as any);
   vi.spyOn(novelApi, "search").mockResolvedValue({
     keyword: "小说",
     page: 1,
@@ -294,4 +297,75 @@ it("从小说详情创建下载后进入统一下载页并刷新任务快照", a
   expect(window.location.hash).toBe("#downloads");
   expect(container.querySelector("h1")?.textContent).toBe("下载任务");
   expect(container.querySelector('a[href$="/novel-task/txt"]')).not.toBeNull();
+});
+
+it("小说源数量在所有页面可见，包含停用源，并随删除、导入及工作台刷新同步", async () => {
+  const count = () => container.querySelector('.sidebar [aria-label="小说源"] b')?.textContent;
+  expect(count()).toBe("1");
+  await click('.sidebar [aria-label="小说源"]');
+  const disabled: NovelState = {
+    ...initialNovelState,
+    sources: [{ ...initialNovelState.sources[0], enabled: false }],
+  };
+  vi.spyOn(novelApi, "enabled").mockResolvedValue(disabled);
+  await click('[role="switch"]');
+  expect(novelApi.enabled).toHaveBeenCalledWith("novel-source", false);
+  expect(count()).toBe("1");
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  const empty: NovelState = { sources: [], subscriptions: initialNovelState.subscriptions };
+  vi.spyOn(novelApi, "removeSource").mockResolvedValue(empty);
+  await act(async () =>
+    [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find((x) => x.textContent === "删除")!
+      .click(),
+  );
+  expect(count()).toBe("0");
+  const imported: NovelState = {
+    ...initialNovelState,
+    sources: [
+      initialNovelState.sources[0],
+      {
+        ...initialNovelState.sources[0],
+        id: "novel-source-2",
+        name: "第二源",
+        url: "https://second.test",
+      },
+    ],
+  };
+  vi.spyOn(novelApi, "import").mockResolvedValue(imported);
+  await act(async () =>
+    [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find((x) => x.textContent === "导入书源")!
+      .click(),
+  );
+  await act(async () => {
+    const editor = container.querySelector<HTMLTextAreaElement>("textarea")!;
+    const rules = ["https://novel.test", "https://second.test"].map((bookSourceUrl) => ({
+      bookSourceUrl,
+      bookSourceName: "测试源",
+      searchUrl: "/search?q={{key}}",
+      ruleSearch: { bookList: ".book", name: "a@text", bookUrl: "a@href" },
+    }));
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(
+      editor,
+      JSON.stringify(rules),
+    );
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await act(async () =>
+    [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find((x) => x.textContent === "保存为自定义书源")!
+      .click(),
+  );
+  expect(count()).toBe("2");
+  await click('.sidebar [aria-label="漫画搜索"]');
+  expect(count()).toBe("2");
+  vi.mocked(novelApi.state).mockResolvedValue(empty);
+  await click('.sidebar [aria-label="系统设置"]');
+  await act(async () =>
+    [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find((x) => x.textContent === "刷新状态")!
+      .click(),
+  );
+  expect(count()).toBe("0");
 });

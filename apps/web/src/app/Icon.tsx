@@ -4,6 +4,8 @@ export type IconName =
   | "search"
   | "download"
   | "stack"
+  | "book-open"
+  | "library"
   | "settings"
   | "sparkles"
   | "chevron"
@@ -38,6 +40,19 @@ const iconPaths: Record<IconName, ReactNode> = {
     <>
       <path d="m12 3 9 5-9 5-9-5 9-5Z" />
       <path d="m3 12 9 5 9-5M3 16l9 5 9-5" />
+    </>
+  ),
+  "book-open": (
+    <>
+      <path d="M12 6v15" />
+      <path d="M3 18a1 1 0 0 0 1 1h3a5 5 0 0 1 5 2 5 5 0 0 1 5-2h3a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1h-3a5 5 0 0 0-5 2 5 5 0 0 0-5-2H4a1 1 0 0 0-1 1v13Z" />
+    </>
+  ),
+  library: (
+    <>
+      <rect x="3" y="4" width="4" height="16" rx="1" />
+      <rect x="10" y="4" width="4" height="16" rx="1" />
+      <path d="M3 8h4M10 8h4m3-3 4 14" />
     </>
   ),
   settings: (

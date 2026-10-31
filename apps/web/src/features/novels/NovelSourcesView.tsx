@@ -1,9 +1,9 @@
 import { LoadingStatus } from "../../app/LoadingStatus.js";
-import { useNovelSources } from "../../hooks/useNovelSources.js";
+import type { NovelSourcesState } from "../../hooks/useNovelSources.js";
 import { NovelSources } from "./NovelSources.js";
 
-export function NovelSourcesView() {
-  const { state, setState, busy, error, run } = useNovelSources();
+export function NovelSourcesView({ sourceState }: { sourceState: NovelSourcesState }) {
+  const { state, setState, busy, error, run } = sourceState;
   return (
     <>
       {error && (

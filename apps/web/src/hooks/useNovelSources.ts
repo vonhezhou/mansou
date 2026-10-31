@@ -17,17 +17,20 @@ export function useNovelSources() {
       if (active.current) setBusy(false);
     }
   }, []);
+  const reload = useCallback(async (signal?: AbortSignal) => {
+    const value = await novelApi.state(signal);
+    if (active.current && !signal?.aborted) setState(value);
+  }, []);
   useEffect(() => {
     active.current = true;
     const controller = new AbortController();
-    void run(async () => {
-      const value = await novelApi.state(controller.signal);
-      if (!controller.signal.aborted) setState(value);
-    });
+    void run(() => reload(controller.signal));
     return () => {
       active.current = false;
       controller.abort();
     };
-  }, [run]);
-  return { state, setState, busy, error, run };
+  }, [run, reload]);
+  return { state, setState, busy, error, run, reload };
 }
+
+export type NovelSourcesState = ReturnType<typeof useNovelSources>;

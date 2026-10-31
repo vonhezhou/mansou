@@ -1,6 +1,7 @@
 import { NovelSourcesView } from "./features/novels/NovelSourcesView.js";
 import { DownloadsWorkspace } from "./features/downloads/DownloadsWorkspace.js";
 import { useNovelDownloads } from "./hooks/useNovelDownloads.js";
+import { useNovelSources } from "./hooks/useNovelSources.js";
 import { NovelsView } from "./features/novels/NovelsView.js";
 import { useCallback, useEffect, useState } from "react";
 import { downloadsEventUrl, mansouApi } from "./api/mansou.js";
@@ -61,6 +62,7 @@ function Workspace({
   );
   const downloadsState = useDownloads(runWith);
   const novelDownloads = useNovelDownloads();
+  const novelSources = useNovelSources();
   const sourcesState = useSources(
     runWith,
     sourceKey,
@@ -146,10 +148,12 @@ function Workspace({
       downloadStore={downloadsState.snapshotStore}
       novelDownloadStore={novelDownloads.store}
       sourceCount={sourcesState.sourceMetadata.length}
+      novelSourceCount={novelSources.state.sources.length}
       onRefresh={() => {
         void checkHealth();
         void refresh();
         void novelDownloads.reload().catch(() => {});
+        void novelSources.run(() => novelSources.reload());
       }}
       onTabChange={navigateTo}
       notice={
@@ -224,9 +228,13 @@ function Workspace({
       )}
 
       {activeTab === "novels" && (
-        <NovelsView onNavigate={navigateTo} onDownloadCreated={novelDownloads.reload} />
+        <NovelsView
+          sourceState={novelSources}
+          onNavigate={navigateTo}
+          onDownloadCreated={novelDownloads.reload}
+        />
       )}
-      {activeTab === "novel-sources" && <NovelSourcesView />}
+      {activeTab === "novel-sources" && <NovelSourcesView sourceState={novelSources} />}
 
       {activeTab === "sources" && (
         <SourcesView
