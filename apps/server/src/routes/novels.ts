@@ -49,6 +49,15 @@ export async function registerNovelRoutes(
         const body = z.object({ sources: z.unknown() }).parse(request.body);
         return context.novelSources.import(body.sources);
       });
+      api.post("/sources/batch", async (request) => {
+        const body = z
+          .object({
+            ids: z.array(z.string().min(1).max(200)).min(1).max(2000),
+            action: z.enum(["enable", "disable", "delete"]),
+          })
+          .parse(request.body);
+        return context.novelSources.batch(body.ids, body.action);
+      });
       api.get(
         "/sources/:id/rule",
         async (request) => context.novelSources.source(id(request.params), false).raw,

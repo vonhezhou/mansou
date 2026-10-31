@@ -1396,7 +1396,7 @@ export const openApiDocument = {
           "200": {
             description: "OK",
             content: {
-              "application/json": { schema: { $ref: "#/components/schemas/NovelState" } },
+              "application/json": { schema: { $ref: "#/components/schemas/NovelImportResult" } },
             },
           },
           "400": { description: "Invalid input" },
@@ -1409,6 +1409,32 @@ export const openApiDocument = {
           content: {
             "application/json": { schema: { $ref: "#/components/schemas/NovelImportRequest" } },
           },
+        },
+      },
+    },
+    "/api/v1/novels/sources/batch": {
+      post: {
+        operationId: "batchNovelSources",
+        tags: ["novels"],
+        summary: "批量启用、停用或删除书源，任一身份无效时整批不执行",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/NovelSourceBatchRequest" },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/NovelState" } },
+            },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Source not found" },
+          "422": { description: "Unsupported source" },
         },
       },
     },
@@ -2448,6 +2474,39 @@ export const openApiDocument = {
           },
         },
         required: ["sources", "subscriptions"],
+      },
+      NovelSourceBatchRequest: {
+        type: "object",
+        required: ["ids", "action"],
+        properties: {
+          ids: {
+            type: "array",
+            minItems: 1,
+            maxItems: 2000,
+            items: { type: "string", minLength: 1, maxLength: 200 },
+          },
+          action: { type: "string", enum: ["enable", "disable", "delete"] },
+        },
+      },
+      NovelImportResult: {
+        allOf: [
+          { $ref: "#/components/schemas/NovelState" },
+          {
+            type: "object",
+            required: ["importedCount", "rejected"],
+            properties: {
+              importedCount: { type: "integer" },
+              rejected: {
+                type: "array",
+                items: {
+                  type: "object",
+                  required: ["name", "reason"],
+                  properties: { name: { type: "string" }, reason: { type: "string" } },
+                },
+              },
+            },
+          },
+        ],
       },
       NovelBook: {
         type: "object",

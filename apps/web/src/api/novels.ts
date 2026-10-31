@@ -3,6 +3,7 @@ import { api, apiBase } from "./client.js";
 export type NovelBook = components["schemas"]["NovelBook"];
 export type NovelSource = components["schemas"]["NovelSource"];
 export type NovelState = components["schemas"]["NovelState"];
+export type NovelImportResult = components["schemas"]["NovelImportResult"];
 export type NovelSubscription = components["schemas"]["NovelSubscription"];
 export type NovelSearch = components["schemas"]["NovelSearch"];
 export type NovelOrigin = components["schemas"]["NovelOrigin"];
@@ -16,7 +17,9 @@ const call = <T>(path: string, body?: unknown, method = "POST", signal?: AbortSi
   });
 export const novelApi = {
   state: (signal?: AbortSignal) => api<NovelState>("/novels/sources", { signal }),
-  import: (sources: unknown) => call<NovelState>("/sources/import", { sources }),
+  import: (sources: unknown) => call<NovelImportResult>("/sources/import", { sources }),
+  batch: (ids: string[], action: "enable" | "disable" | "delete") =>
+    call<NovelState>("/sources/batch", { ids, action }),
   rule: (id: string) =>
     api<Record<string, unknown>>(`/novels/sources/${encodeURIComponent(id)}/rule`),
   enabled: (id: string, enabled: boolean) =>

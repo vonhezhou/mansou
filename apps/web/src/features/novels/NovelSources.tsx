@@ -1,7 +1,9 @@
 import { useId, useState } from "react";
 import { AppDialog } from "../../app/AppDialog.js";
 import { PageTabs } from "../../app/PageTabs.js";
-import { novelApi, type NovelState } from "../../api/novels.js";
+import { novelApi, type NovelState, type NovelImportResult } from "../../api/novels.js";
+
+import { NovelSourceList } from "./NovelSourceList.js";
 
 type Props = {
   state: NovelState;
@@ -19,13 +21,8 @@ export function NovelSources({ state, busy, error, run, onChange }: Props) {
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [subscriptionId, setSubscriptionId] = useState<string>();
-  const [filter, setFilter] = useState("");
-  const [supportedOnly, setSupportedOnly] = useState(false);
-  const visibleSources = state.sources.filter(
-    (source) =>
-      (!supportedOnly || (source.searchSupported && source.downloadSupported)) &&
-      `${source.name} ${source.url}`.toLowerCase().includes(filter.toLowerCase()),
-  );
+  const [importResult, setImportResult] =
+    useState<Pick<NovelImportResult, "importedCount" | "rejected">>();
   return (
     <section className="inner-page source-tools">
       <header className="page-title">
@@ -42,6 +39,7 @@ export function NovelSources({ state, busy, error, run, onChange }: Props) {
           <button
             onClick={() => {
               setRules("");
+              setImportResult(undefined);
               setEditorOpen(true);
             }}
           >
@@ -59,6 +57,11 @@ export function NovelSources({ state, busy, error, run, onChange }: Props) {
         value={activeTab}
         onChange={setActiveTab}
       />
+      {!editorOpen && error && (
+        <p className="alert" role="alert">
+          {error}
+        </p>
+      )}
       {editorOpen && (
         <AppDialog title="导入与编辑书源" wide onClose={() => setEditorOpen(false)}>
           {error && (
@@ -68,9 +71,29 @@ export function NovelSources({ state, busy, error, run, onChange }: Props) {
           )}
           <section className="novel-panel">
             <h2>自定义书源</h2>
+            {importResult && (
+              <div className="novel-import-result" role="status">
+                <p>
+                  已导入 {importResult.importedCount} 个，拒绝 {importResult.rejected.length}{" "}
+                  个不支持下载的书源。
+                </p>
+                {importResult.rejected.length > 0 && (
+                  <details open={importResult.importedCount === 0}>
+                    <summary>查看拒绝原因</summary>
+                    <ul>
+                      {importResult.rejected.map((item, index) => (
+                        <li key={index}>
+                          <strong>{item.name}</strong>：{item.reason}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </div>
+            )}
             <p className="muted">
               粘贴或上传阅读书源
-              JSON，支持单个书源或合集，仅保留支持下载的书源。相同地址会替换自定义规则，下载中的任务保留原规则。
+              JSON，支持单个书源或合集。不支持下载的规则会被拒绝并列出原因，不覆盖已有规则。下载中的任务保留原规则。
             </p>
             <label>
               上传书源文件
@@ -103,9 +126,13 @@ export function NovelSources({ state, busy, error, run, onChange }: Props) {
               disabled={busy || !rules.trim()}
               onClick={() =>
                 void run(async () => {
-                  onChange(await novelApi.import(JSON.parse(rules)));
-                  setRules("");
-                  setEditorOpen(false);
+                  const result = await novelApi.import(JSON.parse(rules));
+                  onChange({ sources: result.sources, subscriptions: result.subscriptions });
+                  setImportResult({
+                    importedCount: result.importedCount,
+                    rejected: result.rejected,
+                  });
+                  if (result.importedCount) setRules("");
                 })
               }
             >
@@ -260,104 +287,17 @@ export function NovelSources({ state, busy, error, run, onChange }: Props) {
         aria-labelledby={`${tabId}-installed-tab`}
         hidden={activeTab !== "installed"}
       >
-        <section className="novel-panel">
-          <h2>已导入书源（{state.sources.length}）</h2>
-          <label>
-            筛选书源
-            <input
-              value={filter}
-              onChange={(event) => setFilter(event.target.value)}
-              placeholder="名称或地址"
-            />
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={supportedOnly}
-              onChange={(event) => setSupportedOnly(event.target.checked)}
-            />
-            仅显示支持搜索和下载的书源（无需 WebView）
-          </label>
-          <p className="muted">
-            “支持”表示规则在当前实现范围内，不代表站点实时可用。订阅源编辑后另存为自定义源，不随订阅刷新覆盖。
-          </p>
-          <p className="muted">
-            符合筛选条件：{visibleSources.length} / {state.sources.length} 个源
-          </p>
-          <div className="source-list installed-source-grid">
-            {visibleSources.map((source) => (
-              <article key={source.id}>
-                <span className="source-avatar" aria-hidden="true">
-                  {source.name.slice(0, 1)}
-                </span>
-                <div className="source-info">
-                  <strong>{source.name}</strong>
-                  <span className="muted">
-                    {state.subscriptions.find((group) => group.id === source.groupId)?.name}
-                  </span>
-                  <span className="novel-url">{source.url}</span>
-                </div>
-                <button
-                  className="source-switch"
-                  role="switch"
-                  aria-checked={source.enabled}
-                  aria-label={`${source.enabled ? "禁用" : "启用"} ${source.name}`}
-                  disabled={busy}
-                  onClick={() =>
-                    void run(async () =>
-                      onChange(await novelApi.enabled(source.id, !source.enabled)),
-                    )
-                  }
-                >
-                  <span />
-                </button>
-                <div className="source-card-meta">
-                  <span title={source.searchError}>
-                    搜索 <b>{source.searchSupported ? "支持" : "不支持"}</b>
-                  </span>
-                  <span title={source.downloadError}>
-                    下载 <b>{source.downloadSupported ? "支持" : "不支持"}</b>
-                  </span>
-                </div>
-                <div className="source-actions">
-                  <button
-                    className="secondary-button"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(async () => {
-                        setRules(JSON.stringify(await novelApi.rule(source.id), null, 2));
-                        setEditorOpen(true);
-                      })
-                    }
-                  >
-                    编辑规则
-                  </button>
-                  <button
-                    className="secondary-button"
-                    disabled={busy}
-                    onClick={() => {
-                      if (
-                        window.confirm(`删除书源“${source.name}”？订阅中的源下次刷新时会重新出现。`)
-                      )
-                        void run(async () => {
-                          onChange(await novelApi.removeSource(source.id));
-                        });
-                    }}
-                  >
-                    删除
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-          {!visibleSources.length && (
-            <p className="muted">
-              {state.sources.length
-                ? "没有符合条件的书源，请调整筛选条件。"
-                : "暂无书源，请导入 JSON 或添加订阅。"}
-            </p>
-          )}
-        </section>
+        <NovelSourceList
+          state={state}
+          busy={busy}
+          run={run}
+          onChange={onChange}
+          onEdit={(rules) => {
+            setRules(rules);
+            setImportResult(undefined);
+            setEditorOpen(true);
+          }}
+        />
       </div>
     </section>
   );

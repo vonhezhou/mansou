@@ -88,11 +88,34 @@ export class NovelSourceService {
   }
   import(input: unknown) {
     const values = parseSources(input);
+    const records = values.map((value) => this.record(value, "local"));
+    const accepted = records.filter((row) => row.summary.downloadSupported);
     this.db.transaction(() => {
-      for (const value of values) {
-        const row = this.record(value, "local");
-        if (row.summary.downloadSupported) this.db.save("source", row.summary.id, row);
-        else this.db.delete("source", row.summary.id);
+      for (const row of accepted) this.db.save("source", row.summary.id, row);
+    });
+    return {
+      ...this.state(),
+      importedCount: accepted.length,
+      rejected: records
+        .filter((row) => !row.summary.downloadSupported)
+        .map((row) => ({
+          name: row.summary.name,
+          reason: row.summary.downloadError!,
+        })),
+    };
+  }
+  batch(ids: string[], action: "enable" | "disable" | "delete") {
+    const rows = [...new Set(ids)].map((id) => this.source(id, false));
+    if (action === "enable" && rows.some((row) => !row.summary.downloadSupported))
+      throw new AppError("VALIDATION_ERROR", "选择中含不支持下载的书源，请先移除这些书源");
+    this.db.transaction(() => {
+      for (const row of rows) {
+        if (action === "delete") this.db.delete("source", row.summary.id);
+        else
+          this.db.save("source", row.summary.id, {
+            ...row,
+            summary: { ...row.summary, enabled: action === "enable" },
+          });
       }
     });
     return this.state();
@@ -132,7 +155,15 @@ export class NovelSourceService {
         ...group,
         count: records.length,
         updatedAt: new Date().toISOString(),
-        error: warning,
+        error:
+          [
+            warning,
+            incoming.length > records.length
+              ? `已拒绝 ${incoming.length - records.length} 个不支持下载的书源`
+              : undefined,
+          ]
+            .filter(Boolean)
+            .join("；") || undefined,
       });
     });
     return this.state();

@@ -981,6 +981,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/novels/sources/batch": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** 批量启用、停用或删除书源，任一身份无效时整批不执行 */
+    post: operations["batchNovelSources"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/novels/sources/{id}": {
     parameters: {
       query?: never;
@@ -1606,6 +1623,18 @@ export interface components {
     NovelState: {
       sources: components["schemas"]["NovelSource"][];
       subscriptions: components["schemas"]["NovelSubscription"][];
+    };
+    NovelSourceBatchRequest: {
+      ids: string[];
+      /** @enum {string} */
+      action: "enable" | "disable" | "delete";
+    };
+    NovelImportResult: components["schemas"]["NovelState"] & {
+      importedCount: number;
+      rejected: {
+        name: string;
+        reason: string;
+      }[];
     };
     NovelBook: {
       name: string;
@@ -3543,7 +3572,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["NovelState"];
+          "application/json": components["schemas"]["NovelImportResult"];
         };
       };
       /** @description Invalid input */
@@ -3568,6 +3597,51 @@ export interface operations {
         content?: never;
       };
       /** @description Unsupported rule or upstream failure */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  batchNovelSources: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NovelSourceBatchRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelState"];
+        };
+      };
+      /** @description Invalid input */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Source not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unsupported source */
       422: {
         headers: {
           [name: string]: unknown;

@@ -26,6 +26,68 @@
   font-family: monospace;
   resize: vertical;
 }
+.novel-source-filters {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) repeat(3, minmax(120px, 1fr));
+  gap: 12px;
+}
+.novel-source-filters label,
+.novel-source-filters select {
+  min-width: 0;
+  width: 100%;
+}
+.novel-panel .novel-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+}
+.novel-panel .novel-checkbox input {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+.novel-source-select {
+  grid-column: 1 / -1;
+}
+.novel-source-batch,
+.novel-source-pagination {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0;
+}
+.novel-source-pagination {
+  justify-content: center;
+}
+.novel-import-result {
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.novel-import-result ul {
+  max-height: 200px;
+  overflow-y: auto;
+  padding-left: 22px;
+}
+@media (max-width: 900px) {
+  .novel-source-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .novel-source-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .novel-source-batch button {
+    min-height: 40px;
+  }
+}
 .novel-inline,
 .novel-actions {
   display: flex;

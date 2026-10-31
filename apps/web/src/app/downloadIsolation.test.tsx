@@ -332,7 +332,7 @@ it("小说源数量在所有页面可见，包含停用源，并随删除、导�
       },
     ],
   };
-  vi.spyOn(novelApi, "import").mockResolvedValue(imported);
+  vi.spyOn(novelApi, "import").mockResolvedValue({ ...imported, importedCount: 2, rejected: [] });
   await act(async () =>
     [...container.querySelectorAll<HTMLButtonElement>("button")]
       .find((x) => x.textContent === "导入书源")!

@@ -136,7 +136,13 @@ it("导入和订阅只保留支持下载的源，更新为不支持时移除旧�
   expect(env.sources.import([unsupported, other]).sources.map((source) => source.url)).toEqual([
     other.bookSourceUrl,
   ]);
-  expect(env.sources.import({ ...other, ruleContent: {} }).sources).toHaveLength(0);
+  const rejected = env.sources.import({ ...other, ruleContent: {} });
+  expect(rejected.sources).toHaveLength(1);
+  expect(rejected.importedCount).toBe(0);
+  expect(rejected.rejected).toEqual([
+    { name: other.bookSourceName, reason: expect.stringContaining("正文") },
+  ]);
+  env.sources.deleteSource(rejected.sources[0].id);
   env.setCollection([raw, { ...unsupported, bookSourceUrl: other.bookSourceUrl }]);
   const state = await env.sources.saveSubscription({
     name: "合集",
@@ -149,6 +155,23 @@ it("导入和订阅只保留支持下载的源，更新为不支持时移除旧�
   expect((await env.sources.refresh(group.id)).sources).toHaveLength(0);
   await env.restart();
   expect(env.sources.state().sources).toHaveLength(0);
+});
+it("批量操作去重且全有或全无，删除不破坏已有任务快照", async () => {
+  const env = await setup();
+  const state = env.sources.import([raw, { ...raw, bookSourceUrl: "https://other.test" }]);
+  const ids = state.sources.map((source) => source.id);
+  expect(() => env.sources.batch([ids[0], "missing"], "delete")).toThrow();
+  expect(env.sources.state().sources).toHaveLength(2);
+  expect(
+    env.sources.batch([...ids, ids[0]], "disable").sources.every((source) => !source.enabled),
+  ).toBe(true);
+  expect(env.sources.batch(ids, "enable").sources.every((source) => source.enabled)).toBe(true);
+  await env.downloads.create({ sourceId: ids[0], book, all: false, start: 1, limit: 1 });
+  const taskId = env.downloads.all()[0].id;
+  expect(env.sources.batch(ids, "delete").sources).toHaveLength(0);
+  await env.restart();
+  expect(env.sources.state().sources).toHaveLength(0);
+  expect(env.downloads.all()[0].id).toBe(taskId);
 });
 it("订阅部分失败时保留未知旧源，但移除明确不支持下载的更新", async () => {
   const env = await setup();
@@ -329,7 +352,23 @@ it("小说 HTTP 闭环使用现有鉴权，校验参数并返回可操作的错�
   expect(context.novelSources.state().sources).toHaveLength(0);
   const imported = await request("POST", "/sources/import", { sources: raw });
   expect(imported.statusCode).toBe(200);
+  expect(imported.json().importedCount).toBe(1);
+  expect(imported.json().rejected).toEqual([]);
   const sourceId = imported.json().sources[0].id;
+  expect((await request("POST", "/sources/batch", { ids: [], action: "delete" })).statusCode).toBe(
+    400,
+  );
+  expect(
+    (await request("POST", "/sources/batch", { ids: [sourceId], action: "invalid" })).statusCode,
+  ).toBe(400);
+  expect(
+    (await request("POST", "/sources/batch", { ids: [sourceId], action: "disable" })).json()
+      .sources[0].enabled,
+  ).toBe(false);
+  expect(
+    (await request("POST", "/sources/batch", { ids: [sourceId], action: "enable" })).json()
+      .sources[0].enabled,
+  ).toBe(true);
   expect((await request("POST", "/search", { keyword: "x", page: 1.5 })).statusCode).toBe(400);
   const result = await request("POST", "/search", { keyword: "凡人", sourceIds: [sourceId] });
   expect(result.statusCode).toBe(200);
@@ -360,6 +399,15 @@ it("小说 HTTP 闭环使用现有鉴权，校验参数并返回可操作的错�
     { ...readConfig(), dataDir: path.join(dir, "protected") },
   );
   cleanups.push(() => protectedApp.app.close());
+  expect(
+    (
+      await protectedApp.app.inject({
+        method: "POST",
+        url: "/api/v1/novels/sources/batch",
+        payload: { ids: [sourceId], action: "delete" },
+      })
+    ).statusCode,
+  ).toBe(401);
   expect(
     (await protectedApp.app.inject({ method: "GET", url: "/api/v1/novels/sources" })).statusCode,
   ).toBe(401);
