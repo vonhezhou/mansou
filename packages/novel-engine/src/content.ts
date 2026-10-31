@@ -107,7 +107,11 @@ async function loadPage(source: BookSource, url: string, base: string, options: 
     request.headers.Referer = base;
   const response = await fetchHtml(request, signal, undefined, options.fetcher);
   signal.throwIfAborted();
-  return { ...response, parser: new HtmlRules(response.html) };
+  return {
+    ...response,
+    url: urlOf(response.url || request.url, request.url),
+    parser: new HtmlRules(response.html),
+  };
 }
 
 export async function loadCatalog(
@@ -125,20 +129,26 @@ export async function loadCatalog(
     ? detail.parser.elements(info.init).first()[0]
     : detail.parser.$.root()[0];
   if (!detailRoot) throw new SourceError("PARSE_MISMATCH", "详情 init 未匹配");
-  const tocUrl = info.tocUrl
+  let tocUrl = info.tocUrl
     ? links(detail.parser.string(info.tocUrl, detailRoot), detail.url)[0]
     : detail.url;
   if (!tocUrl) throw new SourceError("PARSE_MISMATCH", "目录链接未匹配");
   const queue = [tocUrl];
   const visited = new Set<string>();
+  let tocPages = 0;
   const chapters: Chapter[] = [];
   const known = new Set<string>();
   const listRule = toc.chapterList!.replace(/^[+-]/, "");
-  while (queue.length && visited.size < maxTocPages) {
+  while (queue.length && tocPages < maxTocPages) {
     const url = queue.shift()!;
     if (visited.has(url)) continue;
-    visited.add(url);
+    tocPages++;
     const page = url === detail.url ? detail : await load(url, detail.url);
+    const alreadyVisited = visited.has(page.url);
+    visited.add(url);
+    visited.add(page.url);
+    if (tocPages === 1) tocUrl = page.url;
+    if (alreadyVisited) continue;
     const rows = page.parser.elements(listRule);
     if (!rows.length) throw new SourceError("PARSE_MISMATCH", `目录列表未匹配：${url}`);
     rows.each((index, row) => {
@@ -173,10 +183,10 @@ export async function loadCatalog(
       ))
         if (!visited.has(next) && !queue.includes(next)) queue.push(next);
   }
-  const tocComplete = queue.length === 0;
+  const tocComplete = queue.every((url) => visited.has(url));
   if (!chapters.length) throw new SourceError("PARSE_MISMATCH", "目录未提取到有效章节");
   if (toc.chapterList!.startsWith("-")) chapters.reverse();
-  return { bookUrl: detail.url, tocUrl, tocComplete, tocPages: visited.size, chapters };
+  return { bookUrl: detail.url, tocUrl, tocComplete, tocPages, chapters };
 }
 
 export async function loadChapter(
@@ -188,34 +198,57 @@ export async function loadChapter(
   assertDownloadSupported(source);
   const content = rules(source, "ruleContent");
   const maxContentPages = options.maxContentPages ?? 20;
-  const known = new Set(catalog.chapters.map((chapter) => chapter.url));
+  const boundaries = new Set([
+    ...catalog.chapters.map((chapter) => urlOf(chapter.url, catalog.bookUrl)),
+    urlOf(catalog.tocUrl, catalog.bookUrl),
+    urlOf(catalog.bookUrl, catalog.bookUrl),
+  ]);
   const seenPages = new Set<string>();
   const bodies: string[] = [];
-  let current: string | undefined = chapter.url;
+  const queue = [{ url: urlOf(chapter.url, catalog.bookUrl), follow: true }];
+  let pageCount = 0;
   let bytes = 0;
-  while (current) {
-    if (seenPages.has(current)) throw new SourceError("SOURCE_ERROR", "正文分页循环");
-    if (seenPages.size >= maxContentPages)
-      throw new SourceError("SOURCE_ERROR", "正文分页超出限制");
-    seenPages.add(current);
+  while (queue.length) {
+    const { url: current, follow } = queue.shift()!;
+    if (seenPages.has(current)) {
+      if (!follow) continue;
+      throw new SourceError("SOURCE_ERROR", "正文分页循环");
+    }
+    if (pageCount >= maxContentPages) throw new SourceError("SOURCE_ERROR", "正文分页超出限制");
+    pageCount++;
     const page = await loadPage(source, current, catalog.bookUrl, options);
+    // 分页别名可能重定向回已读页或下一章，必须在拼接正文前检查最终地址。
+    if (seenPages.has(page.url)) {
+      seenPages.add(current);
+      if (!follow) continue;
+      throw new SourceError("SOURCE_ERROR", "正文分页循环");
+    }
+    if (bodies.length && boundaries.has(page.url)) continue;
+    seenPages.add(current);
+    seenPages.add(page.url);
     let body = page.parser.string(content.content, page.parser.$.root()[0]!);
     if (content.replaceRegex) body = page.parser.replace(content.replaceRegex, body);
     body = plainText(body);
     if (!body || (body.length < 200 && /章节加载失败|请开启JavaScript|正在加载正文/.test(body)))
       throw new SourceError("PARSE_MISMATCH", `正文为空或未加载：${current}`);
-    bytes += Buffer.byteLength(body);
+    bytes += Buffer.byteLength(body) + (bodies.length ? 1 : 0);
     if (bytes > 4 * 1024 * 1024) throw new SourceError("RESPONSE_TOO_LARGE", "单章正文超过 4 MiB");
     bodies.push(body);
-    const next = content.nextContentUrl
-      ? links(page.parser.string(content.nextContentUrl, page.parser.$.root()[0]!), page.url)[0]
-      : undefined;
-    if (next && seenPages.has(next)) throw new SourceError("SOURCE_ERROR", "正文分页循环");
-    // 目录中的下一章不是当前章的分页。
-    current =
-      next && !known.has(next) && next !== catalog.tocUrl && next !== catalog.bookUrl
-        ? next
-        : undefined;
+    if (!follow || !content.nextContentUrl) continue;
+    const next = [
+      ...new Set(
+        links(page.parser.string(content.nextContentUrl, page.parser.$.root()[0]!), page.url),
+      ),
+    ];
+    // 多链接代表本章的分页列表，按规则顺序读取一次；子页导航不再递归，避免往返。
+    const listed = next.length > 1;
+    for (const url of next) {
+      if (seenPages.has(url)) {
+        if (!listed) throw new SourceError("SOURCE_ERROR", "正文分页循环");
+        continue;
+      }
+      if (!boundaries.has(url)) queue.push({ url, follow: !listed });
+    }
   }
   return bodies.join("\n");
 }

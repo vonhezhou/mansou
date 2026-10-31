@@ -404,6 +404,36 @@ it("目录和正文分页、URL 去重、下一章边界与截断标记符合预
     loadChapter(raw, catalog.chapters[0], catalog, { fetcher: env.fetcher, maxContentPages: 1 }),
   ).rejects.toThrow(/分页超出/);
 });
+it.each(["完成", "中间页失败"])("多分页正文经过 Worker 和下载任务后保持完整：%s", async (mode) => {
+  const env = await setup();
+  env.setPage(
+    "/1",
+    '<div class="content">甲段正文</div><a class="next" href="/1b">分页二</a><a class="next" href="/1c">分页三</a>',
+  );
+  env.setPage("/1b", mode === "完成" ? '<div class="content">乙段正文</div>' : "正文未加载");
+  env.setPage("/1c", '<div class="content">丙段正文</div>');
+  const source = env.sources.import(raw).sources[0];
+  const task = env.downloads.create({ sourceId: source.id, book, all: true });
+  await waitTask(env.downloads, mode === "完成" ? "completed" : "failed");
+  if (mode === "中间页失败") {
+    expect(env.downloads.all()[0].completed).toBe(0);
+    await expect(env.downloads.openTxt(task.id)).rejects.toMatchObject({
+      code: "DOWNLOAD_NOT_COMPLETED",
+    });
+    await expect(stat(path.join(env.dir, "downloads", task.id, "book.txt"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  } else {
+    const text = await readFile(path.join(env.dir, "downloads", task.id, "book.txt"), "utf8");
+    expect(text).toContain("甲段正文\n乙段正文\n丙段正文");
+    expect(text).toContain("第二章正文");
+    expect(env.calls.filter((url) => ["/1", "/1b", "/1c"].includes(url))).toEqual([
+      "/1",
+      "/1b",
+      "/1c",
+    ]);
+  }
+});
 it("失败下载不提供 TXT；重启后按原规则与目录恢复，跳过已完成章节", async () => {
   const env = await setup();
   const source = env.sources.import(raw).sources[0];
