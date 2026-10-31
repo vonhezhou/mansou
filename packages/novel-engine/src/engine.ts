@@ -89,6 +89,12 @@ export interface SearchOptions {
   signal?: AbortSignal;
   fetcher?: typeof fetch;
   runSource?: typeof searchOne;
+  onProgress?: (progress: {
+    totalSources: number;
+    completedSources: number;
+    elapsedMs: number;
+    source?: SourceOutcome;
+  }) => void | Promise<void>;
 }
 
 export async function searchOne(
@@ -161,10 +167,19 @@ export async function searchAll(
   const started = performance.now();
   const outcomes: SourceOutcome[] = new Array(sources.length);
   let cursor = 0;
+  let completedSources = 0;
+  await options.onProgress?.({ totalSources: sources.length, completedSources, elapsedMs: 0 });
   const worker = async () => {
     while (cursor < sources.length && !options.signal?.aborted) {
       const index = cursor++;
       outcomes[index] = await (options.runSource ?? searchOne)(sources[index]!, key, page, options);
+      completedSources++;
+      await options.onProgress?.({
+        totalSources: sources.length,
+        completedSources,
+        elapsedMs: Math.round(performance.now() - started),
+        source: outcomes[index],
+      });
     }
   };
   await Promise.all(Array.from({ length: Math.min(options.concurrency, sources.length) }, worker));

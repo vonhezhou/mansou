@@ -261,6 +261,11 @@ async function api(route, body, method = body === undefined ? "GET" : "POST") {
   });
   const text = await response.text();
   assert(response.ok, `${route}: HTTP ${response.status}: ${text}`);
+  if (response.headers.get("content-type")?.includes("application/x-ndjson"))
+    return text
+      .split("\n")
+      .filter((line) => line.trim())
+      .map((line) => JSON.parse(line));
   return JSON.parse(text);
 }
 async function waitTask(id, predicate, label) {
@@ -306,7 +311,9 @@ try {
   });
   const sourceId = imported.sources[0].id;
   const search = await api("/novels/search", { keyword: "合成长篇", sourceIds: [sourceId] });
-  assert.equal(search.results[0].name, "合成长篇");
+  assert.equal(search[0].type, "start");
+  assert.equal(search.find((event) => event.type === "source").source.books[0].name, "合成长篇");
+  assert.equal(search.at(-1).type, "complete");
   const task = await api("/novels/downloads", {
     sourceId,
     book: { name: "合成长篇", author: "验收夹具", bookUrl: `${fixtureUrl}/book` },

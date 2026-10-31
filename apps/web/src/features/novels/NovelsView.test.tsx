@@ -52,6 +52,36 @@ const origin = {
   sourceId: "local:test",
   sourceName: "测试书源",
 };
+function searchResponse(snapshot: any) {
+  const sources = snapshot.sources.length
+    ? snapshot.sources
+    : snapshot.results.flatMap((book: any) =>
+        book.origins.map((origin: any) => ({
+          sourceId: origin.sourceId,
+          sourceName: origin.sourceName,
+          status: "ok",
+          elapsedMs: 0,
+          books: [origin],
+        })),
+      );
+  return new Response(
+    [
+      {
+        type: "start",
+        keyword: snapshot.keyword,
+        page: snapshot.page,
+        totalSources: snapshot.totalSources,
+      },
+      ...sources.map((source: any) => ({ type: "source", source, elapsedMs: 1 })),
+      { type: "complete", elapsedMs: 1, cancelled: false },
+    ]
+      .map((event) => JSON.stringify(event) + "\n")
+      .join(""),
+    {
+      headers: { "content-type": "application/x-ndjson" },
+    },
+  );
+}
 it.each(["完成后进入任务", "关闭后不跳转", "关闭后创建失败", "任务已创建但刷新失败"])(
   "网页加载目录、缓存重开及范围下载：%s",
   async (scenario) => {
@@ -81,14 +111,14 @@ it.each(["完成后进入任务", "关闭后不跳转", "关闭后创建失败",
             ],
           };
         else if (path === "/search")
-          result = {
+          return searchResponse({
             keyword: body.keyword,
             page: 1,
             results: [{ name: origin.name, author: origin.author, origins: [origin] }],
             sources: [],
             totalSources: 1,
             completedSources: 1,
-          };
+          });
         else if (path === "/catalog")
           result = {
             bookUrl: origin.bookUrl,
@@ -246,7 +276,7 @@ it.each(["关闭详情", "卸载页面", "加载失败", "Escape"])(
           });
         if (url.endsWith("/downloads")) return json([]);
         if (url.endsWith("/search"))
-          return json({
+          return searchResponse({
             keyword: "凡人",
             page: 1,
             results: [{ name: origin.name, author: origin.author, origins: [origin] }],
@@ -357,7 +387,7 @@ it("固定搜索全部可用源，移除选择控件，翻页沿用原查询", a
       if (url.endsWith("/search")) {
         const body = JSON.parse(String(options?.body));
         requests.push(body);
-        return json({
+        return searchResponse({
           ...body,
           totalSources: sources.length,
           completedSources: sources.length,
@@ -404,3 +434,134 @@ it("固定搜索全部可用源，移除选择控件，翻页沿用原查询", a
   await act(async () => button("下一页").click());
   expect(requests[1]).toEqual({ keyword: "test", page: 2 });
 });
+
+it.each(["完成", "取消", "断开", "卸载"])(
+  "搜索尚未结束就显示结果和进度，%s 时保留正确状态",
+  async (mode) => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    let stream!: ReadableStreamDefaultController<Uint8Array>;
+    let searchSignal: AbortSignal | undefined;
+    const cancelled = vi.fn();
+    const emit = (event: unknown) =>
+      stream.enqueue(new TextEncoder().encode(JSON.stringify(event) + "\n"));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, options?: RequestInit) => {
+        if (url.endsWith("/sources"))
+          return new Response(
+            JSON.stringify({
+              subscriptions: [{ id: "local", enabled: true }],
+              sources: [
+                {
+                  id: origin.sourceId,
+                  name: origin.sourceName,
+                  groupId: "local",
+                  enabled: true,
+                  searchSupported: true,
+                  downloadSupported: true,
+                },
+              ],
+            }),
+            { headers: { "content-type": "application/json" } },
+          );
+        if (url.endsWith("/search")) {
+          searchSignal = options?.signal ?? undefined;
+          return new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                stream = controller;
+              },
+              cancel: cancelled,
+            }),
+            { headers: { "content-type": "application/x-ndjson" } },
+          );
+        }
+        throw new Error(`Unexpected path ${url}`);
+      }),
+    );
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => root!.render(<SearchHarness />));
+    await act(async () => {
+      const input = container.querySelector<HTMLInputElement>('[aria-label="书名或作者"]')!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+        input,
+        "凡人",
+      );
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () =>
+      container
+        .querySelector("form")!
+        .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })),
+    );
+    await act(async () => emit({ type: "start", keyword: "凡人", page: 1, totalSources: 2 }));
+    expect(container.textContent).toContain("0/2");
+    expect(container.textContent).not.toContain("本页没有小说结果");
+    await act(async () =>
+      emit({
+        type: "source",
+        elapsedMs: 1,
+        source: {
+          sourceId: origin.sourceId,
+          sourceName: origin.sourceName,
+          status: "ok",
+          elapsedMs: 1,
+          books: [origin],
+        },
+      }),
+    );
+    expect(container.textContent).toContain("1/2");
+    expect(
+      container.querySelector<HTMLButtonElement>('[aria-label="查看 凡人测试 的详情"]')?.disabled,
+    ).toBe(false);
+    expect(container.querySelector(".search-results")?.getAttribute("aria-busy")).toBe("true");
+    const nextPage = () =>
+      [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+        (button) => button.textContent === "下一页",
+      )!;
+    expect(nextPage().disabled).toBe(true);
+    if (mode === "完成") {
+      await act(async () => {
+        emit({
+          type: "source",
+          elapsedMs: 2,
+          source: {
+            sourceId: "other",
+            sourceName: "慢源",
+            status: "error",
+            elapsedMs: 2,
+            books: [],
+            error: { code: "TIMEOUT", message: "连接超时" },
+          },
+        });
+        emit({ type: "complete", elapsedMs: 2, cancelled: false });
+        stream.close();
+      });
+      expect(container.textContent).toContain("2/2");
+      expect(container.textContent).toContain("1 个源搜索失败");
+    } else if (mode === "取消") {
+      await act(async () =>
+        [...container.querySelectorAll<HTMLButtonElement>("button")]
+          .find((button) => button.textContent === "取消搜索")!
+          .click(),
+      );
+      expect(searchSignal?.aborted).toBe(true);
+      expect(cancelled).toHaveBeenCalledOnce();
+      expect(container.textContent).toContain("搜索已取消");
+    } else if (mode === "断开") {
+      await act(async () => stream.close());
+      expect(container.textContent).toContain("搜索连接中断");
+    } else {
+      await act(async () => root!.unmount());
+      root = undefined;
+      expect(searchSignal?.aborted).toBe(true);
+      expect(cancelled).toHaveBeenCalledOnce();
+      return;
+    }
+    expect(container.querySelector('[aria-label="查看 凡人测试 的详情"]')).not.toBeNull();
+    expect(container.querySelector(".search-results")?.getAttribute("aria-busy")).toBe("false");
+    expect(nextPage().disabled).toBe(false);
+  },
+);

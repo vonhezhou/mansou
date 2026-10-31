@@ -12,6 +12,7 @@ import {
   type BookSource,
   type RegisteredSource,
   type SourceOutcome,
+  type SearchOptions,
 } from "@mansou/novel-engine";
 import type { components } from "@mansou/contracts";
 import type { StorageDatabase } from "@mansou/storage";
@@ -230,7 +231,13 @@ export class NovelSourceService {
       return this.state();
     });
   }
-  search(keyword: string, page: number, ids?: string[], signal?: AbortSignal) {
+  search(
+    keyword: string,
+    page: number,
+    ids?: string[],
+    signal?: AbortSignal,
+    onProgress?: SearchOptions["onProgress"],
+  ) {
     const state = this.state();
     const selected = ids?.length
       ? [...new Set(ids)]
@@ -259,6 +266,7 @@ export class NovelSourceService {
       concurrency: 3,
       fetcher: this.fetcher,
       signal,
+      onProgress,
       runSource: async (source, key, page, options) => {
         const started = performance.now();
         try {

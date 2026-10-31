@@ -2,6 +2,8 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { SourceError } from "@mansou/novel-engine";
 import type { Application } from "../application.js";
+import type { components } from "@mansou/contracts";
+import { once } from "node:events";
 
 async function withCancellation<T>(reply: FastifyReply, work: (signal: AbortSignal) => Promise<T>) {
   const controller = new AbortController();
@@ -12,6 +14,7 @@ async function withCancellation<T>(reply: FastifyReply, work: (signal: AbortSign
   try {
     return await work(controller.signal);
   } finally {
+    controller.abort();
     reply.raw.off("close", cancel);
   }
 }
@@ -97,9 +100,61 @@ export async function registerNovelRoutes(
             sourceIds: z.array(z.string().max(200)).max(100).optional(),
           })
           .parse(request.body);
-        return withCancellation(reply, (signal) =>
-          context.novelSources.search(body.keyword, body.page, body.sourceIds, signal),
-        );
+        return withCancellation(reply, async (signal) => {
+          let started = false;
+          let heartbeat: ReturnType<typeof setInterval> | undefined;
+          const send = async (event: components["schemas"]["NovelSearchEvent"]) => {
+            if (signal.aborted) return;
+            if (!started) {
+              started = true;
+              reply.hijack();
+              reply.raw.writeHead(200, {
+                "content-type": "application/x-ndjson; charset=utf-8",
+                "cache-control": "no-store",
+                "x-accel-buffering": "no",
+              });
+              heartbeat = setInterval(() => {
+                if (!signal.aborted && !reply.raw.writableNeedDrain) reply.raw.write("\n");
+              }, 15000);
+            }
+            // 慢客户端暂停后续调度，避免把全部搜索结果堆积在响应缓冲区。
+            if (!reply.raw.write(`${JSON.stringify(event)}\n`))
+              await once(reply.raw, "drain", { signal });
+          };
+          try {
+            const result = await context.novelSources.search(
+              body.keyword,
+              body.page,
+              body.sourceIds,
+              signal,
+              (progress) =>
+                send(
+                  progress.source
+                    ? { type: "source", source: progress.source, elapsedMs: progress.elapsedMs }
+                    : {
+                        type: "start",
+                        keyword: body.keyword,
+                        page: body.page,
+                        totalSources: progress.totalSources,
+                      },
+                ),
+            );
+            await send({
+              type: "complete",
+              cancelled: result.cancelled,
+              elapsedMs: result.elapsedMs,
+            });
+          } catch (error) {
+            if (!started) throw error;
+            if (!signal.aborted) {
+              request.log.error({ err: error }, "Novel search stream failed");
+              await send({ type: "error", message: "搜索中断，请重试；已返回结果仍可查看" });
+            }
+          } finally {
+            clearInterval(heartbeat);
+            if (started) reply.raw.end();
+          }
+        });
       });
       api.post("/catalog", async (request, reply) => {
         const body = z.object({ sourceId: z.string(), bookUrl: httpUrl }).parse(request.body);

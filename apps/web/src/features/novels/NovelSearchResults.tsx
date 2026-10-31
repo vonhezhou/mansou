@@ -146,7 +146,7 @@ export const NovelSearchResults = memo(function NovelSearchResults({
           <p className="muted">输入书名或作者，搜索你已启用的书源。</p>
         </div>
       )}
-      {result && !result.results.length && (
+      {result && !searching && !result.cancelled && !error && !result.results.length && (
         <p className="muted">本页没有小说结果，可以更换关键词或书源。</p>
       )}
       {result && aggregate && grouping === "grouped" ? (

@@ -1664,9 +1664,10 @@ export const openApiDocument = {
         summary: "searchNovels",
         responses: {
           "200": {
-            description: "OK",
+            description:
+              "NDJSON stream of start, source and complete events; blank lines are heartbeats",
             content: {
-              "application/json": { schema: { $ref: "#/components/schemas/NovelSearch" } },
+              "application/x-ndjson": { schema: { $ref: "#/components/schemas/NovelSearchEvent" } },
             },
           },
           "400": { description: "Invalid input" },
@@ -2617,25 +2618,7 @@ export const openApiDocument = {
               required: ["name", "author", "origins"],
             },
           },
-          sources: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                sourceId: { type: "string" },
-                sourceName: { type: "string" },
-                status: { type: "string", enum: ["ok", "error"] },
-                elapsedMs: { type: "number" },
-                books: { type: "array", items: { $ref: "#/components/schemas/NovelBook" } },
-                error: {
-                  type: "object",
-                  properties: { code: { type: "string" }, message: { type: "string" } },
-                  required: ["code", "message"],
-                },
-              },
-              required: ["sourceId", "sourceName", "status", "elapsedMs", "books"],
-            },
-          },
+          sources: { type: "array", items: { $ref: "#/components/schemas/NovelSearchSource" } },
         },
         required: [
           "keyword",
@@ -2646,6 +2629,61 @@ export const openApiDocument = {
           "completedSources",
           "results",
           "sources",
+        ],
+      },
+      NovelSearchSource: {
+        type: "object",
+        properties: {
+          sourceId: { type: "string" },
+          sourceName: { type: "string" },
+          status: { type: "string", enum: ["ok", "error"] },
+          elapsedMs: { type: "number" },
+          books: { type: "array", items: { $ref: "#/components/schemas/NovelBook" } },
+          error: {
+            type: "object",
+            properties: { code: { type: "string" }, message: { type: "string" } },
+            required: ["code", "message"],
+          },
+        },
+        required: ["sourceId", "sourceName", "status", "elapsedMs", "books"],
+      },
+      NovelSearchEvent: {
+        description:
+          "One JSON object per line. Source events arrive in completion order. EOF without complete is a stream failure; preserve received results.",
+        oneOf: [
+          {
+            type: "object",
+            required: ["type", "keyword", "page", "totalSources"],
+            properties: {
+              type: { type: "string", enum: ["start"] },
+              keyword: { type: "string" },
+              page: { type: "integer" },
+              totalSources: { type: "integer" },
+            },
+          },
+          {
+            type: "object",
+            required: ["type", "source", "elapsedMs"],
+            properties: {
+              type: { type: "string", enum: ["source"] },
+              source: { $ref: "#/components/schemas/NovelSearchSource" },
+              elapsedMs: { type: "number" },
+            },
+          },
+          {
+            type: "object",
+            required: ["type", "cancelled", "elapsedMs"],
+            properties: {
+              type: { type: "string", enum: ["complete"] },
+              cancelled: { type: "boolean" },
+              elapsedMs: { type: "number" },
+            },
+          },
+          {
+            type: "object",
+            required: ["type", "message"],
+            properties: { type: { type: "string", enum: ["error"] }, message: { type: "string" } },
+          },
         ],
       },
       NovelChapter: {

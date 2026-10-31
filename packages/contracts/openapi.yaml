@@ -1943,11 +1943,11 @@ paths:
       summary: searchNovels
       responses:
         "200":
-          description: OK
+          description: NDJSON stream of start, source and complete events; blank lines are heartbeats
           content:
-            application/json:
+            application/x-ndjson:
               schema:
-                $ref: "#/components/schemas/NovelSearch"
+                $ref: "#/components/schemas/NovelSearchEvent"
         "400":
           description: Invalid input
         "404":
@@ -3176,35 +3176,7 @@ components:
         sources:
           type: array
           items:
-            type: object
-            properties:
-              sourceId: *a1
-              sourceName: *a1
-              status:
-                type: string
-                enum:
-                  - ok
-                  - error
-              elapsedMs:
-                type: number
-              books:
-                type: array
-                items:
-                  $ref: "#/components/schemas/NovelBook"
-              error:
-                type: object
-                properties:
-                  code: *a1
-                  message: *a1
-                required:
-                  - code
-                  - message
-            required:
-              - sourceId
-              - sourceName
-              - status
-              - elapsedMs
-              - books
+            $ref: "#/components/schemas/NovelSearchSource"
       required:
         - keyword
         - page
@@ -3214,6 +3186,74 @@ components:
         - completedSources
         - results
         - sources
+    NovelSearchSource:
+      type: object
+      properties:
+        sourceId: *a1
+        sourceName: *a1
+        status:
+          type: string
+          enum:
+            - ok
+            - error
+        elapsedMs:
+          type: number
+        books:
+          type: array
+          items:
+            $ref: "#/components/schemas/NovelBook"
+        error:
+          type: object
+          properties:
+            code: *a1
+            message: *a1
+          required:
+            - code
+            - message
+      required:
+        - sourceId
+        - sourceName
+        - status
+        - elapsedMs
+        - books
+    NovelSearchEvent:
+      description: One JSON object per line. Source events arrive in completion order. EOF without complete is a stream failure; preserve received results.
+      oneOf:
+        - type: object
+          required: [type, keyword, page, totalSources]
+          properties:
+            type:
+              type: string
+              enum: [start]
+            keyword: *a1
+            page: *a3
+            totalSources: *a3
+        - type: object
+          required: [type, source, elapsedMs]
+          properties:
+            type:
+              type: string
+              enum: [source]
+            source:
+              $ref: "#/components/schemas/NovelSearchSource"
+            elapsedMs:
+              type: number
+        - type: object
+          required: [type, cancelled, elapsedMs]
+          properties:
+            type:
+              type: string
+              enum: [complete]
+            cancelled: *a2
+            elapsedMs:
+              type: number
+        - type: object
+          required: [type, message]
+          properties:
+            type:
+              type: string
+              enum: [error]
+            message: *a1
     NovelChapter:
       type: object
       properties:

@@ -1,5 +1,6 @@
 import type { components } from "@mansou/contracts";
 import { api, apiBase } from "./client.js";
+import { searchNovels } from "./novelSearch.js";
 export type NovelBook = components["schemas"]["NovelBook"];
 export type NovelSource = components["schemas"]["NovelSource"];
 export type NovelState = components["schemas"]["NovelState"];
@@ -37,8 +38,7 @@ export const novelApi = {
   refresh: (id: string) => call<NovelState>(`/subscriptions/${encodeURIComponent(id)}/refresh`),
   removeSubscription: (id: string) =>
     call<NovelState>(`/subscriptions/${encodeURIComponent(id)}`, undefined, "DELETE"),
-  search: (keyword: string, page: number, sourceIds?: string[], signal?: AbortSignal) =>
-    call<NovelSearch>("/search", { keyword, page, sourceIds }, "POST", signal),
+  search: searchNovels,
   catalog: (origin: NovelOrigin, signal?: AbortSignal) =>
     call<NovelCatalog>(
       "/catalog",

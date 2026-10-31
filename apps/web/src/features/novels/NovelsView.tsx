@@ -66,8 +66,19 @@ export function NovelsView({
       setSearchError(undefined);
       setResult(undefined);
       try {
-        const value = await novelApi.search(term, page, undefined, controller.signal);
-        if (active.current && !controller.signal.aborted) setResult(value);
+        await novelApi.search(
+          term,
+          page,
+          (value) => {
+            if (
+              active.current &&
+              searchController.current === controller &&
+              !controller.signal.aborted
+            )
+              setResult(value);
+          },
+          controller.signal,
+        );
       } catch (error) {
         if (active.current && !controller.signal.aborted)
           setSearchError(error instanceof Error ? error.message : String(error));
@@ -181,6 +192,7 @@ export function NovelsView({
           onSearch={() => void search()}
           onCancelSearch={() => {
             searchController.current?.abort();
+            setResult((value) => (value ? { ...value, cancelled: true } : value));
             setSearching(false);
             setSearchError("搜索已取消");
           }}

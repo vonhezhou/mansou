@@ -262,14 +262,18 @@ it("从小说详情创建下载后进入统一下载页并刷新任务快照", a
     sourceName: "小说测试源",
     bookUrl: "https://novel.test/book",
   };
-  vi.spyOn(novelApi, "search").mockResolvedValue({
-    keyword: "小说",
-    page: 1,
-    results: [{ name: book.name, author: book.author, origins: [book] }],
-    sources: [],
-    totalSources: 1,
-    completedSources: 1,
-  } as any);
+  vi.spyOn(novelApi, "search").mockImplementation(async (_keyword, _page, onUpdate) => {
+    onUpdate({
+      keyword: "小说",
+      page: 1,
+      elapsedMs: 1,
+      cancelled: false,
+      results: [{ name: book.name, author: book.author, origins: [book] }],
+      sources: [],
+      totalSources: 1,
+      completedSources: 1,
+    });
+  });
   vi.spyOn(novelApi, "catalog").mockResolvedValue({
     tocComplete: true,
     tocPages: 1,

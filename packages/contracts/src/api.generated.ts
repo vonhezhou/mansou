@@ -1702,19 +1702,46 @@ export interface components {
         author: string;
         origins: components["schemas"]["NovelOrigin"][];
       }[];
-      sources: {
-        sourceId: string;
-        sourceName: string;
-        /** @enum {string} */
-        status: "ok" | "error";
-        elapsedMs: number;
-        books: components["schemas"]["NovelBook"][];
-        error?: {
-          code: string;
+      sources: components["schemas"]["NovelSearchSource"][];
+    };
+    NovelSearchSource: {
+      sourceId: string;
+      sourceName: string;
+      /** @enum {string} */
+      status: "ok" | "error";
+      elapsedMs: number;
+      books: components["schemas"]["NovelBook"][];
+      error?: {
+        code: string;
+        message: string;
+      };
+    };
+    /** @description One JSON object per line. Source events arrive in completion order. EOF without complete is a stream failure; preserve received results. */
+    NovelSearchEvent:
+      | {
+          /** @enum {string} */
+          type: "start";
+          keyword: string;
+          page: number;
+          totalSources: number;
+        }
+      | {
+          /** @enum {string} */
+          type: "source";
+          source: components["schemas"]["NovelSearchSource"];
+          elapsedMs: number;
+        }
+      | {
+          /** @enum {string} */
+          type: "complete";
+          cancelled: boolean;
+          elapsedMs: number;
+        }
+      | {
+          /** @enum {string} */
+          type: "error";
           message: string;
         };
-      }[];
-    };
     NovelChapter: {
       title: string;
       url: string;
@@ -4121,13 +4148,13 @@ export interface operations {
       };
     };
     responses: {
-      /** @description OK */
+      /** @description NDJSON stream of start, source and complete events; blank lines are heartbeats */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["NovelSearch"];
+          "application/x-ndjson": components["schemas"]["NovelSearchEvent"];
         };
       };
       /** @description Invalid input */

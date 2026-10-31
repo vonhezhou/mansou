@@ -1,4 +1,6 @@
 import { request as httpRequest } from "node:http";
+import Fastify from "fastify";
+import { registerNovelRoutes } from "../src/routes/novels.js";
 import { NovelEngineExecutor } from "../src/services/novels/engineExecutor.js";
 import { mkdtemp, rm, readFile, stat } from "node:fs/promises";
 import path from "node:path";
@@ -41,6 +43,117 @@ afterEach(async () => {
   vi.restoreAllMocks();
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
 });
+
+it.each(["完成", "断开"])(
+  "搜索通过真实 HTTP 逐源推送，慢源未完成时可见快源结果：%s",
+  async (mode) => {
+    const env = await setup();
+    env.sources.import(
+      Array.from({ length: 5 }, (_, index) => ({
+        ...raw,
+        bookSourceUrl: `https://source${index}.test`,
+      })),
+    );
+    let released = false;
+    let active = 0,
+      peak = 0,
+      started = 0;
+    const pending: Array<() => void> = [];
+    let cancelled!: () => void;
+    const cancellation = new Promise<void>((resolve) => {
+      cancelled = resolve;
+    });
+    const release = () => {
+      released = true;
+      pending.splice(0).forEach((resolve) => resolve());
+    };
+    vi.spyOn(NovelEngineExecutor.prototype, "execute").mockImplementation(
+      async (_operation, args, signal) => {
+        const registered = args[0] as any;
+        started++;
+        active++;
+        peak = Math.max(peak, active);
+        try {
+          if (!released && !registered.source.bookSourceUrl.includes("source0")) {
+            await new Promise<void>((resolve, reject) => {
+              const abort = () => {
+                cancelled();
+                reject(new Error("cancelled"));
+              };
+              signal?.addEventListener("abort", abort, { once: true });
+              pending.push(() => {
+                signal?.removeEventListener("abort", abort);
+                resolve();
+              });
+            });
+          }
+          return {
+            sourceId: registered.id,
+            sourceName: registered.source.bookSourceName,
+            status: "ok",
+            elapsedMs: 1,
+            books: [
+              {
+                name: "先返回的小说",
+                author: "作者",
+                bookUrl: `${registered.source.bookSourceUrl}/book`,
+              },
+            ],
+          };
+        } finally {
+          active--;
+        }
+      },
+    );
+    const app = Fastify();
+    await registerNovelRoutes(app, { novelSources: env.sources, novelDownloads: env.downloads });
+    cleanups.push(async () => {
+      release();
+      await app.close();
+    });
+    const address = await app.listen({ host: "127.0.0.1", port: 0 });
+    const controller = new AbortController();
+    const response = await fetch(`${address}/novels/search`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ keyword: "凡人" }),
+      signal: controller.signal,
+    });
+    expect(response.headers.get("x-accel-buffering")).toBe("no");
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let received = "";
+    while (!received.includes('"type":"source"')) {
+      const { value, done } = await reader.read();
+      expect(done).toBe(false);
+      received += decoder.decode(value, { stream: true });
+    }
+    expect(received).toContain("先返回的小说");
+    expect(received).not.toContain('"type":"complete"');
+    expect(peak).toBe(3);
+    expect(started).toBeLessThan(5);
+    if (mode === "断开") {
+      controller.abort();
+      await cancellation;
+      await reader.cancel().catch(() => {});
+      expect(started).toBeLessThan(5);
+    } else {
+      release();
+      while (true) {
+        const { value, done } = await reader.read();
+        received += decoder.decode(value, { stream: !done });
+        if (done) break;
+      }
+      const events = received
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line));
+      expect(events.filter((event) => event.type === "source")).toHaveLength(5);
+      expect(events.at(-1).type).toBe("complete");
+      expect(peak).toBe(3);
+    }
+  },
+);
 function response(text: string, url: string, status = 200) {
   const res = new Response(text, {
     status,
@@ -372,8 +485,14 @@ it("小说 HTTP 闭环使用现有鉴权，校验参数并返回可操作的错�
   expect((await request("POST", "/search", { keyword: "x", page: 1.5 })).statusCode).toBe(400);
   const result = await request("POST", "/search", { keyword: "凡人", sourceIds: [sourceId] });
   expect(result.statusCode).toBe(200);
-  expect(result.json().results[0].name).toBe("凡人测试");
-  expect(result.json().results[0].origins[0].sourceId).toBe(sourceId);
+  expect(result.headers["content-type"]).toContain("application/x-ndjson");
+  const events = result.body
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  expect(events.map((event) => event.type)).toEqual(["start", "source", "complete"]);
+  expect(events[1].source.books[0].name).toBe("凡人测试");
+  expect(events[1].source.sourceId).toBe(sourceId);
   const catalog = await request("POST", "/catalog", { sourceId, bookUrl: book.bookUrl });
   expect(catalog.json().chapters).toHaveLength(2);
   const created = await request("POST", "/downloads", {
