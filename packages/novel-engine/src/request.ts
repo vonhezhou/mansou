@@ -49,6 +49,24 @@ function encode(value: string, charset: string): string {
     .join("");
 }
 
+function encodeFields(value: string, charset: string): string {
+  // 已有百分号编码和表单中的 + 保持原意，其余内容按字段编码，避免静态中文落入 UTF-8。
+  const component = (raw: string) =>
+    raw
+      .split(/(%[\da-f]{2}|\+)/gi)
+      .map((part) => (/^(?:%[\da-f]{2}|\+)$/i.test(part) ? part : encode(part, charset)))
+      .join("");
+  return value
+    .split("&")
+    .map((field) => {
+      const equal = field.indexOf("=");
+      return equal < 0
+        ? component(field)
+        : `${component(field.slice(0, equal))}=${component(field.slice(equal + 1))}`;
+    })
+    .join("&");
+}
+
 export function buildRequest(source: BookSource, key: string, page: number): SearchRequest {
   let rawUrl = source.searchUrl?.trim() ?? "";
   if (!rawUrl) throw new SourceError("UNSUPPORTED_RULE", "书源缺少 searchUrl");
@@ -64,7 +82,11 @@ export function buildRequest(source: BookSource, key: string, page: number): Sea
   const method = String(options.method ?? "GET").toUpperCase();
   if (!["GET", "POST"].includes(method))
     throw new SourceError("UNSUPPORTED_RULE", `不支持请求方法：${method}`);
-  const url = new URL(interpolate(rawUrl, encode(key, charset), page), source.bookSourceUrl);
+  const renderedUrl = interpolate(rawUrl, encode(key, charset), page).replace(
+    /\?([^#]*)/,
+    (_, query: string) => `?${encodeFields(query, charset)}`,
+  );
+  const url = new URL(renderedUrl, source.bookSourceUrl);
   if (!["http:", "https:"].includes(url.protocol))
     throw new SourceError("UNSUPPORTED_RULE", "仅允许 HTTP/HTTPS 书源");
   const headers: Record<string, string> = { "User-Agent": UA };
@@ -77,7 +99,16 @@ export function buildRequest(source: BookSource, key: string, page: number): Sea
   for (const [name, value] of Object.entries({ ...userHeaders, ...options.headers })) {
     if (typeof value !== "string" || /[\r\n]/.test(value))
       throw new SourceError("UNSUPPORTED_RULE", "请求头必须是单行字符串");
-    headers[name] = interpolate(value, key, page);
+    let expanded = interpolate(value, key, page);
+    try {
+      if (/[\r\n]/.test(expanded)) throw new Error("多行请求头");
+      expanded = new Headers({ [name]: expanded }).get(name)!;
+    } catch {
+      throw new SourceError("UNSUPPORTED_RULE", "请求头名称或插值后的值无效");
+    }
+    const previous = Object.keys(headers).find((key) => key.toLowerCase() === name.toLowerCase());
+    if (previous) delete headers[previous];
+    headers[name] = expanded;
   }
   let body: Uint8Array | undefined;
   if (options.body !== undefined) {
@@ -90,7 +121,8 @@ export function buildRequest(source: BookSource, key: string, page: number): Sea
     const isJson =
       objectBody ||
       /\b(?:application\/json|[\w.+-]+\/[\w.+-]+\+json)\b/i.test(contentType) ||
-      (typeof options.body === "string" &&
+      (!contentType &&
+        typeof options.body === "string" &&
         (options.body.trimStart().startsWith("{") || options.body.trimStart().startsWith("[")));
     let bodyText: string;
     if (isJson && !objectBody) {
@@ -111,7 +143,12 @@ export function buildRequest(source: BookSource, key: string, page: number): Sea
               ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, replace(v)]))
               : value;
       bodyText = JSON.stringify(replace(options.body));
-    } else bodyText = interpolate(String(options.body), encode(key, charset), page);
+    } else if (!contentType || /^application\/x-www-form-urlencoded\b/i.test(contentType))
+      bodyText = encodeFields(
+        interpolate(String(options.body), encode(key, charset), page),
+        charset,
+      );
+    else bodyText = interpolate(String(options.body), key, page);
     body = iconv.encode(bodyText, charset);
     if (!Object.keys(headers).some((h) => h.toLowerCase() === "content-type"))
       headers["Content-Type"] = isJson
