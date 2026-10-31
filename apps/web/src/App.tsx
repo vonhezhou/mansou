@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { downloadsEventUrl, mansouApi } from "./api/mansou.js";
 import { AuthGate } from "./features/auth/AuthGate.js";
 import { AccountPanel } from "./features/auth/AccountPanel.js";
@@ -40,6 +40,20 @@ function Workspace({
   const [refreshing, setRefreshing] = useState(true);
   const [downloadsReconnecting, setDownloadsReconnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const runWith = useCallback(
+    async (setLoading: (value: boolean) => void, task: () => Promise<void>) => {
+      setLoading(true);
+      setError(null);
+      try {
+        await task();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
   const downloadsState = useDownloads(runWith);
   const sourcesState = useSources(runWith, sourceKey, setSourceKey);
   const searchState = useSearch({
@@ -84,18 +98,6 @@ function Workspace({
   function navigateTo(tab: TabKey) {
     setActiveTab(tab);
     window.location.hash = tab;
-  }
-
-  async function runWith(setLoading: (value: boolean) => void, task: () => Promise<void>) {
-    setLoading(true);
-    setError(null);
-    try {
-      await task();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
   }
 
   async function checkHealth() {
@@ -194,7 +196,7 @@ function Workspace({
           onAggregateResultLayoutChange={searchState.setAggregateResultLayout}
           onSearch={() => void searchState.submitSearch()}
           onLoadMore={() => void searchState.loadMoreResults()}
-          onOpenComic={(comic, nextSourceKey) => void searchState.openComic(comic, nextSourceKey)}
+          onOpenComic={searchState.openComic}
           onCloseDetails={searchState.closeDetails}
           onPreviewEpisode={(id) => void searchState.previewEpisode(id)}
           onCountAllPages={() => void searchState.countAllPages()}

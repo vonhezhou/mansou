@@ -9,20 +9,22 @@ let root: Root;
 let container: HTMLDivElement;
 const navigate = vi.fn();
 const changeSource = vi.fn();
+const changeDetailSource = vi.fn();
+const runWith: Parameters<typeof useSearch>[0]["runWith"] = async (setLoading, task) => {
+  setLoading(true);
+  try {
+    await task();
+  } finally {
+    setLoading(false);
+  }
+};
 function Harness({ sourceKey = "search-source" }: { sourceKey?: string }) {
   state = useSearch({
-    runWith: async (setLoading, task) => {
-      setLoading(true);
-      try {
-        await task();
-      } finally {
-        setLoading(false);
-      }
-    },
+    runWith,
     sourceKey,
     detailSourceKey: "detail-source",
     setSourceKey: changeSource,
-    setDetailSourceKey: vi.fn(),
+    setDetailSourceKey: changeDetailSource,
     setActiveTab: navigate,
     loadDownloads: async () => {},
   });
@@ -60,6 +62,21 @@ it("opens details without loading chapter images or changing the search source",
   expect(state.details).toBeNull();
   expect(state.previewImages).toEqual([]);
 });
+it("uses the current search source by default and preserves an explicit result source", async () => {
+  const details = vi.spyOn(mansouApi, "comicDetails").mockResolvedValue({
+    id: "comic",
+    title: "漫画",
+    chapters: {},
+  });
+  await act(async () => state.setKeyword("新的关键词"));
+  await act(async () => root.render(<Harness sourceKey="another-source" />));
+  await act(async () => state.openComic({ id: "comic", title: "漫画" }));
+  expect(details).toHaveBeenLastCalledWith("another-source", "comic");
+  await act(async () => state.closeDetails());
+  await act(async () => state.openComic({ id: "comic", title: "漫画" }, "original-source"));
+  expect(details).toHaveBeenLastCalledWith("original-source", "comic");
+});
+
 it("clears detail state when navigating to downloads so it cannot reopen on return", async () => {
   vi.spyOn(mansouApi, "comicDetails").mockResolvedValue({
     id: "comic",

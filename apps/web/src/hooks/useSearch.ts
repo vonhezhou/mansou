@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import type { Comic } from "@mansou/contracts";
 import { mansouApi } from "../api/mansou.js";
 import type { AggregatedSearchItem, Details, Source } from "../types.js";
@@ -17,6 +17,7 @@ type UseSearchOptions = {
 };
 
 export function useSearch(options: UseSearchOptions) {
+  const { sourceKey, setDetailSourceKey, runWith } = options;
   const [keyword, setKeyword] = useState("");
   const [searchMode, setSearchMode] = useState<"single" | "aggregate">("single");
   const [aggregateSourceKeys, setAggregateSourceKeys] = useState<string[]>([]);
@@ -114,7 +115,7 @@ export function useSearch(options: UseSearchOptions) {
   const previewController = useRef<AbortController | null>(null);
   const countController = useRef<AbortController | null>(null);
 
-  function resetDetailWork() {
+  const resetDetailWork = useCallback(() => {
     previewController.current?.abort();
     countController.current?.abort();
     previewController.current = null;
@@ -125,7 +126,7 @@ export function useSearch(options: UseSearchOptions) {
     setCountProgress(null);
     setPreviewSummary(null);
     setDetailWorkError(null);
-  }
+  }, []);
 
   function stopCounting() {
     countController.current?.abort();
@@ -250,37 +251,40 @@ export function useSearch(options: UseSearchOptions) {
     });
   }
 
-  async function openComic(comic: Comic, nextSourceKey = options.sourceKey) {
-    const request = ++detailRequest.current;
-    resetDetailWork();
-    setPendingComic({ comic, sourceKey: nextSourceKey });
-    setDetailError(null);
-    setDetails(null);
-    setPreviewImages([]);
-    options.setDetailSourceKey(nextSourceKey);
-    await options.runWith(
-      (loading) => {
-        if (request === detailRequest.current) setLoadingDetails(loading);
-      },
-      async () => {
-        try {
-          const data = await mansouApi.comicDetails(nextSourceKey, comic.id);
-          // 关闭弹窗或打开另一本漫画后，旧请求不能重新打开或覆盖详情。
-          if (request !== detailRequest.current) return;
-          const firstEpisode = Object.keys(data.chapters ?? {})[0] ?? "_default";
-          setDetails(data);
-          setEpisodeId(firstEpisode);
-          setSelectedEpisodeIds([]);
-          setEpisodePageCounts({});
-          setDownloadCreateStatus(null);
-          setPendingComic(null);
-        } catch (error) {
-          if (request !== detailRequest.current) return;
-          setDetailError(error instanceof Error ? error.message : String(error));
-        }
-      },
-    );
-  }
+  const openComic = useCallback(
+    async (comic: Comic, nextSourceKey = sourceKey) => {
+      const request = ++detailRequest.current;
+      resetDetailWork();
+      setPendingComic({ comic, sourceKey: nextSourceKey });
+      setDetailError(null);
+      setDetails(null);
+      setPreviewImages([]);
+      setDetailSourceKey(nextSourceKey);
+      await runWith(
+        (loading) => {
+          if (request === detailRequest.current) setLoadingDetails(loading);
+        },
+        async () => {
+          try {
+            const data = await mansouApi.comicDetails(nextSourceKey, comic.id);
+            // 关闭弹窗或打开另一本漫画后，旧请求不能重新打开或覆盖详情。
+            if (request !== detailRequest.current) return;
+            const firstEpisode = Object.keys(data.chapters ?? {})[0] ?? "_default";
+            setDetails(data);
+            setEpisodeId(firstEpisode);
+            setSelectedEpisodeIds([]);
+            setEpisodePageCounts({});
+            setDownloadCreateStatus(null);
+            setPendingComic(null);
+          } catch (error) {
+            if (request !== detailRequest.current) return;
+            setDetailError(error instanceof Error ? error.message : String(error));
+          }
+        },
+      );
+    },
+    [sourceKey, setDetailSourceKey, runWith, resetDetailWork],
+  );
 
   async function previewEpisode(nextEpisodeId = episodeId) {
     if (!details || !nextEpisodeId) return;

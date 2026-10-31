@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { SourcePicker } from "./SourcePicker.js";
 import { ChapterPreview } from "./ChapterPreview.js";
@@ -12,6 +12,13 @@ export function SearchView(props: SearchViewProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const resultSourceKey = props.searchQuery?.sourceKey ?? props.sourceKey;
   const dialogOpen = Boolean(props.details || props.pendingComic);
+  const onOpenComic = useCallback<SearchViewProps["onOpenComic"]>(
+    (comic, sourceKey) => {
+      returnFocusRef.current = document.activeElement as HTMLElement;
+      props.onOpenComic(comic, sourceKey);
+    },
+    [props.onOpenComic],
+  );
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialogOpen || !dialog) return;
@@ -70,10 +77,7 @@ export function SearchView(props: SearchViewProps) {
         canLoadMore={props.canLoadMore}
         onAggregateResultLayoutChange={props.onAggregateResultLayoutChange}
         onLoadMore={props.onLoadMore}
-        onOpenComic={(comic, sourceKey) => {
-          returnFocusRef.current = document.activeElement as HTMLElement;
-          props.onOpenComic(comic, sourceKey);
-        }}
+        onOpenComic={onOpenComic}
       />
       {dialogOpen && (
         <dialog

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { AsyncImage } from "../../app/AsyncImage.js";
 import type { Comic } from "@mansou/contracts";
 import { Icon } from "../../app/Icon.js";
@@ -11,7 +12,8 @@ type ComicCardProps = {
   busy?: boolean;
 };
 
-export function ComicCard(props: ComicCardProps) {
+// 编辑搜索条件或详情内章节时，未变化的结果卡片无需重新渲染。
+export const ComicCard = memo(function ComicCard(props: ComicCardProps) {
   return (
     <button
       className="comic-card"
@@ -41,4 +43,4 @@ export function ComicCard(props: ComicCardProps) {
       </span>
     </button>
   );
-}
+});
