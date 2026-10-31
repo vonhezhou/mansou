@@ -226,13 +226,7 @@ function select($: CheerioAPI, root: Selection, segments: string[], literalCss =
         : [...$(node).filter(css).toArray(), ...$(node).find(css).toArray()];
       if (ownText !== undefined)
         found = found.filter((n) =>
-          $(n)
-            .contents()
-            .toArray()
-            .filter((c) => c.type === "text")
-            .map((c) => $(c).text())
-            .join("")
-            .includes(ownText),
+          textValue($, $(n), true).toLowerCase().includes(ownText.toLowerCase()),
         );
       if (indexes) found = indexedSelection(found, indexes, exclude, bracket);
       next.push(...found);

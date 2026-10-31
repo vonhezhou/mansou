@@ -25,6 +25,7 @@ export interface Catalog {
 
 function rules(source: BookSource, name: string): Record<string, string> {
   const value = source[name];
+  if (name === "ruleBookInfo" && (value === undefined || value === null)) return {};
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new SourceError("UNSUPPORTED_RULE", `缺少 ${name}`);
   const result: Record<string, string> = {};
@@ -130,9 +131,8 @@ export async function loadCatalog(
     : detail.parser.$.root()[0];
   if (!detailRoot) throw new SourceError("PARSE_MISMATCH", "详情 init 未匹配");
   let tocUrl = info.tocUrl
-    ? links(detail.parser.string(info.tocUrl, detailRoot), detail.url)[0]
+    ? (links(detail.parser.string(info.tocUrl, detailRoot), detail.url)[0] ?? detail.url)
     : detail.url;
-  if (!tocUrl) throw new SourceError("PARSE_MISMATCH", "目录链接未匹配");
   const queue = [tocUrl];
   const visited = new Set<string>();
   let tocPages = 0;

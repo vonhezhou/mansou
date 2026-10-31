@@ -70,7 +70,7 @@ function encodeFields(value: string, charset: string): string {
 export function buildRequest(source: BookSource, key: string, page: number): SearchRequest {
   let rawUrl = source.searchUrl?.trim() ?? "";
   if (!rawUrl) throw new SourceError("UNSUPPORTED_RULE", "书源缺少 searchUrl");
-  const match = /,\s*\{/.exec(rawUrl);
+  const match = /,\s*\{(?!\{)/.exec(rawUrl);
   const options: Options = match ? parseObject(rawUrl.slice(match.index + 1)) : {};
   if (match) rawUrl = rawUrl.slice(0, match.index);
   const supported = new Set(["method", "body", "headers", "charset"]);
@@ -82,10 +82,12 @@ export function buildRequest(source: BookSource, key: string, page: number): Sea
   const method = String(options.method ?? "GET").toUpperCase();
   if (!["GET", "POST"].includes(method))
     throw new SourceError("UNSUPPORTED_RULE", `不支持请求方法：${method}`);
-  const renderedUrl = interpolate(rawUrl, encode(key, charset), page).replace(
-    /\?([^#]*)/,
-    (_, query: string) => `?${encodeFields(query, charset)}`,
-  );
+  const renderedUrl = interpolate(rawUrl, encode(key, charset), page)
+    .replace(/<([^<>]*)>/g, (_, value: string) => {
+      const choices = value.split(",");
+      return choices[Math.min(page, choices.length) - 1]!.trim();
+    })
+    .replace(/\?([^#]*)/, (_, query: string) => `?${encodeFields(query, charset)}`);
   const url = new URL(renderedUrl, source.bookSourceUrl);
   if (!["http:", "https:"].includes(url.protocol))
     throw new SourceError("UNSUPPORTED_RULE", "仅允许 HTTP/HTTPS 书源");

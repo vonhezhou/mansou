@@ -319,6 +319,37 @@ it("详情 init 未匹配时不能猜测目录", async () => {
   expect(env.calls).toEqual(["/book"]);
 });
 
+it.each([undefined, null, {}])("详情与目录同页时允许省略详情规则：%s", async (ruleBookInfo) => {
+  const env = fixture({ "/book": toc(["/1", "第一章"]) });
+  await expect(
+    loadCatalog({ ...source, ruleBookInfo }, catalog.bookUrl, env),
+  ).resolves.toMatchObject({
+    tocUrl: catalog.bookUrl,
+    tocComplete: true,
+    chapters: catalog.chapters.slice(0, 1),
+  });
+  expect(env.calls).toEqual(["/book"]);
+});
+
+it("目录链接未匹配时允许详情页本身作为目录，但仍严格校验章节", async () => {
+  const samePage = { ...source, ruleBookInfo: { init: ".detail", tocUrl: ".missing@href" } };
+  const env = fixture({ "/book": '<div class="detail">' + toc(["/1", "第一章"]) + "</div>" });
+  await expect(loadCatalog(samePage, catalog.bookUrl, env)).resolves.toMatchObject({
+    tocUrl: catalog.bookUrl,
+    tocComplete: true,
+  });
+  const invalid = fixture({ "/book": '<div class="detail">没有章节</div>' });
+  await expect(loadCatalog(samePage, catalog.bookUrl, invalid)).rejects.toMatchObject({
+    code: "PARSE_MISMATCH",
+  });
+});
+
+it("详情规则类型错误时不能按缺省规则绕过校验", () => {
+  expect(() => assertDownloadSupported({ ...source, ruleBookInfo: "bad" })).toThrow(
+    "缺少 ruleBookInfo",
+  );
+});
+
 it("目录循环回首页时终止遍历，不重复章节或请求", async () => {
   const env = fixture({
     "/book": detail,

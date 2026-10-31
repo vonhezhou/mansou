@@ -434,6 +434,28 @@ it.each(["完成", "中间页失败"])("多分页正文经过 Worker 和下载�
     ]);
   }
 });
+it("缺省详情规则、children 目录与跨页全文替换经过真实 Worker 完成 TXT", async () => {
+  const env = await setup();
+  env.setPage(
+    "/book",
+    '<div class="toc-list"><a href="/1">第一章</a><a href="/2">第二章</a></div>',
+  );
+  const source = env.sources.import({
+    ...raw,
+    ruleBookInfo: undefined,
+    ruleToc: { chapterList: ".toc-list@children", chapterName: "text", chapterUrl: "href" },
+    ruleContent: {
+      ...(raw.ruleContent as object),
+      replaceRegex: "##第一章上半页\\s+第一章下半页##完整第一章正文",
+    },
+  }).sources[0];
+  const task = env.downloads.create({ sourceId: source.id, book, all: true });
+  await waitTask(env.downloads, "completed");
+  const text = await readFile(path.join(env.dir, "downloads", task.id, "book.txt"), "utf8");
+  expect(text).toContain("完整第一章正文");
+  expect(text).not.toContain("上半页");
+  expect(text).toContain("第二章正文");
+});
 it("失败下载不提供 TXT；重启后按原规则与目录恢复，跳过已完成章节", async () => {
   const env = await setup();
   const source = env.sources.import(raw).sources[0];

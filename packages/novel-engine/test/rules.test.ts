@@ -76,3 +76,8 @@ it("直接选择脚本或样式提取 text 时不返回代码", () => {
   const parser = new HtmlRules("<script>bad()</script><style>bad</style>");
   expect(parser.string("script@text", parser.$.root()[0]!)).toBe("");
 });
+
+it("text. 按规范化后的自有文本忽略大小写匹配", () => {
+  const parser = new HtmlRules("<div><a>HELLO<br>World<span>子节点</span></a><a>其他</a></div>");
+  expect(parser.elements("text.hello world").length).toBe(1);
+});

@@ -134,3 +134,23 @@ it.each(["bad name", "X-Query"])("非法请求头在构造请求时明确失败�
     buildRequest(source({ headers: { [name]: "{{key}}" } }), "x\r\nInjected: true", 1),
   ).toThrow(/请求头/);
 });
+
+it.each([1, 2, 3, 5])("URL 页码候选按页选择，超出后使用最后一项：%s", (page) => {
+  const request = buildRequest(
+    { ...source({}), searchUrl: '/list/<first,{{page}}>,{charset:"utf-8"}' },
+    "凡人",
+    page,
+  );
+  expect(request.url).toBe(`https://books.test/list/${page === 1 ? "first" : page}`);
+});
+
+it("URL 页码候选允许首页为空，不能把候选中的模板识别成请求选项", () => {
+  const raw = { ...source({}), searchUrl: "/search<,?page={{page}}>" };
+  expect(buildRequest(raw, "凡人", 1).url).toBe("https://books.test/search");
+  expect(buildRequest(raw, "凡人", 2).url).toBe("https://books.test/search?page=2");
+});
+
+it("URL 页码候选只有两项时，后续页复用第二项", () => {
+  const request = buildRequest({ ...source({}), searchUrl: "/<first,later>" }, "凡人", 5);
+  expect(request.url).toBe("https://books.test/later");
+});
