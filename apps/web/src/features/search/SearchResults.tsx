@@ -29,6 +29,7 @@ type SearchResultsProps = {
 
 export function SearchResults(props: SearchResultsProps) {
   const [layout, setLayout] = useState<"grid" | "list">("grid");
+  const failedSources = props.aggregatedResults.filter((item) => item.error);
   const aggregateCount = props.aggregatedResults.reduce(
     (count, item) => count + (item.result?.comics.length ?? 0),
     0,
@@ -120,6 +121,33 @@ export function SearchResults(props: SearchResultsProps) {
           </p>
         </div>
       )}
+      {props.searchMode === "aggregate" && failedSources.length > 0 && (
+        <details className="search-source-errors">
+          <summary>
+            <span className="search-source-errors-title" role="status">
+              {failedSources.length} 个源搜索失败
+            </span>
+            <span className="search-source-errors-hint">
+              {aggregateCount > 0
+                ? "已有结果仍可正常查看"
+                : props.busy
+                  ? "其他源仍在搜索中"
+                  : "可稍后重试，或更换漫画源"}
+            </span>
+            <span className="search-source-errors-toggle">
+              查看原因 <Icon name="chevron" size={14} />
+            </span>
+          </summary>
+          <ul>
+            {failedSources.map((item) => (
+              <li key={item.sourceKey}>
+                <strong>{item.sourceName}</strong>
+                <p>{item.error}</p>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       {(props.searchCancelled || props.aggregatedResults.some((item) => item.cancelled)) && (
         <p className="muted" role="status">
           搜索已停止，已取得的结果会保留。
@@ -153,8 +181,9 @@ export function SearchResults(props: SearchResultsProps) {
         !props.searchCancelled &&
         props.searchMode === "aggregate" &&
         aggregateCount === 0 &&
+        failedSources.length === 0 &&
         !props.aggregatedResults.some((item) => item.cancelled) && (
-          <p className="muted">聚合搜索没有找到结果，或所有源均失败。</p>
+          <p className="muted">没有找到结果，可以更换关键词或源。</p>
         )}
       {props.searchMode === "single" && (
         <>
@@ -185,16 +214,6 @@ export function SearchResults(props: SearchResultsProps) {
           )}
         </>
       )}
-      {props.searchMode === "aggregate" &&
-        props.aggregateResultLayout === "flat" &&
-        props.aggregatedResults.some((item) => item.error) && (
-          <p className="alert" role="status">
-            {props.aggregatedResults
-              .filter((item) => item.error)
-              .map((item) => `${item.sourceName}：${item.error}`)
-              .join("；")}
-          </p>
-        )}
       {props.searchMode === "aggregate" && props.aggregateResultLayout === "flat" && (
         <div className="cards">
           {flatAggregatedResults.map(({ comic, sourceKey, sourceName }) => (
@@ -227,7 +246,7 @@ export function SearchResults(props: SearchResultsProps) {
                     : item.cancelled
                       ? " / 已停止"
                       : item.error
-                        ? ` / ${item.error}`
+                        ? " / 搜索失败"
                         : ` / ${item.result?.comics.length ?? 0} 项`}
                 </span>
               </header>

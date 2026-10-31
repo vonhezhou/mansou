@@ -145,6 +145,55 @@ it("distinguishes failed and cancelled searches from an empty successful search"
   expect(container.textContent).toContain("没有找到结果");
 });
 
+it.each(["flat", "grouped"] as const)(
+  "keeps failed source details separate from usable %s results",
+  async (layout) => {
+    const props = {
+      busy: false,
+      sourceKey: "a",
+      searchMode: "aggregate" as const,
+      aggregateResultLayout: layout,
+      results: [],
+      aggregatedResults: [
+        { sourceKey: "a", sourceName: "源 A", error: "请检查 Cookie" },
+        { sourceKey: "b", sourceName: "源 B", error: "连接超时" },
+        {
+          sourceKey: "c",
+          sourceName: "源 C",
+          result: { comics: [{ id: "1", title: "可用漫画" }] },
+        },
+      ],
+      hasSearched: true,
+      searchPage: 1,
+      canLoadMore: false,
+      onAggregateResultLayoutChange: vi.fn(),
+      onLoadMore: vi.fn(),
+      onOpenComic: vi.fn(),
+    };
+    await render(<SearchResults {...props} />);
+    const details = container.querySelector("details")!;
+    expect(details.open).toBe(false);
+    expect(details.querySelector("summary")?.textContent).toContain("2 个源搜索失败");
+    expect(details.querySelector("summary")?.textContent).toContain("已有结果仍可正常查看");
+    expect(details.querySelectorAll("li")).toHaveLength(2);
+    expect(details.textContent).toContain("请检查 Cookie");
+    expect(details.textContent).toContain("连接超时");
+    expect(container.querySelectorAll(".comic-card")).toHaveLength(1);
+    expect(container.querySelector(".aggregate-source header")?.textContent ?? "").not.toContain(
+      "请检查 Cookie",
+    );
+
+    await render(
+      <SearchResults {...props} aggregatedResults={props.aggregatedResults.slice(0, 2)} />,
+    );
+    expect(container.textContent).not.toContain("没有找到结果");
+    expect(container.textContent).toContain("可稍后重试，或更换漫画源");
+
+    await render(<SearchResults {...props} aggregatedResults={[props.aggregatedResults[2]]} />);
+    expect(container.querySelector("details")).toBeNull();
+  },
+);
+
 it("opens the selected source configuration without mixing it with repository installation", async () => {
   const changeSource = vi.fn();
   const enabled = vi.fn();
