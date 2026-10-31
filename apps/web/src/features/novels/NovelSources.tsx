@@ -20,6 +20,12 @@ export function NovelSources({ state, busy, error, run, onChange }: Props) {
   const [url, setUrl] = useState("");
   const [subscriptionId, setSubscriptionId] = useState<string>();
   const [filter, setFilter] = useState("");
+  const [supportedOnly, setSupportedOnly] = useState(false);
+  const visibleSources = state.sources.filter(
+    (source) =>
+      (!supportedOnly || (source.searchSupported && source.downloadSupported)) &&
+      `${source.name} ${source.url}`.toLowerCase().includes(filter.toLowerCase()),
+  );
   return (
     <section className="inner-page source-tools">
       <header className="page-title">
@@ -117,9 +123,21 @@ export function NovelSources({ state, busy, error, run, onChange }: Props) {
         <section className="novel-panel">
           <h2>书源订阅</h2>
           <p className="muted">
-            订阅地址需直接返回书源 JSON
-            合集。手动刷新会更新规则并移除合集已删除的源，保留已有启停设置；管理页订阅暂不支持。
+            支持书源 JSON 合集及静态 RSS
+            管理页订阅。刷新会更新规则并保留启停设置；部分合集失败时保留未更新的旧规则，不执行网页脚本或
+            WebView。
           </p>
+          <button
+            className="secondary-button"
+            disabled={busy}
+            onClick={() => {
+              setName("喵公子书源");
+              setUrl("http://yuedu.miaogongzi.net/shuyuan/miaogongziDY.json");
+              setSubscriptionId(undefined);
+            }}
+          >
+            填入喵公子订阅
+          </button>
           <form
             className="novel-inline"
             onSubmit={(event) => {
@@ -178,7 +196,7 @@ export function NovelSources({ state, busy, error, run, onChange }: Props) {
                   {group.updatedAt && (
                     <small>上次成功更新：{new Date(group.updatedAt).toLocaleString()}</small>
                   )}
-                  {group.error && <p role="alert">上次更新失败：{group.error}，已保留旧规则。</p>}
+                  {group.error && <p role="alert">订阅提示：{group.error}</p>}
                 </div>
                 <div className="novel-actions">
                   <button
@@ -252,82 +270,93 @@ export function NovelSources({ state, busy, error, run, onChange }: Props) {
               placeholder="名称或地址"
             />
           </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={supportedOnly}
+              onChange={(event) => setSupportedOnly(event.target.checked)}
+            />
+            仅显示支持搜索和下载的书源（无需 WebView）
+          </label>
           <p className="muted">
             “支持”表示规则在当前实现范围内，不代表站点实时可用。订阅源编辑后另存为自定义源，不随订阅刷新覆盖。
           </p>
+          <p className="muted">
+            符合筛选条件：{visibleSources.length} / {state.sources.length} 个源
+          </p>
           <div className="source-list installed-source-grid">
-            {state.sources
-              .filter((source) =>
-                `${source.name} ${source.url}`.toLowerCase().includes(filter.toLowerCase()),
-              )
-              .map((source) => (
-                <article key={source.id}>
-                  <span className="source-avatar" aria-hidden="true">
-                    {source.name.slice(0, 1)}
+            {visibleSources.map((source) => (
+              <article key={source.id}>
+                <span className="source-avatar" aria-hidden="true">
+                  {source.name.slice(0, 1)}
+                </span>
+                <div className="source-info">
+                  <strong>{source.name}</strong>
+                  <span className="muted">
+                    {state.subscriptions.find((group) => group.id === source.groupId)?.name}
                   </span>
-                  <div className="source-info">
-                    <strong>{source.name}</strong>
-                    <span className="muted">
-                      {state.subscriptions.find((group) => group.id === source.groupId)?.name}
-                    </span>
-                    <span className="novel-url">{source.url}</span>
-                  </div>
+                  <span className="novel-url">{source.url}</span>
+                </div>
+                <button
+                  className="source-switch"
+                  role="switch"
+                  aria-checked={source.enabled}
+                  aria-label={`${source.enabled ? "禁用" : "启用"} ${source.name}`}
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () =>
+                      onChange(await novelApi.enabled(source.id, !source.enabled)),
+                    )
+                  }
+                >
+                  <span />
+                </button>
+                <div className="source-card-meta">
+                  <span title={source.searchError}>
+                    搜索 <b>{source.searchSupported ? "支持" : "不支持"}</b>
+                  </span>
+                  <span title={source.downloadError}>
+                    下载 <b>{source.downloadSupported ? "支持" : "不支持"}</b>
+                  </span>
+                </div>
+                <div className="source-actions">
                   <button
-                    className="source-switch"
-                    role="switch"
-                    aria-checked={source.enabled}
-                    aria-label={`${source.enabled ? "禁用" : "启用"} ${source.name}`}
+                    className="secondary-button"
                     disabled={busy}
                     onClick={() =>
-                      void run(async () =>
-                        onChange(await novelApi.enabled(source.id, !source.enabled)),
-                      )
+                      void run(async () => {
+                        setRules(JSON.stringify(await novelApi.rule(source.id), null, 2));
+                        setEditorOpen(true);
+                      })
                     }
                   >
-                    <span />
+                    编辑规则
                   </button>
-                  <div className="source-card-meta">
-                    <span title={source.searchError}>
-                      搜索 <b>{source.searchSupported ? "支持" : "不支持"}</b>
-                    </span>
-                    <span title={source.downloadError}>
-                      下载 <b>{source.downloadSupported ? "支持" : "不支持"}</b>
-                    </span>
-                  </div>
-                  <div className="source-actions">
-                    <button
-                      className="secondary-button"
-                      disabled={busy}
-                      onClick={() =>
+                  <button
+                    className="secondary-button"
+                    disabled={busy}
+                    onClick={() => {
+                      if (
+                        window.confirm(`删除书源“${source.name}”？订阅中的源下次刷新时会重新出现。`)
+                      )
                         void run(async () => {
-                          setRules(JSON.stringify(await novelApi.rule(source.id), null, 2));
-                          setEditorOpen(true);
-                        })
-                      }
-                    >
-                      编辑规则
-                    </button>
-                    <button
-                      className="secondary-button"
-                      disabled={busy}
-                      onClick={() => {
-                        if (
-                          window.confirm(
-                            `删除书源“${source.name}”？订阅中的源下次刷新时会重新出现。`,
-                          )
-                        )
-                          void run(async () => {
-                            onChange(await novelApi.removeSource(source.id));
-                          });
-                      }}
-                    >
-                      删除
-                    </button>
-                  </div>
-                </article>
-              ))}
+                          onChange(await novelApi.removeSource(source.id));
+                        });
+                    }}
+                  >
+                    删除
+                  </button>
+                </div>
+              </article>
+            ))}
           </div>
-          {!state.sources.length && <p className="muted">暂无书源，请导入 JSON 或添加订阅。</p>}
+          {!visibleSources.length && (
+            <p className="muted">
+              {state.sources.length
+                ? "没有符合条件的书源，请调整筛选条件。"
+                : "暂无书源，请导入 JSON 或添加订阅。"}
+            </p>
+          )}
         </section>
       </div>
     </section>

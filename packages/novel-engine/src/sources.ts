@@ -15,7 +15,36 @@ export const SEARCH_FIELDS = [
   "wordCount",
 ] as const;
 
+export function assertNoWebView(source: BookSource): void {
+  const inspect = (value: unknown): boolean => {
+    if (typeof value === "string")
+      return /(?:["']?webView["']?\s*:\s*(?:true|["']true["'])|\bjava\.(?:webView|startBrowser)|@webjs:)/i.test(
+        value,
+      );
+    if (!value || typeof value !== "object") return false;
+    return Object.entries(value).some(([key, item]) =>
+      /^(?:webView|webJs)$/i.test(key) ? Boolean(item) : inspect(item),
+    );
+  };
+  for (const key of [
+    "searchUrl",
+    "ruleSearch",
+    "ruleBookInfo",
+    "ruleToc",
+    "ruleContent",
+    "loginUrl",
+    "jsLib",
+    "mainJs",
+  ])
+    if (inspect(source[key]))
+      throw new SourceError(
+        "UNSUPPORTED_RULE",
+        "书源依赖 WebView 或浏览器，不参与无浏览器搜索和下载",
+      );
+}
+
 export function assertSupported(source: BookSource): void {
+  assertNoWebView(source);
   if ((source.bookSourceType ?? 0) !== 0)
     throw new SourceError("UNSUPPORTED_RULE", "当前版本仅支持文本书源");
   for (const field of [

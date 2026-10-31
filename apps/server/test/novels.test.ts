@@ -156,6 +156,37 @@ it("订阅刷新失败保留旧快照；更新保留启停，订阅和自定义�
   await env.sources.deleteSubscription(group.id);
   expect(env.sources.state().sources.map((source) => source.name)).toEqual(["本地修改"]);
 });
+it("RSS 部分更新保留未刷新的旧源和启停，全部恢复后再删除已移除的源", async () => {
+  const env = await setup();
+  env.setCollection([raw, { ...raw, bookSourceUrl: "https://old.test" }]);
+  const state = await env.sources.saveSubscription({
+    name: "RSS",
+    url: "https://novels.test/subscription",
+  });
+  const group = state.subscriptions[1];
+  env.sources.setEnabled(state.sources[0].id, false);
+  env.setCollection({
+    sourceUrl: "https://novels.test/manager",
+    ruleArticles: ".item",
+    ruleLink: "a@href",
+  });
+  env.setPage(
+    "/manager",
+    '<div class="item"><a href="/newfeed">成功</a><a href="/missing">失败</a></div>',
+  );
+  env.setPage("/newfeed", JSON.stringify([{ ...raw, bookSourceName: "新版" }]));
+  const partial = await env.sources.refresh(group.id);
+  expect(partial.sources).toHaveLength(2);
+  expect(partial.sources.find((source) => source.id === state.sources[0].id)).toMatchObject({
+    name: "新版",
+    enabled: false,
+  });
+  expect(partial.subscriptions[1].error).toContain("1 个合集获取失败");
+  env.setPage("/manager", '<div class="item"><a href="/newfeed">成功</a></div>');
+  const complete = await env.sources.refresh(group.id);
+  expect(complete.sources).toHaveLength(1);
+  expect(complete.subscriptions[1].error).toBeUndefined();
+});
 it("目录和正文分页、URL 去重、下一章边界与截断标记符合预研语义", async () => {
   const env = await setup();
   const catalog = await loadCatalog(raw, book.bookUrl, { fetcher: env.fetcher });

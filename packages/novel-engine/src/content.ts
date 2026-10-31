@@ -2,6 +2,7 @@ import { HtmlRules } from "./rules.js";
 import { validateRule } from "./rules.js";
 import { buildRequest, fetchHtml } from "./request.js";
 import { SourceError, type BookSource } from "./types.js";
+import { assertNoWebView } from "./sources.js";
 
 export interface Chapter {
   title: string;
@@ -37,6 +38,7 @@ function rules(source: BookSource, name: string): Record<string, string> {
 }
 
 export function assertDownloadSupported(source: BookSource): void {
+  assertNoWebView(source);
   if ((source.bookSourceType ?? 0) !== 0)
     throw new SourceError("UNSUPPORTED_RULE", "文本下载 仅支持文本书源");
   for (const field of ["jsLib", "loginUrl", "loginUi", "loginCheckJs", "mainJs", "concurrentRate"])

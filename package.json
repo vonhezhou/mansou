@@ -17,7 +17,8 @@
     "lint": "eslint \"{apps,packages}/**/src/**/*.ts\"",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify:novels": "node scripts/verify-novels.mjs"
+    "verify:novels": "node scripts/verify-novels.mjs",
+    "filter:novels": "node scripts/filter-novel-sources.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

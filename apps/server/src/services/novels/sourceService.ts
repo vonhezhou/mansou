@@ -5,7 +5,8 @@ import {
   SourceError,
   assertSupported,
   assertDownloadSupported,
-  fetchHtml,
+  fetchSubscription,
+  type SubscriptionResult,
   type Catalog,
   searchAll,
   type BookSource,
@@ -112,36 +113,21 @@ export class NovelSourceService {
     return group;
   }
   private async fetchSources(url: string) {
-    const parsed = new URL(url);
-    if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password)
-      throw new AppError("VALIDATION_ERROR", "订阅需要不含凭据的 HTTP/HTTPS 地址");
-    const response = await fetchHtml(
-      { url: parsed.href, method: "GET", headers: {}, charset: "utf-8" },
-      AbortSignal.timeout(this.timeoutMs),
-      8 * 1024 * 1024,
-      this.fetcher,
-    );
-    let input: unknown;
-    try {
-      input = JSON.parse(response.html);
-    } catch {
-      throw new AppError("VALIDATION_ERROR", "订阅未返回书源 JSON；管理页订阅规则暂不支持");
-    }
-    return parseSources(input);
+    return fetchSubscription(url, { fetcher: this.fetcher, timeoutMs: this.timeoutMs });
   }
-  private replace(group: Subscription, sources: BookSource[]) {
+  private replace(group: Subscription, { sources, warning }: SubscriptionResult) {
     this.db.transaction(() => {
       const records = sources.map((raw) => this.record(raw, group.id));
       const ids = new Set(records.map((row) => row.summary.id));
       for (const old of this.db.list<SourceRecord>("source"))
-        if (old.summary.groupId === group.id && !ids.has(old.summary.id))
+        if (!warning && old.summary.groupId === group.id && !ids.has(old.summary.id))
           this.db.delete("source", old.summary.id);
       for (const row of records) this.db.save("source", row.summary.id, row);
       this.db.save("subscription", group.id, {
         ...group,
         count: sources.length,
         updatedAt: new Date().toISOString(),
-        error: undefined,
+        error: warning,
       });
     });
     return this.state();
@@ -178,7 +164,7 @@ export class NovelSourceService {
       } catch (error) {
         this.db.save("subscription", id, {
           ...group,
-          error: error instanceof Error ? error.message : String(error),
+          error: `${error instanceof Error ? error.message : String(error)}；已保留旧规则`,
         });
         throw error;
       }
