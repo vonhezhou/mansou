@@ -1,0 +1,499 @@
+{
+  "startedAt": "2026-10-31T08:42:07.132Z",
+  "environment": {
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64",
+    "runner": "docker",
+    "image": "mansou:novel-59c1c9e",
+    "imageId": "sha256:fb8c4395467a2a62a21432f86cf335ffdb371eb2f826e2f2a9470ce09e5ed411",
+    "runtime": {
+      "node": "v22.23.4",
+      "arch": "x64",
+      "platform": "linux"
+    }
+  },
+  "chapters": 40,
+  "milestone": {
+    "pause": 4,
+    "kill": 10,
+    "fail": 18
+  },
+  "passed": true,
+  "completed": 40,
+  "bytes": 77846,
+  "sha256": "a15739c3ff3303cabaa4791b30891c531c095d45a0a9690a40c71501aab492b7",
+  "elapsedMs": 3610582,
+  "downloadElapsedMs": 9762,
+  "chapterRequests": 46,
+  "restoredCachedChapters": 9,
+  "lostCacheRefetched": 6,
+  "rssPeakMiB": 168.1875,
+  "health": {
+    "samples": 3608,
+    "failures": 0,
+    "p95Ms": 1.76592599999276,
+    "maxMs": 4.458180000074208
+  },
+  "backupRestore": {
+    "passed": true,
+    "newDataDirectory": true,
+    "sha256": "a15739c3ff3303cabaa4791b30891c531c095d45a0a9690a40c71501aab492b7"
+  },
+  "soak": {
+    "requestedMinutes": 60,
+    "elapsedMs": 3600006,
+    "running": false,
+    "cycles": 266,
+    "cancellations": 88,
+    "retries": 53,
+    "rssPeakMiB": 168.1875,
+    "rssFirstMinuteMiB": 133.05703125,
+    "rssLastMinuteMiB": 154.697265625
+  },
+  "finishedAt": "2026-10-31T09:42:17.714Z",
+  "archiveFormat": "一分钟 RSS 聚合及事件计数；完整原始报告按 SHA-256 识别",
+  "rawReportSha256": "939a21182241e6c7ee07d1608afc76de62b0fa4faf936e56c9ed637754a76a24",
+  "sourceCommit": "59c1c9e",
+  "resourceSampleCount": 3608,
+  "rssMinuteWindows": [
+    {
+      "minute": 0,
+      "samples": 58,
+      "minMiB": 115.56640625,
+      "maxMiB": 155.15625,
+      "meanMiB": 134.12452855603448
+    },
+    {
+      "minute": 1,
+      "samples": 60,
+      "minMiB": 124.8125,
+      "maxMiB": 155.14453125,
+      "meanMiB": 139.12174479166666
+    },
+    {
+      "minute": 2,
+      "samples": 60,
+      "minMiB": 136.00390625,
+      "maxMiB": 160.38671875,
+      "meanMiB": 145.8275390625
+    },
+    {
+      "minute": 3,
+      "samples": 60,
+      "minMiB": 128.62890625,
+      "maxMiB": 161.390625,
+      "meanMiB": 145.61868489583333
+    },
+    {
+      "minute": 4,
+      "samples": 60,
+      "minMiB": 127.94921875,
+      "maxMiB": 155.98828125,
+      "meanMiB": 139.963671875
+    },
+    {
+      "minute": 5,
+      "samples": 60,
+      "minMiB": 135.2734375,
+      "maxMiB": 158.3984375,
+      "meanMiB": 145.29934895833333
+    },
+    {
+      "minute": 6,
+      "samples": 60,
+      "minMiB": 137.2421875,
+      "maxMiB": 160.5625,
+      "meanMiB": 147.3732421875
+    },
+    {
+      "minute": 7,
+      "samples": 60,
+      "minMiB": 139.20703125,
+      "maxMiB": 161.46484375,
+      "meanMiB": 147.57454427083334
+    },
+    {
+      "minute": 8,
+      "samples": 60,
+      "minMiB": 139.578125,
+      "maxMiB": 162.1796875,
+      "meanMiB": 148.79303385416668
+    },
+    {
+      "minute": 9,
+      "samples": 60,
+      "minMiB": 140.3515625,
+      "maxMiB": 162.52734375,
+      "meanMiB": 148.230078125
+    },
+    {
+      "minute": 10,
+      "samples": 60,
+      "minMiB": 140.73828125,
+      "maxMiB": 162.60546875,
+      "meanMiB": 149.67421875
+    },
+    {
+      "minute": 11,
+      "samples": 60,
+      "minMiB": 140.95703125,
+      "maxMiB": 163.05078125,
+      "meanMiB": 148.7251953125
+    },
+    {
+      "minute": 12,
+      "samples": 60,
+      "minMiB": 141.09375,
+      "maxMiB": 162.86328125,
+      "meanMiB": 148.905078125
+    },
+    {
+      "minute": 13,
+      "samples": 60,
+      "minMiB": 131.79296875,
+      "maxMiB": 163.0390625,
+      "meanMiB": 148.19010416666666
+    },
+    {
+      "minute": 14,
+      "samples": 60,
+      "minMiB": 132,
+      "maxMiB": 158.390625,
+      "meanMiB": 143.50774739583332
+    },
+    {
+      "minute": 15,
+      "samples": 60,
+      "minMiB": 137.25,
+      "maxMiB": 160.76171875,
+      "meanMiB": 146.6212890625
+    },
+    {
+      "minute": 16,
+      "samples": 60,
+      "minMiB": 139.16796875,
+      "maxMiB": 161.12890625,
+      "meanMiB": 147.8974609375
+    },
+    {
+      "minute": 17,
+      "samples": 60,
+      "minMiB": 140.23828125,
+      "maxMiB": 162.0234375,
+      "meanMiB": 150.83196614583332
+    },
+    {
+      "minute": 18,
+      "samples": 60,
+      "minMiB": 140.51953125,
+      "maxMiB": 162.7265625,
+      "meanMiB": 150.64401041666667
+    },
+    {
+      "minute": 19,
+      "samples": 60,
+      "minMiB": 140.81640625,
+      "maxMiB": 163.30078125,
+      "meanMiB": 150.79134114583334
+    },
+    {
+      "minute": 20,
+      "samples": 60,
+      "minMiB": 131.8671875,
+      "maxMiB": 164.0625,
+      "meanMiB": 150.06015625
+    },
+    {
+      "minute": 21,
+      "samples": 60,
+      "minMiB": 132.01171875,
+      "maxMiB": 158.46484375,
+      "meanMiB": 143.02916666666667
+    },
+    {
+      "minute": 22,
+      "samples": 60,
+      "minMiB": 137.99609375,
+      "maxMiB": 160.25390625,
+      "meanMiB": 148.71243489583333
+    },
+    {
+      "minute": 23,
+      "samples": 60,
+      "minMiB": 138.8125,
+      "maxMiB": 161.890625,
+      "meanMiB": 147.65162760416666
+    },
+    {
+      "minute": 24,
+      "samples": 60,
+      "minMiB": 140.28125,
+      "maxMiB": 162.55859375,
+      "meanMiB": 148.82649739583334
+    },
+    {
+      "minute": 25,
+      "samples": 60,
+      "minMiB": 140.80859375,
+      "maxMiB": 163.296875,
+      "meanMiB": 149.53098958333334
+    },
+    {
+      "minute": 26,
+      "samples": 60,
+      "minMiB": 141.5625,
+      "maxMiB": 163.4375,
+      "meanMiB": 151.97903645833333
+    },
+    {
+      "minute": 27,
+      "samples": 60,
+      "minMiB": 141.67578125,
+      "maxMiB": 163.83203125,
+      "meanMiB": 150.8490234375
+    },
+    {
+      "minute": 28,
+      "samples": 60,
+      "minMiB": 141.984375,
+      "maxMiB": 164.171875,
+      "meanMiB": 151.90774739583333
+    },
+    {
+      "minute": 29,
+      "samples": 60,
+      "minMiB": 142,
+      "maxMiB": 163.953125,
+      "meanMiB": 148.83001302083332
+    },
+    {
+      "minute": 30,
+      "samples": 60,
+      "minMiB": 142.0078125,
+      "maxMiB": 163.93359375,
+      "meanMiB": 150.34733072916666
+    },
+    {
+      "minute": 31,
+      "samples": 60,
+      "minMiB": 142.1015625,
+      "maxMiB": 163.94140625,
+      "meanMiB": 149.33033854166666
+    },
+    {
+      "minute": 32,
+      "samples": 60,
+      "minMiB": 142.125,
+      "maxMiB": 164.09375,
+      "meanMiB": 149.6697265625
+    },
+    {
+      "minute": 33,
+      "samples": 60,
+      "minMiB": 142.34765625,
+      "maxMiB": 164.22265625,
+      "meanMiB": 150.28958333333333
+    },
+    {
+      "minute": 34,
+      "samples": 60,
+      "minMiB": 139.35546875,
+      "maxMiB": 164.703125,
+      "meanMiB": 149.91692708333332
+    },
+    {
+      "minute": 35,
+      "samples": 60,
+      "minMiB": 142.98046875,
+      "maxMiB": 165.02734375,
+      "meanMiB": 150.937890625
+    },
+    {
+      "minute": 36,
+      "samples": 60,
+      "minMiB": 139.23828125,
+      "maxMiB": 165.4375,
+      "meanMiB": 152.366796875
+    },
+    {
+      "minute": 37,
+      "samples": 60,
+      "minMiB": 143.6640625,
+      "maxMiB": 165.55859375,
+      "meanMiB": 152.17428385416667
+    },
+    {
+      "minute": 38,
+      "samples": 60,
+      "minMiB": 143.6640625,
+      "maxMiB": 165.7109375,
+      "meanMiB": 153.18880208333334
+    },
+    {
+      "minute": 39,
+      "samples": 60,
+      "minMiB": 143.1953125,
+      "maxMiB": 165.55859375,
+      "meanMiB": 152.68098958333334
+    },
+    {
+      "minute": 40,
+      "samples": 60,
+      "minMiB": 143.1953125,
+      "maxMiB": 165.0078125,
+      "meanMiB": 151.14798177083333
+    },
+    {
+      "minute": 41,
+      "samples": 60,
+      "minMiB": 143.50390625,
+      "maxMiB": 166.66796875,
+      "meanMiB": 153.79609375
+    },
+    {
+      "minute": 42,
+      "samples": 60,
+      "minMiB": 144.6640625,
+      "maxMiB": 166.82421875,
+      "meanMiB": 153.88626302083333
+    },
+    {
+      "minute": 43,
+      "samples": 60,
+      "minMiB": 144.92578125,
+      "maxMiB": 166.7734375,
+      "meanMiB": 153.248828125
+    },
+    {
+      "minute": 44,
+      "samples": 60,
+      "minMiB": 144.9296875,
+      "maxMiB": 166.87890625,
+      "meanMiB": 153.4603515625
+    },
+    {
+      "minute": 45,
+      "samples": 60,
+      "minMiB": 140.5625,
+      "maxMiB": 166.5859375,
+      "meanMiB": 154.29772135416667
+    },
+    {
+      "minute": 46,
+      "samples": 60,
+      "minMiB": 143.11328125,
+      "maxMiB": 166.61328125,
+      "meanMiB": 154.56002604166667
+    },
+    {
+      "minute": 47,
+      "samples": 60,
+      "minMiB": 145.04296875,
+      "maxMiB": 166.98828125,
+      "meanMiB": 153.96009114583333
+    },
+    {
+      "minute": 48,
+      "samples": 60,
+      "minMiB": 145.04296875,
+      "maxMiB": 167.0546875,
+      "meanMiB": 151.84524739583333
+    },
+    {
+      "minute": 49,
+      "samples": 60,
+      "minMiB": 144.0703125,
+      "maxMiB": 166.63671875,
+      "meanMiB": 153.31940104166668
+    },
+    {
+      "minute": 50,
+      "samples": 60,
+      "minMiB": 144.140625,
+      "maxMiB": 166.12109375,
+      "meanMiB": 152.51901041666667
+    },
+    {
+      "minute": 51,
+      "samples": 60,
+      "minMiB": 144.18359375,
+      "maxMiB": 166.34375,
+      "meanMiB": 154.81966145833334
+    },
+    {
+      "minute": 52,
+      "samples": 60,
+      "minMiB": 143.1875,
+      "maxMiB": 165.8671875,
+      "meanMiB": 152.2056640625
+    },
+    {
+      "minute": 53,
+      "samples": 60,
+      "minMiB": 140.69140625,
+      "maxMiB": 166.0703125,
+      "meanMiB": 152.71302083333333
+    },
+    {
+      "minute": 54,
+      "samples": 60,
+      "minMiB": 144.22265625,
+      "maxMiB": 165.94921875,
+      "meanMiB": 152.71588541666668
+    },
+    {
+      "minute": 55,
+      "samples": 60,
+      "minMiB": 144.22265625,
+      "maxMiB": 166.0546875,
+      "meanMiB": 152.2306640625
+    },
+    {
+      "minute": 56,
+      "samples": 60,
+      "minMiB": 140.08984375,
+      "maxMiB": 166.27734375,
+      "meanMiB": 152.48893229166666
+    },
+    {
+      "minute": 57,
+      "samples": 60,
+      "minMiB": 144.34765625,
+      "maxMiB": 166.09765625,
+      "meanMiB": 152.67311197916666
+    },
+    {
+      "minute": 58,
+      "samples": 60,
+      "minMiB": 140.8828125,
+      "maxMiB": 166.40234375,
+      "meanMiB": 153.98743489583333
+    },
+    {
+      "minute": 59,
+      "samples": 60,
+      "minMiB": 144.375,
+      "maxMiB": 167.4140625,
+      "meanMiB": 153.91959635416666
+    },
+    {
+      "minute": 60,
+      "samples": 10,
+      "minMiB": 146.35546875,
+      "maxMiB": 168.1875,
+      "meanMiB": 156.599609375
+    }
+  ],
+  "eventCounts": {
+    "container-started": 3,
+    "started": 1,
+    "paused": 1,
+    "killed": 1,
+    "failed-as-expected": 1,
+    "completed": 1,
+    "backup-restored": 1,
+    "soak-cycle": 266,
+    "soak-completed": 1
+  }
+}
