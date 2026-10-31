@@ -213,8 +213,7 @@ it.each(["flat", "grouped"] as const)(
 
 it("opens the selected source configuration without mixing it with repository installation", async () => {
   vi.spyOn(mansouApi, "getSourceRepository").mockResolvedValue({
-    url: "https://example.com/index.json",
-    cdnBaseUrl: "",
+    subscriptions: [],
     sources: [],
   });
   const changeSource = vi.fn();
@@ -279,6 +278,7 @@ it("opens the selected source configuration without mixing it with repository in
   expect(container.querySelector("dialog form")).toBeNull();
   await click(container.querySelector('[aria-label="关闭源 A · Cookie"]'));
   await click(button("管理订阅"));
+  await click(button("添加订阅"));
   expect(container.querySelector("dialog")?.textContent).toContain("订阅地址");
   await click(container.querySelector('[aria-label="关闭管理漫画源订阅"]'));
   await click(button("安装漫画源"));

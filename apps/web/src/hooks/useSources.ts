@@ -64,10 +64,16 @@ export function useSources(
   }
 
   async function loadSources() {
-    const [loaded, metadata] = await Promise.all([
+    const [installed, metadata] = await Promise.all([
       mansouApi.listInstalledSources(),
       mansouApi.listSourceMetadata(),
     ]);
+    const loaded = installed.map((source) => {
+      const subscriptionName = metadata.find((item) => item.key === source.key)?.subscriptionName;
+      return subscriptionName
+        ? { ...source, subscriptionName, name: `${source.name} · ${subscriptionName}` }
+        : source;
+    });
     setSources(loaded);
     setSourceMetadata(metadata);
     const searchable = loaded.filter((source) => source.hasSearch);
@@ -80,6 +86,13 @@ export function useSources(
     }
     setAvailableSources(repository);
     return loaded;
+  }
+
+  function repositorySaved(available: RepositorySource[]) {
+    setAvailableSources(available);
+    void runWith(setManagingSources, async () => {
+      await loadSources();
+    });
   }
 
   function changeSourceKey(value: string) {
@@ -216,6 +229,7 @@ export function useSources(
     changeManagedSource,
     availableSources,
     setAvailableSources,
+    repositorySaved,
     cookieText,
     cookieUrl,
     managingSources,

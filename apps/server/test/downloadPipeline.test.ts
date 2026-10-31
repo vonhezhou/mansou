@@ -179,3 +179,20 @@ it("can disable prefetch while still downloading the first chapter before discov
   await pending;
   expect(state).toMatchObject({ total: 2, completed: 2, totalKnown: true });
 });
+
+it("isolates output directories for subscriptions and original keys that would collide after filename sanitizing", async () => {
+  images.resolve();
+  const keys = ["a:shared", "b:shared", "a:key%3Aone", "a:key_3Aone"];
+  const output = new Map<string, string>();
+  for (const sourceKey of keys) {
+    const scoped = { ...task, id: sourceKey, sourceKey, episodeId: "a", all: false };
+    await runner.run(scoped, new AbortController().signal, (patch) => {
+      if (patch.outputDir) output.set(sourceKey, patch.outputDir);
+    });
+  }
+  expect(new Set(output.values()).size).toBe(keys.length);
+  for (const sourceKey of keys) {
+    const bytes = await readFile(path.join(output.get(sourceKey)!, "0001.jpg"));
+    expect(bytes.toString()).toBe("a-1");
+  }
+});

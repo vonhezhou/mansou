@@ -54,10 +54,21 @@ export const mansouApi = {
   installSource: (source: string) =>
     api("/sources/install", { method: "POST", body: JSON.stringify({ source }) }),
   getSourceRepository: () => api<components["schemas"]["SourceRepository"]>("/source-repository"),
-  updateSourceRepository: (settings: { url: string; cdnBaseUrl: string }) =>
+  resetSourceRepository: () =>
+    api<components["schemas"]["SourceRepository"]>("/source-repository/reset", { method: "POST" }),
+  createSourceRepository: (settings: components["schemas"]["SubscriptionSettings"]) =>
     api<components["schemas"]["SourceRepository"]>("/source-repository", {
+      method: "POST",
+      body: JSON.stringify(settings),
+    }),
+  updateSourceRepository: (id: string, settings: components["schemas"]["SubscriptionSettings"]) =>
+    api<components["schemas"]["SourceRepository"]>(`/source-repository/${encodeURIComponent(id)}`, {
       method: "PUT",
       body: JSON.stringify(settings),
+    }),
+  deleteSourceRepository: (id: string) =>
+    api<components["schemas"]["SourceRepository"]>(`/source-repository/${encodeURIComponent(id)}`, {
+      method: "DELETE",
     }),
   refreshRepository: () =>
     api<{ sources: RepositorySource[] }>("/source-repository/refresh", { method: "POST" }),

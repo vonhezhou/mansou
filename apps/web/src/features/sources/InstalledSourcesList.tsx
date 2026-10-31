@@ -33,7 +33,10 @@ export function InstalledSourcesList(props: InstalledSourcesListProps) {
                 </span>
                 <div className="source-info">
                   <strong>{source.name}</strong>
-                  <span className="muted">{source.key}</span>
+                  <span className="muted">{source.originalKey ?? source.key}</span>
+                  {source.subscriptionName && (
+                    <span className="muted">{source.subscriptionName}</span>
+                  )}
                 </div>
                 <button
                   className="source-switch"

@@ -42,6 +42,37 @@ async function login() {
 }
 
 describe("session authentication", () => {
+  it("protects subscription creation, updates and removal with authentication and CSRF", async () => {
+    const requests = [
+      {
+        method: "POST" as const,
+        url: "/api/v1/source-repository",
+        payload: { name: "Repo", url: "https://repo.example/index.json", cdnBaseUrl: "" },
+      },
+      {
+        method: "PUT" as const,
+        url: "/api/v1/source-repository/default",
+        payload: { name: "Repo", url: "https://repo.example/index.json", cdnBaseUrl: "" },
+      },
+      { method: "DELETE" as const, url: "/api/v1/source-repository/default" },
+    ];
+    for (const request of requests) expect((await built.app.inject(request)).statusCode).toBe(401);
+    built.context.storage.auth.createAdmin("admin", digest);
+    const headers = await login();
+    for (const request of requests) {
+      expect(
+        (await built.app.inject({ ...request, headers: { cookie: headers.cookie, origin } }))
+          .statusCode,
+      ).toBe(403);
+    }
+    const deleted = await built.app.inject({
+      method: "DELETE",
+      url: "/api/v1/source-repository/default",
+      headers,
+    });
+    expect(deleted.statusCode).toBe(200);
+    expect(deleted.json().subscriptions).toEqual([]);
+  });
   it("fails closed before initialization and exposes only minimal health", async () => {
     for (const url of [
       "/api/v1/sources",

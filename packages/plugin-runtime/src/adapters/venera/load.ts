@@ -26,7 +26,7 @@ export async function loadVenera(filePath: string, options: RuntimeOptions) {
     storage.close();
     await network.close();
   };
-  const sourceKey = path.basename(filePath, ".js");
+  const sourceKey = options.sourceKey ?? path.basename(filePath, ".js");
   const report = () => console.warn(`[${sourceKey}] plugin async task failed`);
   const guard = <T>(value: T): T => {
     if (value && typeof (value as { catch?: unknown }).catch === "function")
@@ -55,7 +55,7 @@ export async function loadVenera(filePath: string, options: RuntimeOptions) {
   Object.setPrototypeOf(GuardedPromise, Promise);
   GuardedPromise.prototype = Promise.prototype;
   try {
-    let source: VeneraComicSource | undefined;
+    let source: VeneraComicSource | undefined = undefined;
     const common: Record<string, string> = options.locale.startsWith("zh")
       ? {
           Cancel: "取消",
@@ -72,8 +72,8 @@ export async function loadVenera(filePath: string, options: RuntimeOptions) {
     });
     const sourceFetch: typeof fetch = (...args) =>
       ui.track(network.fetch(...args).then((response) => ui.observeResponse(response)));
-    const data = new SourceDataStore(storage);
-    const cookies = new SourceCookieStore(storage, options.dataDir);
+    const data = new SourceDataStore(storage, options.sourceKey);
+    const cookies = new SourceCookieStore(storage, options.dataDir, options.sourceKey);
     const base = createComicSourceBase(data, options.locale);
     const api = await createRuntimeApi(sourceKey, data, cookies, options, sourceFetch, (promise) =>
       ui.track(promise),
@@ -126,6 +126,8 @@ export async function loadVenera(filePath: string, options: RuntimeOptions) {
       timeout: options.pluginCallTimeoutMs,
     }) as VeneraComicSource;
     if (!source.key || !source.name) throw new Error("Invalid comic source: key/name is required");
+    if (options.originalSourceKey && source.key !== options.originalSourceKey)
+      throw new Error("漫画源脚本 key 与订阅声明不一致");
     checkSourceVersion(source.minAppVersion, options.appVersion);
     captureSettings(source);
     let initTimer: ReturnType<typeof setTimeout> | undefined;

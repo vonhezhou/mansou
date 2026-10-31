@@ -1,4 +1,8 @@
 export type RepositorySource = {
+  originalKey?: string;
+  subscriptionId?: string;
+  subscriptionName?: string;
+  installId?: string;
   key?: string;
   name: string;
   url?: string;

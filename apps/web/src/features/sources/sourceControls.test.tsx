@@ -251,18 +251,37 @@ it("blocks disabled-source settings and account requests until the source is ena
   expect(container.textContent).not.toContain("Cookie：one");
 });
 
-it("loads and saves the subscription, updates the list and preserves the draft on failure", async () => {
-  const original = { url: "https://old.example/index.json", cdnBaseUrl: "", sources: [] };
-  vi.spyOn(mansouApi, "getSourceRepository").mockResolvedValue(original);
-  const response = deferred<typeof original>();
+const subscription = {
+  id: "default",
+  name: "Default",
+  url: "https://old.example/index.json",
+  cdnBaseUrl: "",
+  enabled: true,
+  sourceCount: 0,
+};
+const originalRepository = { subscriptions: [subscription], sources: [] };
+async function clickLabel(label: string) {
+  const button = [...container.querySelectorAll("button")].find(
+    (item) => item.getAttribute("aria-label") === label || item.textContent === label,
+  )!;
+  await act(async () => button.click());
+}
+
+it("edits a stable subscription ID, prevents duplicate saves and preserves the draft on failure", async () => {
+  vi.spyOn(mansouApi, "getSourceRepository").mockResolvedValue(originalRepository);
+  const response = deferred<typeof originalRepository>();
   const save = vi
     .spyOn(mansouApi, "updateSourceRepository")
     .mockReturnValueOnce(response.promise)
-    .mockResolvedValueOnce({ ...original, url: "https://new.example/index.json" });
+    .mockResolvedValueOnce({
+      ...originalRepository,
+      subscriptions: [{ ...subscription, url: "https://new.example/index.json" }],
+    });
   const saved = vi.fn();
   await render(<SubscriptionSettings busy={false} onSaved={saved} />);
+  expect(container.querySelector("form")).toBeNull();
+  await clickLabel("编辑Default");
   const url = container.querySelector<HTMLInputElement>('input[type="url"]')!;
-  expect(url.value).toBe(original.url);
   await input(url, "https://new.example/index.json");
   const submit = () =>
     container
@@ -273,15 +292,125 @@ it("loads and saves the subscription, updates the list and preserves the draft o
     submit();
   });
   expect(save).toHaveBeenCalledOnce();
-  expect(save).toHaveBeenCalledWith({ url: "https://new.example/index.json", cdnBaseUrl: "" });
-  expect(container.querySelector("button")!.disabled).toBe(true);
-  await act(async () => response.reject(new Error("订阅不可用")));
-  expect(container.textContent).toContain("订阅不可用");
+  expect(save).toHaveBeenCalledWith("default", {
+    name: "Default",
+    url: "https://new.example/index.json",
+    cdnBaseUrl: "",
+    enabled: true,
+  });
+  await act(async () => response.reject(new Error("subscription offline")));
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain("subscription offline");
   expect(url.value).toBe("https://new.example/index.json");
   expect(saved).not.toHaveBeenCalled();
   await act(async () => {
     submit();
   });
   expect(saved).toHaveBeenCalledWith([]);
-  expect(container.textContent).toContain("订阅已保存");
+  expect(container.querySelector("form")).toBeNull();
+});
+
+it("resets defaults despite an invalid draft, keeps other subscriptions and preserves state on failure", async () => {
+  vi.spyOn(mansouApi, "getSourceRepository").mockResolvedValue(originalRepository);
+  const restored = {
+    subscriptions: [
+      { ...subscription, url: "https://default.example/index.json" },
+      { ...subscription, id: "second", name: "Second" },
+    ],
+    sources: [],
+  };
+  const pending = deferred<typeof restored>();
+  const reset = vi
+    .spyOn(mansouApi, "resetSourceRepository")
+    .mockReturnValueOnce(pending.promise)
+    .mockResolvedValueOnce(restored);
+  const saved = vi.fn();
+  await render(<SubscriptionSettings busy={false} onSaved={saved} />);
+  await clickLabel("编辑Default");
+  const url = container.querySelector<HTMLInputElement>('input[type="url"]')!;
+  await input(url, "invalid draft");
+  const button = [...container.querySelectorAll("button")].find(
+    (item) => item.textContent === "恢复默认订阅",
+  )!;
+  await act(async () => {
+    button.click();
+    button.click();
+  });
+  expect(reset).toHaveBeenCalledOnce();
+  expect(button.disabled).toBe(true);
+  await act(async () => pending.reject(new Error("default offline")));
+  expect(url.value).toBe("invalid draft");
+  expect(saved).not.toHaveBeenCalled();
+  await act(async () => button.click());
+  expect(container.textContent).toContain("Second");
+  expect(container.textContent).toContain("https://default.example/index.json");
+  expect(saved).toHaveBeenCalledWith([]);
+});
+
+it("creates and removes an independently identified subscription", async () => {
+  vi.spyOn(mansouApi, "getSourceRepository").mockResolvedValue(originalRepository);
+  const state = {
+    subscriptions: [
+      subscription,
+      { ...subscription, id: "second", name: "Second", url: "https://second.example/index.json" },
+    ],
+    sources: [],
+  };
+  const create = vi.spyOn(mansouApi, "createSourceRepository").mockResolvedValue(state);
+  const remove = vi
+    .spyOn(mansouApi, "deleteSourceRepository")
+    .mockResolvedValue(originalRepository);
+  await render(<SubscriptionSettings busy={false} onSaved={vi.fn()} />);
+  await clickLabel("添加订阅");
+  await input(container.querySelector("form input:not([type])")!, "Second");
+  await input(
+    container.querySelector('form input[type="url"]')!,
+    "https://second.example/index.json",
+  );
+  await act(async () => {
+    container
+      .querySelector("form")!
+      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  });
+  expect(create).toHaveBeenCalledWith({
+    name: "Second",
+    url: "https://second.example/index.json",
+    cdnBaseUrl: "",
+    enabled: true,
+  });
+  await clickLabel("移除Second");
+  expect(remove).toHaveBeenCalledWith("second");
+  expect(container.querySelector('[aria-label="编辑Second"]')).toBeNull();
+});
+
+it("filters subscriptions and installs the exact entry when original keys and filenames collide", async () => {
+  const install = vi.fn();
+  await render(
+    <SourceRepositoryPanel
+      busy={false}
+      sourceMetadata={[{ key: "a:same", name: "Same", enabled: true }]}
+      availableSources={["a", "b"].map((id) => ({
+        key: `${id}:same`,
+        originalKey: "same",
+        installId: `${id}:same#same.js`,
+        subscriptionId: id,
+        subscriptionName: `Repo ${id}`,
+        name: "Same",
+        filename: "same.js",
+      }))}
+      onInstallSource={install}
+      onRefreshRepository={vi.fn()}
+      onReloadSources={vi.fn()}
+    />,
+  );
+  const select = container.querySelector<HTMLSelectElement>("select")!;
+  await act(async () => {
+    select.value = "b";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  const cards = container.querySelectorAll(".repository-source-card");
+  expect(cards).toHaveLength(1);
+  expect(cards[0].textContent).toContain("Repo b");
+  expect(cards[0].textContent).not.toContain("已安装");
+  await act(async () => cards[0].querySelector<HTMLButtonElement>("button")!.click());
+  expect(install).toHaveBeenCalledWith("b:same#same.js");
 });

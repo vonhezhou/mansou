@@ -200,3 +200,29 @@ it("falls back to a searchable source and preserves a still-available saved sele
   await act(async () => state.loadSources());
   expect(changeSource).not.toHaveBeenCalled();
 });
+
+it("shows subscription names for identical source names and refreshes them after subscription changes", async () => {
+  const installedSources = ["a", "b"].map((id) => ({
+    key: `${id}:shared`,
+    name: "Same",
+    hasSearch: true,
+  }));
+  vi.mocked(mansouApi.listInstalledSources).mockResolvedValue(installedSources);
+  vi.mocked(mansouApi.listSourceMetadata).mockResolvedValue(
+    installedSources.map((source, index) => ({
+      ...source,
+      enabled: true,
+      subscriptionName: `Repo ${index + 1}`,
+    })),
+  );
+  vi.mocked(mansouApi.listAvailableSources).mockResolvedValue(repository);
+  await act(async () => {
+    await state.loadSources();
+  });
+  expect(state.sources.map((source) => source.name)).toEqual(["Same · Repo 1", "Same · Repo 2"]);
+  vi.mocked(mansouApi.listSourceMetadata).mockResolvedValue(
+    installedSources.map((source) => ({ ...source, enabled: true, subscriptionName: "Renamed" })),
+  );
+  await act(async () => state.repositorySaved(repository));
+  expect(state.sources.map((source) => source.name)).toEqual(["Same · Renamed", "Same · Renamed"]);
+});

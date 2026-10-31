@@ -9,6 +9,7 @@ import type {
   ComicDetails,
   SettingDefinition,
 } from "@mansou/core";
+import { parseSourceKey } from "@mansou/core";
 import type { SourceUi } from "./sourceUi.js";
 import type { VeneraComicSource } from "./types.js";
 import type { RuntimeOptions } from "../../options.js";
@@ -42,7 +43,9 @@ export class VeneraAdapter implements SourceProvider {
   async metadata(): Promise<SourceMetadata> {
     const source = this.source;
     return {
-      key: source.key,
+      key: this.options.sourceKey ?? source.key,
+      originalKey: source.key,
+      ...(this.options.sourceKey ? parseSourceKey(this.options.sourceKey) : {}),
       name: source.name,
       version: source.version ?? "0.0.0",
       url: source.url ?? "",
@@ -73,7 +76,10 @@ export class VeneraAdapter implements SourceProvider {
       : await search!.loadNext!(input.keyword, options, input.cursor ?? null);
     return {
       comics: (result.comics ?? []).map((comic) =>
-        normalizeComic(comic as unknown as Record<string, unknown>, this.source.key),
+        normalizeComic(
+          comic as unknown as Record<string, unknown>,
+          this.options.sourceKey ?? this.source.key,
+        ),
       ),
       ...(search!.load ? { maxPage: result.maxPage } : { next: result.next ?? null }),
     };
@@ -92,8 +98,14 @@ export class VeneraAdapter implements SourceProvider {
     return {
       ...details,
       subtitle: details.subtitle ?? subTitle,
+      recommend: details.recommend?.map((comic) =>
+        normalizeComic(
+          comic as unknown as Record<string, unknown>,
+          this.options.sourceKey ?? this.source.key,
+        ),
+      ),
       chapters: normalizeChapters(raw.chapters),
-      sourceKey: this.source.key,
+      sourceKey: this.options.sourceKey ?? this.source.key,
       comicId,
     };
   }

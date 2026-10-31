@@ -81,3 +81,11 @@ it("preserves candidate creation order and returns independent snapshots", () =>
   candidates[0].status = "failed";
   expect(service.create(input)).toMatchObject({ id: "earlier", status: "queued" });
 });
+
+it("keeps download tasks separate for the same comic and original key in different subscriptions", () => {
+  const first = service.create({ ...input, sourceKey: "a:shared" });
+  const second = service.create({ ...input, sourceKey: "b:shared" });
+  expect(first.id).not.toBe(second.id);
+  expect(service.create({ ...input, sourceKey: "a:shared" }).id).toBe(first.id);
+  expect(storage.getDownload(second.id)?.sourceKey).toBe("b:shared");
+});

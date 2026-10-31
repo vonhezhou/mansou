@@ -14,6 +14,17 @@ type SourceRepositoryPanelProps = {
 
 export function SourceRepositoryPanel(props: SourceRepositoryPanelProps) {
   const [query, setQuery] = useState("");
+  const [subscriptionId, setSubscriptionId] = useState("");
+  const subscriptions = [
+    ...new Map(
+      props.availableSources
+        .filter((source) => source.subscriptionId)
+        .map((source) => [
+          source.subscriptionId!,
+          source.subscriptionName ?? source.subscriptionId!,
+        ]),
+    ).entries(),
+  ];
   const [onlyUninstalled, setOnlyUninstalled] = useState(false);
   const installedKeys = new Set(props.sourceMetadata.map((source) => source.key));
   const sources = props.availableSources.filter((source) => {
@@ -23,8 +34,13 @@ export function SourceRepositoryPanel(props: SourceRepositoryPanelProps) {
       source.description,
       source.filename,
       source.fileName,
+      source.subscriptionName,
     ].some((value) => value?.toLowerCase().includes(query.trim().toLowerCase()));
-    return matches && (!onlyUninstalled || !source.key || !installedKeys.has(source.key));
+    return (
+      matches &&
+      (!subscriptionId || source.subscriptionId === subscriptionId) &&
+      (!onlyUninstalled || !source.key || !installedKeys.has(source.key))
+    );
   });
   return (
     <section className="source-panel repository-panel">
@@ -54,6 +70,21 @@ export function SourceRepositoryPanel(props: SourceRepositoryPanelProps) {
       </div>
       <div className="repository-filters">
         <label>
+          订阅
+          <select
+            aria-label="筛选订阅"
+            value={subscriptionId}
+            onChange={(event) => setSubscriptionId(event.target.value)}
+          >
+            <option value="">全部订阅</option>
+            {subscriptions.map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
           搜索漫画源
           <input
             type="search"
@@ -74,7 +105,8 @@ export function SourceRepositoryPanel(props: SourceRepositoryPanelProps) {
       </div>
       <div className="repository-source-grid">
         {sources.map((source) => {
-          const identifier = source.filename ?? source.fileName ?? source.key ?? source.name;
+          const identifier =
+            source.installId ?? source.filename ?? source.fileName ?? source.key ?? source.name;
           const installed = !!source.key && installedKeys.has(source.key);
           const installing =
             props.operation?.kind === "install" && props.operation.sourceKey === identifier;
@@ -86,7 +118,10 @@ export function SourceRepositoryPanel(props: SourceRepositoryPanelProps) {
                 </span>
                 <div className="source-info">
                   <strong>{source.name}</strong>
-                  <span className="muted">{source.key ?? identifier}</span>
+                  <span className="muted">{source.originalKey ?? source.key ?? identifier}</span>
+                  {source.subscriptionName && (
+                    <span className="muted">{source.subscriptionName}</span>
+                  )}
                 </div>
                 {installed && <span className="source-enabled">已安装</span>}
               </div>

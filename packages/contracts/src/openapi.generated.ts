@@ -67,29 +67,67 @@ export const openApiDocument = {
           },
         },
       },
-      put: {
-        operationId: "updateSourceRepository",
+      post: {
+        operationId: "createSourceRepository",
         tags: ["sourceRepository"],
-        summary: "Save subscription settings and refresh sources",
+        summary: "Add a subscription and validate its source index",
         requestBody: {
           required: true,
           content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                required: ["url", "cdnBaseUrl"],
-                properties: {
-                  url: { type: "string", format: "uri", pattern: "^https?://" },
-                  cdnBaseUrl: {
-                    type: "string",
-                    description: "Empty to resolve scripts relative to the subscription URL",
-                    pattern: "^https?://|^$",
-                  },
-                },
-              },
+            "application/json": { schema: { $ref: "#/components/schemas/SubscriptionSettings" } },
+          },
+        },
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/SourceRepository" } },
             },
           },
         },
+      },
+    },
+    "/api/v1/source-repository/{id}": {
+      put: {
+        operationId: "updateSourceRepository",
+        tags: ["sourceRepository"],
+        summary: "Update a subscription without changing its ID",
+        parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/SubscriptionSettings" } },
+          },
+        },
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/SourceRepository" } },
+            },
+          },
+        },
+      },
+      delete: {
+        operationId: "deleteSourceRepository",
+        tags: ["sourceRepository"],
+        summary: "Remove a subscription without uninstalling sources",
+        parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/SourceRepository" } },
+            },
+          },
+        },
+      },
+    },
+    "/api/v1/source-repository/reset": {
+      post: {
+        operationId: "resetSourceRepository",
+        tags: ["sourceRepository"],
+        summary: "Restore server default subscription and refresh sources",
         responses: {
           "200": {
             description: "OK",
@@ -1384,6 +1422,10 @@ export const openApiDocument = {
         type: "object",
         additionalProperties: true,
         properties: {
+          subscriptionId: { type: "string" },
+          subscriptionName: { type: "string" },
+          originalKey: { type: "string" },
+          installId: { type: "string" },
           key: { type: "string" },
           name: { type: "string" },
           version: { type: "string" },
@@ -1392,18 +1434,49 @@ export const openApiDocument = {
           fileName: { type: "string" },
         },
       },
+      SubscriptionSettings: {
+        type: "object",
+        required: ["name", "url", "cdnBaseUrl"],
+        properties: {
+          name: { type: "string", minLength: 1, maxLength: 100 },
+          url: { type: "string", format: "uri", pattern: "^https?://" },
+          cdnBaseUrl: { type: "string", pattern: "^https?://|^$" },
+          enabled: { type: "boolean" },
+        },
+      },
+      SourceSubscription: {
+        allOf: [
+          { $ref: "#/components/schemas/SubscriptionSettings" },
+          {
+            type: "object",
+            required: ["id", "enabled", "sourceCount"],
+            properties: {
+              id: { type: "string" },
+              enabled: { type: "boolean" },
+              sourceCount: { type: "integer" },
+              updatedAt: { type: "string" },
+              error: { type: "string" },
+            },
+          },
+        ],
+      },
       SourceRepository: {
         type: "object",
+        required: ["subscriptions", "sources"],
         properties: {
-          url: { type: "string" },
-          cdnBaseUrl: { type: "string" },
+          subscriptions: {
+            type: "array",
+            items: { $ref: "#/components/schemas/SourceSubscription" },
+          },
           sources: { type: "array", items: { $ref: "#/components/schemas/RepositorySource" } },
         },
-        required: ["url", "cdnBaseUrl", "sources"],
       },
       SourceSummary: {
         type: "object",
         properties: {
+          subscriptionId: { type: "string" },
+          subscriptionName: { type: "string" },
+          originalKey: { type: "string" },
           key: { type: "string" },
           name: { type: "string" },
           version: { type: "string" },
@@ -1477,6 +1550,9 @@ export const openApiDocument = {
       SourceMetadata: {
         type: "object",
         properties: {
+          subscriptionId: { type: "string" },
+          subscriptionName: { type: "string" },
+          originalKey: { type: "string" },
           key: { type: "string" },
           name: { type: "string" },
           version: { type: "string" },

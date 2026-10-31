@@ -1,3 +1,4 @@
+export { sourceKeyFor, parseSourceKey } from "./sourceIdentity.js";
 export type Comic = {
   id: string;
   title: string;
@@ -90,6 +91,9 @@ export type LoginInput =
   | { method: "password"; username: string; password: string }
   | { method: "cookies"; values: string[] };
 export type SourceMetadata = {
+  subscriptionId?: string;
+  subscriptionName?: string;
+  originalKey?: string;
   key: string;
   name: string;
   version: string;

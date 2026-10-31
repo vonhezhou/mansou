@@ -32,10 +32,10 @@ export class PluginManager implements SourceRegistry {
   private readonly entries = new Map<string, Entry>();
   private readonly errors: Diagnostic[] = [];
   constructor(private readonly options: RuntimeOptions) {}
-  async load(filePath: string) {
+  async load(filePath: string, identity?: { sourceKey: string; originalSourceKey: string }) {
     let executor: Executor;
     try {
-      executor = await WorkerExecutor.load(filePath, this.options);
+      executor = await WorkerExecutor.load(filePath, { ...this.options, ...identity });
     } catch (error) {
       this.record(undefined, "source.load", error);
       throw error;

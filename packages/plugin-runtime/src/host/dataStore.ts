@@ -12,18 +12,24 @@ type PluginStorage = Pick<
 
 /** Venera's synchronous data API backed by the host's persistent storage. */
 export class SourceDataStore {
-  constructor(private readonly storage: PluginStorage) {}
+  constructor(
+    private readonly storage: PluginStorage,
+    private readonly scope?: string,
+  ) {}
   loadSync(sourceKey: string, key: string) {
+    sourceKey = this.scope ?? sourceKey;
     return key === "settings"
       ? this.storage.getSourceSettings(sourceKey)
       : this.storage.getPluginData(sourceKey, key);
   }
   saveSync(sourceKey: string, key: string, value: unknown) {
+    sourceKey = this.scope ?? sourceKey;
     if (key === "settings")
       this.storage.setSourceSettings(sourceKey, value as Record<string, unknown>);
     else this.storage.setPluginData(sourceKey, key, value);
   }
   deleteSync(sourceKey: string, key: string) {
+    sourceKey = this.scope ?? sourceKey;
     if (key === "settings") this.storage.clearSourceSettings(sourceKey);
     else this.storage.deletePluginData(sourceKey, key);
   }

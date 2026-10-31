@@ -60,9 +60,44 @@ export interface paths {
     };
     /** List repository sources */
     get: operations["getSourceRepository"];
-    /** Save subscription settings and refresh sources */
+    put?: never;
+    /** Add a subscription and validate its source index */
+    post: operations["createSourceRepository"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/source-repository/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Update a subscription without changing its ID */
     put: operations["updateSourceRepository"];
     post?: never;
+    /** Remove a subscription without uninstalling sources */
+    delete: operations["deleteSourceRepository"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/source-repository/reset": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Restore server default subscription and refresh sources */
+    post: operations["resetSourceRepository"];
     delete?: never;
     options?: never;
     head?: never;
@@ -932,6 +967,10 @@ export interface components {
       };
     };
     RepositorySource: {
+      subscriptionId?: string;
+      subscriptionName?: string;
+      originalKey?: string;
+      installId?: string;
       key?: string;
       name: string;
       version: string;
@@ -941,12 +980,28 @@ export interface components {
     } & {
       [key: string]: unknown;
     };
-    SourceRepository: {
+    SubscriptionSettings: {
+      name: string;
+      /** Format: uri */
       url: string;
       cdnBaseUrl: string;
+      enabled?: boolean;
+    };
+    SourceSubscription: components["schemas"]["SubscriptionSettings"] & {
+      id: string;
+      enabled: boolean;
+      sourceCount: number;
+      updatedAt?: string;
+      error?: string;
+    };
+    SourceRepository: {
+      subscriptions: components["schemas"]["SourceSubscription"][];
       sources: components["schemas"]["RepositorySource"][];
     };
     SourceSummary: {
+      subscriptionId?: string;
+      subscriptionName?: string;
+      originalKey?: string;
       key: string;
       name: string;
       version?: string;
@@ -988,6 +1043,9 @@ export interface components {
       }[];
     };
     SourceMetadata: {
+      subscriptionId?: string;
+      subscriptionName?: string;
+      originalKey?: string;
       key: string;
       name: string;
       version?: string;
@@ -1376,7 +1434,7 @@ export interface operations {
       };
     };
   };
-  updateSourceRepository: {
+  createSourceRepository: {
     parameters: {
       query?: never;
       header?: never;
@@ -1385,14 +1443,77 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": {
-          /** Format: uri */
-          url: string;
-          /** @description Empty to resolve scripts relative to the subscription URL */
-          cdnBaseUrl: string;
+        "application/json": components["schemas"]["SubscriptionSettings"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceRepository"];
         };
       };
     };
+  };
+  updateSourceRepository: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SubscriptionSettings"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceRepository"];
+        };
+      };
+    };
+  };
+  deleteSourceRepository: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceRepository"];
+        };
+      };
+    };
+  };
+  resetSourceRepository: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
     responses: {
       /** @description OK */
       200: {

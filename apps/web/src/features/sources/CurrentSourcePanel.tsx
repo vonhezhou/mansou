@@ -50,7 +50,11 @@ export function CurrentSourcePanel(props: CurrentSourcePanelProps) {
         <div className="current-source-sections">
           <div className="source-config-heading">
             <div>
-              <span className="source-config-key">{props.sourceKey}</span>
+              <span className="source-config-key">
+                {current?.subscriptionName
+                  ? `${current.subscriptionName} · ${current.originalKey ?? props.sourceKey}`
+                  : props.sourceKey}
+              </span>
               <p className="muted">
                 {props.mode === "settings"
                   ? "配置仅对当前漫画源生效。"

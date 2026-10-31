@@ -12,8 +12,8 @@ try {
   const storage = createStorage(workerData.dataDir);
   const api = await createRuntimeApi(
     workerData.sourceKey,
-    new SourceDataStore(storage),
-    new SourceCookieStore(storage, config.dataDir),
+    new SourceDataStore(storage, config.sourceKey),
+    new SourceCookieStore(storage, config.dataDir, config.sourceKey),
     config,
     network.fetch,
   );

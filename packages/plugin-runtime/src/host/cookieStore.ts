@@ -1,7 +1,7 @@
 import path from "node:path";
 import { Cookie, CookieJar, SerializedCookieJar } from "tough-cookie";
 import type { StorageDatabase } from "@mansou/storage";
-import { ensureDir, readJson, safeFilename, writeJson } from "./fs.js";
+import { ensureDir, readJson, writeJson } from "./fs.js";
 
 export class SourceCookieStore {
   private readonly jars = new Map<string, CookieJar>();
@@ -9,9 +9,11 @@ export class SourceCookieStore {
   constructor(
     private readonly storage: StorageDatabase,
     readonly dataDir: string,
+    private readonly scope?: string,
   ) {}
 
   async getJar(sourceKey: string) {
+    sourceKey = this.scope ?? sourceKey;
     const cached = this.jars.get(sourceKey);
     if (cached) return cached;
 
@@ -24,6 +26,7 @@ export class SourceCookieStore {
   }
 
   async save(sourceKey: string) {
+    sourceKey = this.scope ?? sourceKey;
     const jar = await this.getJar(sourceKey);
     if (this.storage) {
       this.storage.setCookieJar(sourceKey, jar.serializeSync());
@@ -57,6 +60,7 @@ export class SourceCookieStore {
   }
 
   async clear(sourceKey: string) {
+    sourceKey = this.scope ?? sourceKey;
     const jar = await this.getJar(sourceKey);
     await jar.removeAllCookies();
     if (this.storage) {
@@ -68,12 +72,13 @@ export class SourceCookieStore {
   }
 
   async restore(sourceKey: string, snapshot: SerializedCookieJar | undefined) {
+    sourceKey = this.scope ?? sourceKey;
     this.jars.set(sourceKey, snapshot ? CookieJar.deserializeSync(snapshot) : new CookieJar());
     await this.save(sourceKey);
   }
 
   private filePath(sourceKey: string) {
-    return path.join(path.join(this.dataDir, "cookies"), `${safeFilename(sourceKey)}.json`);
+    return path.join(path.join(this.dataDir, "cookies"), `${encodeURIComponent(sourceKey)}.json`);
   }
 }
 

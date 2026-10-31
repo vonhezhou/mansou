@@ -1,6 +1,8 @@
 import type { Comic } from "@mansou/contracts";
 
 export type Source = {
+  subscriptionName?: string;
+  subscriptionId?: string;
   key: string;
   name: string;
   version?: string;
@@ -9,6 +11,10 @@ export type Source = {
   hasSearchRecommendations?: boolean;
 };
 export type RepositorySource = {
+  subscriptionId?: string;
+  subscriptionName?: string;
+  originalKey?: string;
+  installId?: string;
   key?: string;
   name: string;
   version?: string;
@@ -74,6 +80,9 @@ export type SettingsResponse = import("@mansou/contracts").components["schemas"]
 export type SourceAuth = import("@mansou/contracts").components["schemas"]["SourceAuth"];
 export type SourceLogin = import("@mansou/contracts").components["schemas"]["SourceLogin"];
 export type SourceMetadata = {
+  subscriptionId?: string;
+  subscriptionName?: string;
+  originalKey?: string;
   health?: import("@mansou/contracts").components["schemas"]["SourceHealth"];
   canUninstall?: boolean;
   availableVersion?: string;

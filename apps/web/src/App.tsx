@@ -237,7 +237,7 @@ function Workspace({
           onInstallSource={(source) => void sourcesState.installSource(source, refreshSources)}
           onUninstallSource={(source) => void sourcesState.uninstallSource(source, refreshSources)}
           onUpdateSource={(key) => void sourcesState.updateSource(key, refreshSources)}
-          onRepositorySaved={sourcesState.setAvailableSources}
+          onRepositorySaved={sourcesState.repositorySaved}
           onRefreshRepository={() => void sourcesState.refreshRepository()}
           onReloadSources={() => void sourcesState.reloadSources(refreshSources)}
           onLoadSourceSettings={(key) => void sourcesState.loadSourceSettings(key)}

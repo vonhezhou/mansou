@@ -307,7 +307,7 @@ export async function createRuntimeApi(
       const arrayBuffer = await response.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
       const text = new TextDecoder().decode(bytes);
-      checkSourceAccess(sourceKey, response.status, text);
+      checkSourceAccess(config.originalSourceKey ?? sourceKey, response.status, text);
       return {
         status: response.status,
         statusCode: response.status,

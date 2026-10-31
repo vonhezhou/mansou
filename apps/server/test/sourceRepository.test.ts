@@ -12,6 +12,8 @@ const config = readConfig();
 
 const paths = createPaths(config.dataDir);
 const repository = new SourceRepositoryService(config, paths, fetch);
+const updateRepository = (settings: { url: string; cdnBaseUrl: string }) =>
+  repository.updateRepository({ name: "Default", ...settings }, "default");
 const originalConfig = { ...config };
 const originalPaths = { ...paths };
 let server: Server;
@@ -34,7 +36,12 @@ beforeAll(async () => {
           null,
           { name: "bad", version: 3 },
           { name: "Example", key: "example", version, fileName: filename },
-          { name: "Example variant", key: "example", version: "1.5.0", fileName: "variant.js" },
+          {
+            name: "Example variant",
+            key: "example",
+            version: "1.5.0",
+            fileName: "variant.js",
+          },
         ]),
       );
     } else
@@ -60,39 +67,63 @@ describe("source updates", () => {
     await repository.refreshRepository();
     version = "1.1.0";
     filename = "scripts/new.js";
-    await repository.updateRepository({ url: `${base}/migrated/index.json`, cdnBaseUrl: "" });
-    const installed = await repository.installSource("example");
+    await updateRepository({ url: `${base}/migrated/index.json`, cdnBaseUrl: "" });
+    const installed = await repository.installSource("default:example");
     expect(installed.scriptUrl).toBe(`${base}/migrated/scripts/new.js`);
     expect(await readFile(installed.filePath, "utf8")).toContain('version = "1.1.0"');
     expect(requests).not.toContain("/old/old.js");
-    expect(await repository.withAvailableUpdates([{ key: "example", version: "1.0.0" }])).toEqual([
-      { key: "example", version: "1.0.0", availableVersion: "1.1.0" },
+    expect(
+      await repository.withAvailableUpdates([{ key: "default:example", version: "1.0.0" }]),
+    ).toEqual([
+      {
+        subscriptionId: "default",
+        originalKey: "example",
+        subscriptionName: "Default",
+        key: "default:example",
+        version: "1.0.0",
+        availableVersion: "1.1.0",
+      },
     ]);
-    expect(await repository.withAvailableUpdates([{ key: "example", version: "1.2.0" }])).toEqual([
-      { key: "example", version: "1.2.0", availableVersion: undefined },
+    expect(
+      await repository.withAvailableUpdates([{ key: "default:example", version: "1.2.0" }]),
+    ).toEqual([
+      {
+        subscriptionId: "default",
+        originalKey: "example",
+        subscriptionName: "Default",
+        key: "default:example",
+        version: "1.2.0",
+        availableVersion: undefined,
+      },
     ]);
   });
   it("honors explicit CDN overrides", async () => {
-    await repository.updateRepository({
+    await updateRepository({
       url: `${base}/migrated/index.json`,
       cdnBaseUrl: `${base}/cdn/`,
     });
-    expect((await repository.installSource("example")).scriptUrl).toBe(
+    expect((await repository.installSource("default:example")).scriptUrl).toBe(
       `${base}/cdn/scripts/new.js`,
     );
   });
   it("downloads the selected filename when multiple variants share a source key", async () => {
-    expect((await repository.installSource("variant.js")).scriptUrl).toBe(`${base}/cdn/variant.js`);
+    expect((await repository.installSource("default:example#variant.js")).scriptUrl).toBe(
+      `${base}/cdn/variant.js`,
+    );
     expect(
-      (await repository.installSource("example", undefined, `${base}/old/variant.js`)).scriptUrl,
+      (await repository.installSource("default:example", undefined, `${base}/old/variant.js`))
+        .scriptUrl,
     ).toBe(`${base}/cdn/variant.js`);
     expect(
       await repository.withAvailableUpdates([
-        { key: "example", script_url: `${base}/old/variant.js`, version: "1.4.0" },
+        { key: "default:example", script_url: `${base}/old/variant.js`, version: "1.4.0" },
       ]),
     ).toEqual([
       {
-        key: "example",
+        subscriptionId: "default",
+        originalKey: "example",
+        subscriptionName: "Default",
+        key: "default:example",
         script_url: `${base}/old/variant.js`,
         version: "1.4.0",
         availableVersion: "1.5.0",
@@ -100,11 +131,11 @@ describe("source updates", () => {
     ]);
   });
   it("restores the installed script if activation rejects the new version", async () => {
-    const current = await repository.installSource("example");
+    const current = await repository.installSource("default:example");
     const previous = await readFile(current.filePath, "utf8");
     version = "999.0.0";
     await expect(
-      repository.installSource("example", async () => {
+      repository.installSource("default:example", async () => {
         throw new Error("minAppVersion is required");
       }),
     ).rejects.toThrow("minAppVersion");

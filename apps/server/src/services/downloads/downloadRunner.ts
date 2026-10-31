@@ -38,7 +38,7 @@ export class DownloadRunner {
       : [task.episodeId === "_default" ? (available[0] ?? "_default") : task.episodeId];
     const comicDir = path.join(
       this.options.outputDir,
-      safeFilename(task.sourceKey),
+      encodeURIComponent(task.sourceKey),
       safeFilename(`${title}_${task.comicId}`),
     );
     const episodes = episodeIds.map((id) => ({

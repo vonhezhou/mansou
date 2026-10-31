@@ -1,4 +1,6 @@
 export type RuntimeOptions = {
+  sourceKey?: string;
+  originalSourceKey?: string;
   dataDir: string;
   appVersion: string;
   locale: string;

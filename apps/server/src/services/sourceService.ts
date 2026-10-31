@@ -1,4 +1,5 @@
 import path from "node:path";
+import { parseSourceKey } from "@mansou/core";
 import { AppError } from "../errors.js";
 import type {
   SourceRegistry,
@@ -39,7 +40,14 @@ export class SourceService implements SourceRegistry {
     return this.mutate(() => this.loadSourceScript(filePath));
   }
   private async loadSourceScript(filePath: string) {
-    const loaded = await this.manager.load(filePath);
+    const key =
+      this.storage.listSources().find((source) => source.script_path === filePath)?.key ??
+      decodeURIComponent(path.basename(filePath, ".js"));
+    const identity = parseSourceKey(key);
+    const loaded = await this.manager.load(
+      filePath,
+      identity ? { sourceKey: key, originalSourceKey: identity.originalKey } : undefined,
+    );
     const existing = this.storage.getSource(loaded.key);
     this.storage.upsertSource({
       key: loaded.key,
@@ -80,8 +88,11 @@ export class SourceService implements SourceRegistry {
     let loaded!: SourceMetadata & { filePath: string };
     const installed = await this.repository.installSource(
       source,
-      async (filePath) => {
-        loaded = await this.manager.load(filePath);
+      async (filePath, key, originalKey) => {
+        loaded = await this.manager.load(filePath, {
+          sourceKey: key,
+          originalSourceKey: originalKey,
+        });
       },
       this.storage.getSource(source)?.script_url,
     );
@@ -110,7 +121,11 @@ export class SourceService implements SourceRegistry {
             scripts.find((file) => path.basename(file, ".js") === key);
           if (!filePath)
             throw new AppError("SOURCE_NOT_FOUND", "Installed source script not found");
-          await this.manager.load(filePath);
+          const identity = parseSourceKey(key);
+          await this.manager.load(
+            filePath,
+            identity ? { sourceKey: key, originalSourceKey: identity.originalKey } : undefined,
+          );
         }
       } else await this.manager.unload(key);
       return this.storage.setSourceEnabled(key, enabled);

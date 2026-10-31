@@ -209,6 +209,8 @@ it("loads distinct image contexts concurrently without mixing source or variant 
   const requests = [
     input,
     { ...input, sourceKey: "other" },
+    { ...input, sourceKey: "a:shared" },
+    { ...input, sourceKey: "b:shared" },
     { ...input, comicId: "other" },
     { ...input, episodeId: "other" },
     { ...input, imageKey: "other" },
