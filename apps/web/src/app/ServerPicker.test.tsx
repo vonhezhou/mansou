@@ -125,3 +125,32 @@ it("卡片切换使用对应服务器地址，当前服务器不提供重复切�
   expect(container.querySelector('[aria-label="切换到当前服务器"]')).toBeNull();
   expect(container.querySelector(".saved-server-current")?.textContent).toContain("当前使用");
 });
+
+it("添加服务器可保存并连接，在目标站点完成鉴权且不保存凭据", async () => {
+  const switchConnection = vi.spyOn(serverConnections, "switchServer").mockImplementation(() => {
+    expect(readServerPreferences().servers).toContainEqual({
+      name: "需要登录的 NAS",
+      origin: "https://nas.example.com",
+    });
+  });
+  await act(async () => root.render(<ServerPicker />));
+  await click("添加服务器");
+  expect(container.querySelector("dialog")?.textContent).toContain("目标服务器弹出登录窗口");
+  await input(0, "需要登录的 NAS");
+  await input(1, "https://nas.example.com");
+  await click("保存并连接");
+  expect(switchConnection).toHaveBeenCalledWith("https://nas.example.com");
+  expect(container.querySelector("dialog")).toBeNull();
+});
+
+it("保存并连接时地址校验失败不切换服务器", async () => {
+  const switchConnection = vi.spyOn(serverConnections, "switchServer").mockImplementation(() => {});
+  await act(async () => root.render(<ServerPicker />));
+  await click("添加服务器");
+  await input(0, "无效地址");
+  await input(1, "https://nas.example.com/api");
+  await click("保存并连接");
+  expect(switchConnection).not.toHaveBeenCalled();
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain("不含路径");
+  expect(readServerPreferences().servers).toHaveLength(1);
+});

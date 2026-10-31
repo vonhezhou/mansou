@@ -36,8 +36,10 @@ export function ServerPicker() {
     setError("");
   }
 
-  function save(event: FormEvent) {
+  function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const connect =
+      (event.nativeEvent as SubmitEvent).submitter?.getAttribute("value") === "connect";
     run(() => {
       const origin = normalizeServerOrigin(address);
       if (!name.trim()) throw new Error("请输入服务器名称");
@@ -57,6 +59,7 @@ export function ServerPicker() {
         lastOrigin: latest.lastOrigin === editing ? origin : latest.lastOrigin,
       });
       closeForm();
+      if (connect) switchServer(origin);
     });
   }
 
@@ -185,8 +188,20 @@ export function ServerPicker() {
                 placeholder="http://192.168.1.10:3210"
               />
             </label>
+            {!editing && (
+              <p className="muted">
+                连接后如需鉴权，将在目标服务器弹出登录窗口。账号密码仅用于目标服务器登录。
+              </p>
+            )}
             <div className="actions">
-              <button type="submit">{editing ? "保存修改" : "保存服务器"}</button>
+              {!editing && (
+                <button type="submit" value="connect">
+                  保存并连接
+                </button>
+              )}
+              <button type="submit" className={editing ? undefined : "secondary-button"}>
+                {editing ? "保存修改" : "保存服务器"}
+              </button>
               <button type="button" className="secondary-button" onClick={closeForm}>
                 取消
               </button>
