@@ -1,0 +1,14 @@
+{
+  "sourceCommit": "ca8d093",
+  "imageId": "sha256:b7e0633861f0bd9e9f0a507ef621f365adefe88e4069b08cdc9398c438a43602",
+  "previousImageId": "sha256:4f424056a31c1910e13ae30937d5719882e8178b06c3b5ed3db46803de1d6f15",
+  "previousRelease": "/home/von/codes/venera/mansou-novel/releases/6499aff",
+  "backup": "/home/von/codes/venera/mansou-novel/backups/20261031T092908Z",
+  "releaseDirectory": "/home/von/codes/venera/mansou-novel/releases/ca8d093",
+  "health": true,
+  "preservedComicSources": 2,
+  "preservedComicDownloads": 1,
+  "preservedNovelSources": 5,
+  "preservedNovelDownloads": 2,
+  "passed": true
+}

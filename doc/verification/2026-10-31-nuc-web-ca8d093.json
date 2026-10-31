@@ -1,0 +1,15 @@
+{
+  "sourceCommit": "ca8d093",
+  "environment": {
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64"
+  },
+  "image": "mansou:novel-build-ca8d093",
+  "command": "pnpm --filter @mansou/web exec vitest run --maxWorkers=2 --minWorkers=1",
+  "filesPassed": 24,
+  "testsPassed": 137,
+  "rawLogSha256": "6e497fab7c5fb3062bc557d3f9872c22e51cd8dfe901fdaff4ba969d0711d1f1",
+  "rawLogPath": "/home/von/codes/venera/mansou-novel/evidence/web-tests-ca8d093.log",
+  "passed": true
+}
