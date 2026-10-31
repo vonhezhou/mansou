@@ -1700,6 +1700,7 @@ export interface components {
       keyword: string;
       /** @default 1 */
       page: number;
+      /** @description 可选，显式指定时最多 100 个；省略或为空时聚合全部已启用且支持搜索和下载的书源，并发仍为 3。 */
       sourceIds?: string[];
     };
     NovelCatalogRequest: {

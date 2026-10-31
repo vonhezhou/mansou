@@ -32,7 +32,7 @@ export const novelApi = {
   refresh: (id: string) => call<NovelState>(`/subscriptions/${encodeURIComponent(id)}/refresh`),
   removeSubscription: (id: string) =>
     call<NovelState>(`/subscriptions/${encodeURIComponent(id)}`, undefined, "DELETE"),
-  search: (keyword: string, page: number, sourceIds: string[], signal?: AbortSignal) =>
+  search: (keyword: string, page: number, sourceIds?: string[], signal?: AbortSignal) =>
     call<NovelSearch>("/search", { keyword, page, sourceIds }, "POST", signal),
   catalog: (origin: NovelOrigin, signal?: AbortSignal) =>
     call<NovelCatalog>(

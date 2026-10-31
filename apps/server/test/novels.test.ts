@@ -129,6 +129,72 @@ async function waitTask(downloads: NovelDownloadService, status: string) {
   });
   return downloads.all()[0];
 }
+it("导入和订阅只保留支持下载的源，更新为不支持时移除旧记录", async () => {
+  const env = await setup();
+  const unsupported = { ...raw, ruleContent: { content: "@js:unsupported()" } };
+  const other = { ...raw, bookSourceUrl: "https://other.test" };
+  expect(env.sources.import([unsupported, other]).sources.map((source) => source.url)).toEqual([
+    other.bookSourceUrl,
+  ]);
+  expect(env.sources.import({ ...other, ruleContent: {} }).sources).toHaveLength(0);
+  env.setCollection([raw, { ...unsupported, bookSourceUrl: other.bookSourceUrl }]);
+  const state = await env.sources.saveSubscription({
+    name: "合集",
+    url: "https://novels.test/subscription",
+  });
+  const group = state.subscriptions[1];
+  expect(state.sources).toHaveLength(1);
+  expect(group.count).toBe(1);
+  env.setCollection([unsupported]);
+  expect((await env.sources.refresh(group.id)).sources).toHaveLength(0);
+  await env.restart();
+  expect(env.sources.state().sources).toHaveLength(0);
+});
+it("订阅部分失败时保留未知旧源，但移除明确不支持下载的更新", async () => {
+  const env = await setup();
+  env.setCollection([raw, { ...raw, bookSourceUrl: "https://old.test" }]);
+  const state = await env.sources.saveSubscription({
+    name: "合集",
+    url: "https://novels.test/subscription",
+  });
+  env.setCollection({
+    sourceUrl: "https://novels.test/manager",
+    ruleArticles: ".item",
+    ruleLink: "a@href",
+  });
+  env.setPage(
+    "/manager",
+    '<div class="item"><a href="/newfeed">成功</a><a href="/missing">失败</a></div>',
+  );
+  env.setPage("/newfeed", JSON.stringify([{ ...raw, ruleContent: {} }]));
+  const partial = await env.sources.refresh(state.subscriptions[1].id);
+  expect(partial.sources.map((source) => source.url)).toEqual(["https://old.test"]);
+  expect(partial.subscriptions[1].error).toBeTruthy();
+  expect(partial.subscriptions[1].count).toBe(1);
+});
+it("自动聚合不受显式选源的一百项限制，停用及不支持搜索的源不参与", async () => {
+  const env = await setup();
+  const state = env.sources.import(
+    Array.from({ length: 101 }, (_, i) => ({ ...raw, bookSourceUrl: `https://source${i}.test` })),
+  );
+  env.sources.import({ ...raw, enabled: false });
+  env.sources.import({ ...raw, bookSourceUrl: "https://no-search.test", searchUrl: "" });
+  vi.spyOn(NovelEngineExecutor.prototype, "execute").mockResolvedValue({
+    status: "ok",
+    books: [],
+    elapsedMs: 0,
+  });
+  const result = await env.sources.search("测试", 1);
+  expect(result.totalSources).toBe(101);
+  expect(result.completedSources).toBe(101);
+  expect(() =>
+    env.sources.search(
+      "测试",
+      1,
+      state.sources.map((source) => source.id),
+    ),
+  ).toThrow(/100/);
+});
 it("订阅刷新失败保留旧快照；更新保留启停，订阅和自定义源按身份隔离", async () => {
   const env = await setup();
   const subscribed = await env.sources.saveSubscription({

@@ -19,7 +19,7 @@ type SearchControlsProps = {
   searchMode: "single" | "aggregate";
   aggregateSourceKeys: string[];
   onKeywordChange: (value: string) => void;
-  onSearchModeChange: (value: "single" | "aggregate") => void;
+  onSearchModeChange?: (value: "single" | "aggregate") => void;
   onSearch: () => void;
 };
 
@@ -112,22 +112,24 @@ export function SearchControls(props: SearchControlsProps) {
           {props.cancelLabel ?? "停止搜索，保留已有结果"}
         </button>
       )}
-      <div className="search-mode-row">
-        <span>搜索方式</span>
-        <div className="segmented-control" role="group" aria-label="搜索模式">
-          {(["single", "aggregate"] as const).map((mode) => (
-            <button
-              key={mode}
-              disabled={props.busy}
-              className={props.searchMode === mode ? "active" : ""}
-              aria-pressed={props.searchMode === mode}
-              onClick={() => props.onSearchModeChange(mode)}
-            >
-              {mode === "single" ? "单源搜索" : "聚合搜索"}
-            </button>
-          ))}
+      {props.onSearchModeChange && (
+        <div className="search-mode-row">
+          <span>搜索方式</span>
+          <div className="segmented-control" role="group" aria-label="搜索模式">
+            {(["single", "aggregate"] as const).map((mode) => (
+              <button
+                key={mode}
+                disabled={props.busy}
+                className={props.searchMode === mode ? "active" : ""}
+                aria-pressed={props.searchMode === mode}
+                onClick={() => props.onSearchModeChange?.(mode)}
+              >
+                {mode === "single" ? "单源搜索" : "聚合搜索"}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }

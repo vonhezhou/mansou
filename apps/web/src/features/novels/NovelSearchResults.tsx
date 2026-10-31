@@ -151,38 +151,40 @@ export const NovelSearchResults = memo(function NovelSearchResults({
       )}
       {result && aggregate && grouping === "grouped" ? (
         <div className="aggregate-results">
-          {result.sources.map((source) => (
-            <section className="aggregate-source" key={source.sourceId}>
-              <header>
-                <div className="section-identity">
-                  <span className="source-avatar" aria-hidden="true">
-                    {source.sourceName.slice(0, 1)}
+          {result.sources
+            .filter((source) => source.status !== "error")
+            .map((source) => (
+              <section className="aggregate-source" key={source.sourceId}>
+                <header>
+                  <div className="section-identity">
+                    <span className="source-avatar" aria-hidden="true">
+                      {source.sourceName.slice(0, 1)}
+                    </span>
+                    <h3>{source.sourceName}</h3>
+                  </div>
+                  <span className="muted">
+                    {source.status === "error" ? "搜索失败" : `${source.books.length} 项`}
                   </span>
-                  <h3>{source.sourceName}</h3>
+                </header>
+                <div className="cards">
+                  {source.books.map((book) => {
+                    const origin: NovelOrigin = {
+                      ...book,
+                      sourceId: source.sourceId,
+                      sourceName: source.sourceName,
+                    };
+                    return (
+                      <BookCard
+                        key={book.bookUrl}
+                        book={{ name: book.name, author: book.author, origins: [origin] }}
+                        busy={busy}
+                        onOpen={onOpen}
+                      />
+                    );
+                  })}
                 </div>
-                <span className="muted">
-                  {source.status === "error" ? "搜索失败" : `${source.books.length} 项`}
-                </span>
-              </header>
-              <div className="cards">
-                {source.books.map((book) => {
-                  const origin: NovelOrigin = {
-                    ...book,
-                    sourceId: source.sourceId,
-                    sourceName: source.sourceName,
-                  };
-                  return (
-                    <BookCard
-                      key={book.bookUrl}
-                      book={{ name: book.name, author: book.author, origins: [origin] }}
-                      busy={busy}
-                      onOpen={onOpen}
-                    />
-                  );
-                })}
-              </div>
-            </section>
-          ))}
+              </section>
+            ))}
         </div>
       ) : (
         <div className="cards">

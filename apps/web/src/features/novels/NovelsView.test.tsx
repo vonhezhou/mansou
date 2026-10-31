@@ -325,9 +325,9 @@ it.each(["关闭详情", "卸载页面", "加载失败", "Escape"])(
     expect(container.textContent).not.toContain("AbortError");
   },
 );
-it("单源与聚合选择显式传递源身份，反选为空不能意外搜索全部，翻页沿用原查询", async () => {
+it("固定搜索全部可用源，移除选择控件，翻页沿用原查询", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  const requests: Array<{ sourceIds: string[]; keyword: string; page: number }> = [];
+  const requests: Array<{ sourceIds?: string[]; keyword: string; page: number }> = [];
   const sources = [
     {
       id: origin.sourceId,
@@ -359,14 +359,15 @@ it("单源与聚合选择显式传递源身份，反选为空不能意外搜索�
         requests.push(body);
         return json({
           ...body,
-          totalSources: body.sourceIds.length,
-          completedSources: body.sourceIds.length,
+          totalSources: sources.length,
+          completedSources: sources.length,
           results: [],
-          sources: body.sourceIds.map((id: string) => ({
+          sources: sources.map(({ id }) => ({
             sourceId: id,
             sourceName: id,
             books: [],
-            status: "ok",
+            status: id === "local:other" ? "error" : "ok",
+            error: id === "local:other" ? { message: "连接失败" } : undefined,
           })),
         });
       }
@@ -383,7 +384,7 @@ it("单源与聚合选择显式传递源身份，反选为空不能意外搜索�
     )!;
   await act(async () => {
     const input = container.querySelector<HTMLInputElement>('[aria-label="书名或作者"]')!;
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "凡人");
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "test");
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
   const submit = () =>
@@ -392,20 +393,14 @@ it("单源与聚合选择显式传递源身份，反选为空不能意外搜索�
         .querySelector("form")!
         .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })),
     );
-  await act(async () => button("反选").click());
-  expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(true);
   await submit();
-  expect(requests).toHaveLength(0);
-  await act(async () => button("单源搜索").click());
-  await act(async () =>
-    container.querySelector<HTMLInputElement>('input[type="radio"][value="local:other"]')!.click(),
-  );
-  await submit();
-  expect(requests[0]).toMatchObject({ keyword: "凡人", sourceIds: ["local:other"], page: 1 });
-  await act(async () => button("聚合搜索").click());
-  await act(async () => button("全选").click());
+  expect(requests[0]).toEqual({ keyword: "test", page: 1 });
+  expect(container.querySelector('[aria-label="搜索模式"]')).toBeNull();
+  expect(container.querySelector('input[type="radio"], .source-pill')).toBeNull();
+  expect(container.textContent).toContain("1 个源搜索失败");
+  expect(container.querySelectorAll(".aggregate-source")).toHaveLength(1);
+  expect(container.querySelector(".aggregate-source")?.textContent).not.toContain("local:other");
+  expect(container.querySelector(".search-source-errors")?.textContent).toContain("连接失败");
   await act(async () => button("下一页").click());
-  expect(requests[1]).toMatchObject({ sourceIds: ["local:other"], page: 2 });
-  await submit();
-  expect(requests[2].sourceIds).toEqual([origin.sourceId, "local:other"]);
+  expect(requests[1]).toEqual({ keyword: "test", page: 2 });
 });

@@ -5,7 +5,6 @@ import { useNovelCatalog } from "../../hooks/useNovelCatalog.js";
 import type { NovelSourcesState } from "../../hooks/useNovelSources.js";
 import type { TabKey } from "../../app/navigation.js";
 import { SearchControls } from "../search/SearchControls.js";
-import { SourcePicker } from "../search/SourcePicker.js";
 import { NovelSearchResults } from "./NovelSearchResults.js";
 import { NovelDetailsDialog } from "./NovelDetailsDialog.js";
 
@@ -25,9 +24,6 @@ export function NovelsView({
   const creating = useRef(false);
   const selection = useRef(0);
   const [keyword, setKeyword] = useState("");
-  const [sourceIds, setSourceIds] = useState<string[]>();
-  const [sourceKey, setSourceKey] = useState("");
-  const [searchMode, setSearchMode] = useState<"single" | "aggregate">("aggregate");
   const [result, setResult] = useState<NovelSearch>();
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string>();
@@ -45,14 +41,10 @@ export function NovelsView({
     (source) =>
       source.enabled &&
       source.searchSupported &&
+      source.downloadSupported &&
       state.subscriptions.some((group) => group.id === source.groupId && group.enabled),
   );
-  const aggregateIds = (sourceIds ?? available.map((source) => source.id)).filter((id) =>
-    available.some((source) => source.id === id),
-  );
-  const singleKey = available.some((source) => source.id === sourceKey)
-    ? sourceKey
-    : (available[0]?.id ?? "");
+  const aggregateIds = available.map((source) => source.id);
   const searchSources = available.map((source) => ({
     key: source.id,
     name: source.name,
@@ -64,12 +56,8 @@ export function NovelsView({
     setDownloadError(undefined);
   }, [close]);
   const runSearch = useCallback(
-    async (page: number, term: string, ids: string[]) => {
-      if (!term.trim() || !ids.length) return;
-      if (ids.length > 100) {
-        setSearchError("每次最多搜索 100 个书源，请减少选择");
-        return;
-      }
+    async (page: number, term: string) => {
+      if (!term.trim()) return;
       searchController.current?.abort();
       closeCatalog();
       const controller = new AbortController();
@@ -78,7 +66,7 @@ export function NovelsView({
       setSearchError(undefined);
       setResult(undefined);
       try {
-        const value = await novelApi.search(term, page, ids, controller.signal);
+        const value = await novelApi.search(term, page, undefined, controller.signal);
         if (active.current && !controller.signal.aborted) setResult(value);
       } catch (error) {
         if (active.current && !controller.signal.aborted)
@@ -89,8 +77,7 @@ export function NovelsView({
     },
     [closeCatalog],
   );
-  const search = () =>
-    runSearch(1, keyword, searchMode === "single" ? [singleKey].filter(Boolean) : aggregateIds);
+  const search = () => runSearch(1, keyword);
   useEffect(() => {
     if (!origin && !downloading && returnFocus.current) {
       returnFocus.current.focus();
@@ -122,12 +109,7 @@ export function NovelsView({
   );
   const changePage = useCallback(
     (page: number) => {
-      if (result)
-        void runSearch(
-          page,
-          result.keyword,
-          result.sources.map((source) => source.sourceId),
-        );
+      if (result) void runSearch(page, result.keyword);
     },
     [result, runSearch],
   );
@@ -190,13 +172,12 @@ export function NovelsView({
           cancelLabel="取消搜索"
           busy={sourceBusy || downloading || searching}
           searching={searching}
-          sourceKey={singleKey}
+          sourceKey=""
           sources={searchSources}
           keyword={keyword}
-          searchMode={searchMode}
+          searchMode="aggregate"
           aggregateSourceKeys={aggregateIds}
           onKeywordChange={setKeyword}
-          onSearchModeChange={setSearchMode}
           onSearch={() => void search()}
           onCancelSearch={() => {
             searchController.current?.abort();
@@ -204,32 +185,14 @@ export function NovelsView({
             setSearchError("搜索已取消");
           }}
         />
-        <SourcePicker
-          kind="小说"
-          sources={searchSources}
-          sourceKey={singleKey}
-          searchMode={searchMode}
-          aggregateSourceKeys={aggregateIds}
-          busy={sourceBusy || downloading || searching}
-          onSourceChange={setSourceKey}
-          onToggleAggregateSource={(id) =>
-            setSourceIds(
-              aggregateIds.includes(id)
-                ? aggregateIds.filter((key) => key !== id)
-                : [...aggregateIds, id],
-            )
-          }
-          onSelectAggregateSources={(action) =>
-            setSourceIds(
-              action === "all"
-                ? available.map((source) => source.id)
-                : available
-                    .filter((source) => !aggregateIds.includes(source.id))
-                    .map((source) => source.id),
-            )
-          }
-          onManageSources={() => onNavigate("novel-sources")}
-        />
+        {!available.length && (
+          <p className="muted">
+            暂无可搜索的书源，请在小说源中导入并启用支持搜索和下载的书源。
+            <button className="quiet-button" onClick={() => onNavigate("novel-sources")}>
+              管理小说源
+            </button>
+          </p>
+        )}
       </section>
       <NovelSearchResults
         result={result}

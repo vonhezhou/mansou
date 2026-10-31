@@ -2611,7 +2611,13 @@ export const openApiDocument = {
         properties: {
           keyword: { type: "string", minLength: 1, maxLength: 100 },
           page: { type: "integer", minimum: 1, maximum: 1000, default: 1 },
-          sourceIds: { type: "array", items: { type: "string" } },
+          sourceIds: {
+            type: "array",
+            description:
+              "可选，显式指定时最多 100 个；省略或为空时聚合全部已启用且支持搜索和下载的书源，并发仍为 3。",
+            maxItems: 100,
+            items: { type: "string" },
+          },
         },
         required: ["keyword"],
       },

@@ -91,7 +91,8 @@ export class NovelSourceService {
     this.db.transaction(() => {
       for (const value of values) {
         const row = this.record(value, "local");
-        this.db.save("source", row.summary.id, row);
+        if (row.summary.downloadSupported) this.db.save("source", row.summary.id, row);
+        else this.db.delete("source", row.summary.id);
       }
     });
     return this.state();
@@ -117,7 +118,11 @@ export class NovelSourceService {
   }
   private replace(group: Subscription, { sources, warning }: SubscriptionResult) {
     this.db.transaction(() => {
-      const records = sources.map((raw) => this.record(raw, group.id));
+      const incoming = sources.map((raw) => this.record(raw, group.id));
+      const records = incoming.filter((row) => row.summary.downloadSupported);
+      // 部分订阅失败时仍保留未获取的旧规则，但明确变为不支持下载的规则必须移除。
+      for (const row of incoming)
+        if (!row.summary.downloadSupported) this.db.delete("source", row.summary.id);
       const ids = new Set(records.map((row) => row.summary.id));
       for (const old of this.db.list<SourceRecord>("source"))
         if (!warning && old.summary.groupId === group.id && !ids.has(old.summary.id))
@@ -125,7 +130,7 @@ export class NovelSourceService {
       for (const row of records) this.db.save("source", row.summary.id, row);
       this.db.save("subscription", group.id, {
         ...group,
-        count: sources.length,
+        count: records.length,
         updatedAt: new Date().toISOString(),
         error: warning,
       });
@@ -190,10 +195,11 @@ export class NovelSourceService {
             (source) =>
               source.enabled &&
               source.searchSupported &&
+              source.downloadSupported &&
               state.subscriptions.some((group) => group.id === source.groupId && group.enabled),
           )
           .map((source) => source.id);
-    if (selected.length > 100)
+    if (ids?.length && selected.length > 100)
       throw new AppError("VALIDATION_ERROR", "每次最多搜索 100 个书源，请选择部分书源");
     const sources: RegisteredSource[] = selected.map((id) => {
       const row = this.source(id);

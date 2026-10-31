@@ -70,7 +70,7 @@ export function NovelSources({ state, busy, error, run, onChange }: Props) {
             <h2>自定义书源</h2>
             <p className="muted">
               粘贴或上传阅读书源
-              JSON，支持单个书源或合集。相同地址会替换自定义规则，下载中的任务保留原规则。
+              JSON，支持单个书源或合集，仅保留支持下载的书源。相同地址会替换自定义规则，下载中的任务保留原规则。
             </p>
             <label>
               上传书源文件
@@ -124,7 +124,7 @@ export function NovelSources({ state, busy, error, run, onChange }: Props) {
           <h2>书源订阅</h2>
           <p className="muted">
             支持书源 JSON 合集及静态 RSS
-            管理页订阅。刷新会更新规则并保留启停设置；部分合集失败时保留未更新的旧规则，不执行网页脚本或
+            管理页订阅，仅保留支持下载的书源。刷新会更新规则并保留启停设置；部分合集失败时保留未更新的旧规则，不执行网页脚本或
             WebView。
           </p>
           <button
