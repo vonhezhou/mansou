@@ -1,0 +1,19 @@
+{
+  "sourceCommit": "d6f8972",
+  "availableSources": 187,
+  "request": {
+    "keyword": "大乘期",
+    "page": 1
+  },
+  "cancelled": true,
+  "geometry": {
+    "left": 220,
+    "scrollLeft": 0,
+    "scrollTop": 0
+  },
+  "mobile": {
+    "width": 390,
+    "scrollWidth": 390
+  },
+  "passed": true
+}

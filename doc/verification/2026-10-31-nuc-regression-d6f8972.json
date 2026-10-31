@@ -1,0 +1,21 @@
+{
+  "sourceCommit": "d6f8972",
+  "environment": {
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64"
+  },
+  "image": "mansou:novel-build-d6f8972",
+  "web": {
+    "filesPassed": 28,
+    "testsPassed": 152,
+    "rawLogSha256": "758937b334613adb491372a7473cce4136c45a6791605fd25ad02c7bb31d1637"
+  },
+  "server": {
+    "filesPassed": 34,
+    "testsPassed": 221,
+    "rawLogSha256": "35ab75f3775740e3b181ee42ed0c9d3a9489a60ce60725cca0851356e9c53eb6"
+  },
+  "command": "pnpm --filter <package> exec vitest run --maxWorkers=2 --minWorkers=1",
+  "passed": true
+}

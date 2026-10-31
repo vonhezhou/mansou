@@ -1,0 +1,8 @@
+{
+  "sourceCommit": "d6f8972",
+  "origin": "http://192.168.30.147:3210/api/v1/novels",
+  "filteredUnsupported": true,
+  "unsupportedUpdateRemoved": true,
+  "originalSourcesPreserved": true,
+  "passed": true
+}
