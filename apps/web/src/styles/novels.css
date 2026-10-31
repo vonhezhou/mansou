@@ -40,9 +40,6 @@
 .novel-inline {
   margin-bottom: 16px;
 }
-.novel-tabs {
-  margin-bottom: 24px;
-}
 .novel-row {
   display: flex;
   justify-content: space-between;
@@ -62,17 +59,6 @@
   overflow-wrap: anywhere;
   font-size: 12px;
   color: var(--color-muted);
-}
-.novel-source-picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding-top: 14px;
-}
-.novel-source-picker label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 .novel-catalog {
   list-style: none;
@@ -100,20 +86,29 @@
   }
 }
 
-.novel-book-title {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+.novel-main-tabs {
+  padding: 16px 4.2%;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
-.novel-book-title:hover {
-  text-decoration: underline;
+.novel-status {
+  margin: 16px 4.2%;
 }
-.novel-selected-catalog {
-  scroll-margin-top: 80px;
-  margin-top: 16px;
-  border-top: 1px solid var(--color-border);
+.novel-detail-heading {
+  padding-block: 20px;
+}
+.novel-detail-heading h2 {
+  margin-top: 0;
+  overflow-wrap: anywhere;
+}
+.novel-detail-dialog label {
+  display: grid;
+  gap: 6px;
+}
+.novel-detail-dialog input {
+  width: 100%;
+}
+.novel-detail-dialog .novel-actions button[aria-pressed="true"] {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }

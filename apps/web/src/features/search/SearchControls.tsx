@@ -4,6 +4,8 @@ import { Icon } from "../../app/Icon.js";
 import type { Source } from "../../types.js";
 
 type SearchControlsProps = {
+  kind?: "漫画" | "小说";
+  cancelLabel?: string;
   inputRef?: RefObject<HTMLInputElement | null>;
   busy: boolean;
   searching?: boolean;
@@ -11,9 +13,9 @@ type SearchControlsProps = {
   sourceKey: string;
   sources: Source[];
   keyword: string;
-  searchHistory: string[];
-  onRemoveSearchHistory: (term: string) => void;
-  onClearSearchHistory: () => void;
+  searchHistory?: string[];
+  onRemoveSearchHistory?: (term: string) => void;
+  onClearSearchHistory?: () => void;
   searchMode: "single" | "aggregate";
   aggregateSourceKeys: string[];
   onKeywordChange: (value: string) => void;
@@ -22,6 +24,7 @@ type SearchControlsProps = {
 };
 
 export function SearchControls(props: SearchControlsProps) {
+  const kind = props.kind ?? "漫画";
   const localInputRef = useRef<HTMLInputElement>(null);
   const inputRef = props.inputRef ?? localInputRef;
   const canSearch =
@@ -48,8 +51,10 @@ export function SearchControls(props: SearchControlsProps) {
       <span className="eyebrow">
         <Icon name="sparkles" size={15} /> DISCOVER
       </span>
-      <h1>今天想看点什么？</h1>
-      <p className="hero-description">跨越多个漫画源，一次搜索即可找到你想看的内容。</p>
+      <h1>{kind === "小说" ? "今天想读点什么？" : "今天想看点什么？"}</h1>
+      <p className="hero-description">
+        跨越多个{kind === "小说" ? "书源" : "漫画源"}，一次搜索即可找到你想看的内容。
+      </p>
       <form
         className="search-box"
         onSubmit={(event) => {
@@ -60,17 +65,18 @@ export function SearchControls(props: SearchControlsProps) {
         <Icon name="search" size={22} />
         <input
           ref={inputRef}
-          aria-label="搜索关键词"
+          aria-label={kind === "小说" ? "书名或作者" : "搜索关键词"}
+          maxLength={kind === "小说" ? 100 : undefined}
           value={props.keyword}
           onChange={(event) => props.onKeywordChange(event.target.value)}
-          placeholder="搜索漫画名称或关键词…"
+          placeholder={`搜索${kind === "小说" ? "小说名称或作者" : "漫画名称或关键词"}…`}
         />
         <kbd className="keycap">⌘ / Ctrl K</kbd>
         <button type="submit" disabled={props.busy || !canSearch || !props.keyword.trim()}>
           {props.busy ? <LoadingStatus label="处理中…" /> : "搜索"}
         </button>
       </form>
-      {props.searchHistory.length > 0 && (
+      {Boolean(props.searchHistory?.length) && (
         <section className="search-history" aria-label="搜索历史">
           <div className="search-history-heading">
             <span>搜索历史</span>
@@ -79,7 +85,7 @@ export function SearchControls(props: SearchControlsProps) {
             </button>
           </div>
           <div className="search-history-terms">
-            {props.searchHistory.map((term) => (
+            {props.searchHistory!.map((term) => (
               <span className="search-history-term" key={term}>
                 <button
                   title={term}
@@ -92,7 +98,7 @@ export function SearchControls(props: SearchControlsProps) {
                 </button>
                 <button
                   aria-label={`删除搜索历史：${term}`}
-                  onClick={() => props.onRemoveSearchHistory(term)}
+                  onClick={() => props.onRemoveSearchHistory?.(term)}
                 >
                   ×
                 </button>
@@ -103,7 +109,7 @@ export function SearchControls(props: SearchControlsProps) {
       )}
       {props.searching && props.onCancelSearch && (
         <button className="secondary-button stop-search" onClick={props.onCancelSearch}>
-          停止搜索，保留已有结果
+          {props.cancelLabel ?? "停止搜索，保留已有结果"}
         </button>
       )}
       <div className="search-mode-row">

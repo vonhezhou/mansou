@@ -2,6 +2,8 @@ import { LoadingStatus } from "../../app/LoadingStatus.js";
 import type { Source } from "../../types.js";
 
 type SourcePickerProps = {
+  kind?: "漫画" | "小说";
+  onManageSources?: () => void;
   sources: Source[];
   searchMode: "single" | "aggregate";
   sourceKey: string;
@@ -13,15 +15,16 @@ type SourcePickerProps = {
 };
 
 export function SourcePicker(props: SourcePickerProps) {
+  const label = props.kind === "小说" ? "书源" : "漫画源";
   const sources = props.sources.filter((source) => source.hasSearch);
   const aggregate = props.searchMode === "aggregate";
   return (
     <fieldset className="source-picker" disabled={props.busy}>
       <legend>
-        漫画源 <span className="muted">{aggregate ? "可多选" : "单选"}</span>
+        {label} <span className="muted">{aggregate ? "可多选" : "单选"}</span>
       </legend>
       {aggregate && sources.length > 0 && (
-        <div className="source-selection-actions" role="group" aria-label="快速选择漫画源">
+        <div className="source-selection-actions" role="group" aria-label={`快速选择${label}`}>
           <button
             type="button"
             className="secondary-button"
@@ -65,13 +68,21 @@ export function SourcePicker(props: SourcePickerProps) {
         })}
       </div>
       {sources.length === 0 && props.busy ? (
-        <LoadingStatus label="正在加载漫画源…" />
+        <LoadingStatus label={`正在加载${label}…`} />
       ) : sources.length === 0 ? (
         <p className="muted">
-          暂无可搜索的漫画源，<a href="#sources">前往源管理安装或启用</a>。
+          暂无可搜索的{label}，
+          {props.onManageSources ? (
+            <button className="quiet-button" onClick={props.onManageSources}>
+              前往书源与订阅
+            </button>
+          ) : (
+            <a href="#sources">前往源管理安装或启用</a>
+          )}
+          。
         </p>
       ) : aggregate && props.aggregateSourceKeys.length === 0 ? (
-        <p className="muted">请选择至少一个漫画源。</p>
+        <p className="muted">请选择至少一个{label}。</p>
       ) : null}
     </fieldset>
   );
