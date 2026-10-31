@@ -1,5 +1,6 @@
 import type { components } from "@mansou/contracts";
 import { api, apiBase } from "./client.js";
+export type NovelBook = components["schemas"]["NovelBook"];
 export type NovelSource = components["schemas"]["NovelSource"];
 export type NovelState = components["schemas"]["NovelState"];
 export type NovelSubscription = components["schemas"]["NovelSubscription"];

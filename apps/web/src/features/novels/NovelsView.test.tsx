@@ -20,7 +20,7 @@ let root: Root | undefined;
 let container: HTMLDivElement;
 beforeEach(() => {
   navigate.mockClear();
-  reloadDownloads.mockClear();
+  reloadDownloads.mockReset().mockResolvedValue(undefined);
   Object.defineProperties(HTMLDialogElement.prototype, {
     showModal: {
       configurable: true,
@@ -52,120 +52,173 @@ const origin = {
   sourceId: "local:test",
   sourceName: "测试书源",
 };
-it("网页从搜索结果加载有序目录、提交范围下载，并仅为完成任务提供 TXT", async () => {
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  const requests: Array<{ path: string; body?: any }> = [];
-  let created = false;
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (url: string, options?: RequestInit) => {
-      const path = url.replace("/api/v1/novels", "");
-      const body = options?.body ? JSON.parse(String(options.body)) : undefined;
-      requests.push({ path, body });
-      let result: unknown;
-      if (path === "/sources")
-        result = {
-          subscriptions: [{ id: "local", name: "自定义书源", enabled: true, count: 1 }],
-          sources: [
-            {
-              id: origin.sourceId,
-              groupId: "local",
-              name: origin.sourceName,
-              enabled: true,
-              searchSupported: true,
-              downloadSupported: true,
-            },
-          ],
-        };
-      else if (path === "/search")
-        result = {
-          keyword: body.keyword,
-          page: 1,
-          results: [{ name: origin.name, author: origin.author, origins: [origin] }],
-          sources: [],
-          totalSources: 1,
-          completedSources: 1,
-        };
-      else if (path === "/catalog")
-        result = {
-          bookUrl: origin.bookUrl,
-          tocComplete: true,
-          tocPages: 1,
-          chapters: [
-            { title: "第一章", url: "https://novels.test/1" },
-            { title: "第二章", url: "https://novels.test/2" },
-          ],
-        };
-      else if (path === "/downloads" && options?.method === "POST") {
-        created = true;
-        result = { id: "task" };
-      } else if (path === "/downloads")
-        result = created
-          ? [
+it.each(["完成后进入任务", "关闭后不跳转", "关闭后创建失败", "任务已创建但刷新失败"])(
+  "网页加载目录、缓存重开及范围下载：%s",
+  async (scenario) => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    const requests: Array<{ path: string; body?: any }> = [];
+    let created = false;
+    let completeDownload!: () => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, options?: RequestInit) => {
+        const path = url.replace("/api/v1/novels", "");
+        const body = options?.body ? JSON.parse(String(options.body)) : undefined;
+        requests.push({ path, body });
+        let result: unknown;
+        if (path === "/sources")
+          result = {
+            subscriptions: [{ id: "local", name: "自定义书源", enabled: true, count: 1 }],
+            sources: [
               {
-                id: "task",
-                name: origin.name,
-                sourceName: origin.sourceName,
-                author: origin.author,
-                phase: "已完成",
-                status: "completed",
-                total: 2,
-                completed: 2,
-                all: false,
-                start: 1,
-                limit: 2,
+                id: origin.sourceId,
+                groupId: "local",
+                name: origin.sourceName,
+                enabled: true,
+                searchSupported: true,
+                downloadSupported: true,
               },
-            ]
-          : [];
-      else throw new Error(`Unexpected path ${path}`);
-      return new Response(JSON.stringify(result), {
-        headers: { "content-type": "application/json" },
+            ],
+          };
+        else if (path === "/search")
+          result = {
+            keyword: body.keyword,
+            page: 1,
+            results: [{ name: origin.name, author: origin.author, origins: [origin] }],
+            sources: [],
+            totalSources: 1,
+            completedSources: 1,
+          };
+        else if (path === "/catalog")
+          result = {
+            bookUrl: origin.bookUrl,
+            tocComplete: true,
+            tocPages: 1,
+            chapters: [
+              { title: "第一章", url: "https://novels.test/1" },
+              { title: "第二章", url: "https://novels.test/2" },
+            ],
+          };
+        else if (path === "/downloads" && options?.method === "POST") {
+          created = true;
+          if (scenario === "关闭后不跳转" || scenario === "关闭后创建失败")
+            return new Promise<Response>((resolve) => {
+              completeDownload = () =>
+                resolve(
+                  new Response(
+                    JSON.stringify(
+                      scenario === "关闭后创建失败"
+                        ? { error: { message: "服务不可用", code: "UPSTREAM_ERROR" } }
+                        : { id: "task" },
+                    ),
+                    {
+                      status: scenario === "关闭后创建失败" ? 503 : 200,
+                      headers: { "content-type": "application/json" },
+                    },
+                  ),
+                );
+            });
+          result = { id: "task" };
+        } else if (path === "/downloads")
+          result = created
+            ? [
+                {
+                  id: "task",
+                  name: origin.name,
+                  sourceName: origin.sourceName,
+                  author: origin.author,
+                  phase: "已完成",
+                  status: "completed",
+                  total: 2,
+                  completed: 2,
+                  all: false,
+                  start: 1,
+                  limit: 2,
+                },
+              ]
+            : [];
+        else throw new Error(`Unexpected path ${path}`);
+        return new Response(JSON.stringify(result), {
+          headers: { "content-type": "application/json" },
+        });
+      }),
+    );
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => root!.render(<SearchHarness />));
+    const button = (text: string) =>
+      [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+        (button) => button.textContent === text || button.getAttribute("aria-label") === text,
+      )!;
+    const setValue = async (input: HTMLInputElement, value: string) =>
+      act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+          input,
+          value,
+        );
+        input.dispatchEvent(new Event("input", { bubbles: true }));
       });
-    }),
-  );
-  container = document.createElement("div");
-  document.body.append(container);
-  root = createRoot(container);
-  await act(async () => root!.render(<SearchHarness />));
-  const button = (text: string) =>
-    [...container.querySelectorAll<HTMLButtonElement>("button")].find(
-      (button) => button.textContent === text,
-    )!;
-  const setValue = async (input: HTMLInputElement, value: string) =>
-    act(async () => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
-      input.dispatchEvent(new Event("input", { bubbles: true }));
+    await setValue(container.querySelector<HTMLInputElement>('[aria-label="书名或作者"]')!, "凡人");
+    await act(async () =>
+      container
+        .querySelector("form")!
+        .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })),
+    );
+    expect(container.textContent).toContain("凡人测试");
+    const card = container.querySelector<HTMLButtonElement>('[aria-label="查看 凡人测试 的详情"]')!;
+    card.focus();
+    await act(async () => card.click());
+    expect(container.querySelector("dialog[open]")).not.toBeNull();
+    expect(requests.filter((request) => request.path === "/catalog")).toHaveLength(1);
+    expect(
+      [...container.querySelectorAll<HTMLButtonElement>(".novel-catalog li button")].map(
+        (item) => item.title,
+      ),
+    ).toEqual(["第一章", "第二章"]);
+    await act(async () => button("关闭详情").click());
+    expect(document.activeElement).toBe(card);
+    await act(async () => card.click());
+    expect(container.querySelector("dialog[open]")).not.toBeNull();
+    expect(requests.filter((request) => request.path === "/catalog")).toHaveLength(1);
+    const ranges = container.querySelectorAll<HTMLInputElement>('input[type="number"]');
+    await setValue(ranges[1], "2");
+    expect(container.querySelector('a[href$="/txt"]')).toBeNull();
+    if (scenario === "任务已创建但刷新失败")
+      reloadDownloads.mockRejectedValueOnce(new Error("刷新失败"));
+    await act(async () => {
+      button("下载所选范围").click();
+      button("下载所选范围").click();
     });
-  await setValue(container.querySelector<HTMLInputElement>('[aria-label="书名或作者"]')!, "凡人");
-  await act(async () =>
-    container
-      .querySelector("form")!
-      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })),
-  );
-  expect(container.textContent).toContain("凡人测试");
-  const card = container.querySelector<HTMLButtonElement>('[aria-label="查看 凡人测试 的详情"]')!;
-  card.focus();
-  await act(async () => card.click());
-  expect(container.querySelector("dialog[open]")).not.toBeNull();
-  expect(
-    [...container.querySelectorAll(".novel-catalog li")].map((item) => item.textContent),
-  ).toEqual(["1. 第一章", "2. 第二章"]);
-  await act(async () => button("关闭目录").click());
-  expect(document.activeElement).toBe(card);
-  await act(async () => card.click());
-  expect(container.querySelector("dialog[open]")).not.toBeNull();
-  const ranges = container.querySelectorAll<HTMLInputElement>('input[type="number"]');
-  await setValue(ranges[1], "2");
-  expect(container.querySelector('a[href$="/txt"]')).toBeNull();
-  await act(async () => button("下载所选范围").click());
-  expect(
-    requests.find((request) => request.path === "/downloads" && request.body)?.body,
-  ).toMatchObject({ sourceId: origin.sourceId, all: false, start: 1, limit: 2, book: origin });
-  expect(reloadDownloads).toHaveBeenCalledOnce();
-  expect(navigate).toHaveBeenCalledWith("downloads");
-  expect(container.querySelector("dialog")).toBeNull();
-});
-it.each(["关闭目录", "卸载页面", "加载失败", "Escape"])(
+    expect(
+      requests.find((request) => request.path === "/downloads" && request.body)?.body,
+    ).toMatchObject({ sourceId: origin.sourceId, all: false, start: 1, limit: 2, book: origin });
+    expect(
+      requests.filter((request) => request.path === "/downloads" && request.body),
+    ).toHaveLength(1);
+    if (scenario === "关闭后不跳转" || scenario === "关闭后创建失败") {
+      await act(async () => button("关闭详情").click());
+      expect(container.querySelector("dialog")).toBeNull();
+      await act(async () => completeDownload());
+      if (scenario === "关闭后创建失败") {
+        expect(reloadDownloads).not.toHaveBeenCalled();
+        expect(container.querySelector('[role="alert"]')?.textContent).toContain("创建下载失败");
+      } else expect(reloadDownloads).toHaveBeenCalledOnce();
+      expect(navigate).not.toHaveBeenCalled();
+      expect(document.body.style.overflow).not.toBe("hidden");
+      return;
+    }
+    expect(reloadDownloads).toHaveBeenCalledOnce();
+    if (scenario === "任务已创建但刷新失败") {
+      expect(container.querySelector('dialog [role="alert"]')?.textContent).toContain("任务已创建");
+      expect(navigate).not.toHaveBeenCalled();
+      return;
+    }
+    expect(navigate).toHaveBeenCalledWith("downloads");
+    expect(container.querySelector("dialog")).toBeNull();
+  },
+);
+it.each(["关闭详情", "卸载页面", "加载失败", "Escape"])(
   "加载目录时%s 会取消请求并忽略迟到响应",
   async (action) => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -217,7 +270,7 @@ it.each(["关闭目录", "卸载页面", "加载失败", "Escape"])(
     await act(async () => root!.render(<SearchHarness />));
     const button = (text: string) =>
       [...container.querySelectorAll<HTMLButtonElement>("button")].find(
-        (button) => button.textContent === text,
+        (button) => button.textContent === text || button.getAttribute("aria-label") === text,
       )!;
     await act(async () => {
       const input = container.querySelector<HTMLInputElement>('[aria-label="书名或作者"]')!;
@@ -242,7 +295,7 @@ it.each(["关闭目录", "卸载页面", "加载失败", "Escape"])(
     expect(panel.textContent).toContain("正在加载所选书源目录");
     if (action === "加载失败") {
       await act(async () => failCatalog(new Error("测试连接被重置")));
-      expect(panel.querySelector('[role="alert"]')?.textContent).toBe("测试连接被重置");
+      expect(panel.querySelector('[role="alert"] p')?.textContent).toBe("测试连接被重置");
       expect(panel.textContent).toContain("重新加载目录");
       return;
     }
@@ -255,7 +308,7 @@ it.each(["关闭目录", "卸载页面", "加载失败", "Escape"])(
     } else if (action === "卸载页面") {
       await act(async () => root!.unmount());
       root = undefined;
-    } else await act(async () => button("关闭目录").click());
+    } else await act(async () => button("关闭详情").click());
     expect(catalogSignal!.aborted).toBe(true);
     // 即使外部边界迟到返回成功，也不能把已关闭的目录重新显示。
     await act(async () =>
@@ -326,7 +379,7 @@ it("单源与聚合选择显式传递源身份，反选为空不能意外搜索�
   await act(async () => root!.render(<SearchHarness />));
   const button = (text: string) =>
     [...container.querySelectorAll<HTMLButtonElement>("button")].find(
-      (button) => button.textContent === text,
+      (button) => button.textContent === text || button.getAttribute("aria-label") === text,
     )!;
   await act(async () => {
     const input = container.querySelector<HTMLInputElement>('[aria-label="书名或作者"]')!;

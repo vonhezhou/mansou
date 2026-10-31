@@ -1,11 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import {
-  novelApi,
-  type NovelCatalog,
-  type NovelOrigin,
-  type NovelSearch,
-} from "../../api/novels.js";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { novelApi, type NovelOrigin, type NovelSearch } from "../../api/novels.js";
 import { LoadingStatus } from "../../app/LoadingStatus.js";
+import { useNovelCatalog } from "../../hooks/useNovelCatalog.js";
 import type { NovelSourcesState } from "../../hooks/useNovelSources.js";
 import type { TabKey } from "../../app/navigation.js";
 import { SearchControls } from "../search/SearchControls.js";
@@ -22,7 +18,12 @@ export function NovelsView({
   onNavigate: (tab: TabKey) => void;
   onDownloadCreated: () => Promise<void>;
 }) {
-  const { state, busy, error, run } = sourceState;
+  const { state, busy: sourceBusy, error: sourceError } = sourceState;
+  const { origin, catalog, loading, error: catalogError, load, close } = useNovelCatalog();
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string>();
+  const creating = useRef(false);
+  const selection = useRef(0);
   const [keyword, setKeyword] = useState("");
   const [sourceIds, setSourceIds] = useState<string[]>();
   const [sourceKey, setSourceKey] = useState("");
@@ -30,11 +31,7 @@ export function NovelsView({
   const [result, setResult] = useState<NovelSearch>();
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string>();
-  const [origin, setOrigin] = useState<NovelOrigin>();
-  const [catalog, setCatalog] = useState<NovelCatalog>();
-  const [catalogError, setCatalogError] = useState<string>();
   const searchController = useRef<AbortController | null>(null);
-  const catalogController = useRef<AbortController | null>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
   const active = useRef(true);
   useEffect(() => {
@@ -42,7 +39,6 @@ export function NovelsView({
     return () => {
       active.current = false;
       searchController.current?.abort();
-      catalogController.current?.abort();
     };
   }, []);
   const available = state.sources.filter(
@@ -62,77 +58,105 @@ export function NovelsView({
     name: source.name,
     hasSearch: true,
   }));
-  async function search(
-    page = 1,
-    term = keyword,
-    ids = searchMode === "single" ? [singleKey].filter(Boolean) : aggregateIds,
-  ) {
-    if (!term.trim() || !ids.length) return;
-    if (ids.length > 100) {
-      setSearchError("每次最多搜索 100 个书源，请减少选择");
-      return;
-    }
-    searchController.current?.abort();
-    catalogController.current?.abort();
-    const controller = new AbortController();
-    searchController.current = controller;
-    setSearching(true);
-    setSearchError(undefined);
-    setResult(undefined);
-    setOrigin(undefined);
-    setCatalog(undefined);
-    try {
-      const value = await novelApi.search(term, page, ids, controller.signal);
-      if (active.current && !controller.signal.aborted) setResult(value);
-    } catch (error) {
-      if (active.current && !controller.signal.aborted)
-        setSearchError(error instanceof Error ? error.message : String(error));
-    } finally {
-      if (active.current && searchController.current === controller) setSearching(false);
-    }
-  }
-  function closeCatalog() {
-    catalogController.current?.abort();
-    setOrigin(undefined);
-    setCatalog(undefined);
-  }
+  const closeCatalog = useCallback(() => {
+    selection.current++;
+    close();
+    setDownloadError(undefined);
+  }, [close]);
+  const runSearch = useCallback(
+    async (page: number, term: string, ids: string[]) => {
+      if (!term.trim() || !ids.length) return;
+      if (ids.length > 100) {
+        setSearchError("每次最多搜索 100 个书源，请减少选择");
+        return;
+      }
+      searchController.current?.abort();
+      closeCatalog();
+      const controller = new AbortController();
+      searchController.current = controller;
+      setSearching(true);
+      setSearchError(undefined);
+      setResult(undefined);
+      try {
+        const value = await novelApi.search(term, page, ids, controller.signal);
+        if (active.current && !controller.signal.aborted) setResult(value);
+      } catch (error) {
+        if (active.current && !controller.signal.aborted)
+          setSearchError(error instanceof Error ? error.message : String(error));
+      } finally {
+        if (active.current && searchController.current === controller) setSearching(false);
+      }
+    },
+    [closeCatalog],
+  );
+  const search = () =>
+    runSearch(1, keyword, searchMode === "single" ? [singleKey].filter(Boolean) : aggregateIds);
   useEffect(() => {
-    // 关闭加载中的弹窗时，等待请求收尾、结果卡片恢复可用后再还原焦点。
-    if (!origin && !busy && returnFocus.current) {
+    if (!origin && !downloading && returnFocus.current) {
       returnFocus.current.focus();
       returnFocus.current = null;
     }
-  }, [origin, busy]);
-  async function select(value: NovelOrigin) {
-    catalogController.current?.abort();
-    const controller = new AbortController();
-    catalogController.current = controller;
-    setOrigin({ ...value });
-    setCatalog(undefined);
-    setCatalogError(undefined);
-    const source = state.sources.find((source) => source.id === value.sourceId);
-    if (!source?.downloadSupported) {
-      setCatalogError(source?.downloadError ?? "该书源暂不支持目录与下载");
-      return;
-    }
-    await run(async () => {
-      try {
-        const details = await novelApi.catalog(value, controller.signal);
-        if (active.current && !controller.signal.aborted) setCatalog(details);
-      } catch (error) {
-        if (active.current && !controller.signal.aborted)
-          setCatalogError(error instanceof Error ? error.message : String(error));
-      }
-    });
-  }
-  const download = (all: boolean, start: number, limit: number) =>
-    void run(async () => {
-      if (!origin) return;
+  }, [origin, downloading]);
+  const select = useCallback(
+    (value: NovelOrigin, refresh = false) => {
+      if (creating.current) return;
+      selection.current++;
+      setDownloadError(undefined);
+      const source = state.sources.find((source) => source.id === value.sourceId);
+      const enabled =
+        source && state.subscriptions.some((group) => group.id === source.groupId && group.enabled);
+      void load(value, enabled ? source : undefined, refresh);
+    },
+    [load, state.sources, state.subscriptions],
+  );
+  const openBook = useCallback(
+    (book: NovelSearch["results"][number]) => {
+      returnFocus.current = document.activeElement as HTMLElement;
+      const first =
+        book.origins.find((value) =>
+          state.sources.some((source) => source.id === value.sourceId && source.downloadSupported),
+        ) ?? book.origins[0];
+      if (first) select(first);
+    },
+    [select, state.sources],
+  );
+  const changePage = useCallback(
+    (page: number) => {
+      if (result)
+        void runSearch(
+          page,
+          result.keyword,
+          result.sources.map((source) => source.sourceId),
+        );
+    },
+    [result, runSearch],
+  );
+  const download = async (all: boolean, start: number, limit: number) => {
+    if (creating.current || !origin || !catalog?.tocComplete) return;
+    const selected = selection.current;
+    creating.current = true;
+    setDownloading(true);
+    setDownloadError(undefined);
+    let created = false;
+    try {
       await novelApi.download(origin, all, start, limit);
+      created = true;
       await onDownloadCreated();
-      closeCatalog();
-      onNavigate("downloads");
-    });
+      // 请求提交后允许关闭弹窗；后台任务仍保留，但迟到结果不能把用户带离当前页面。
+      if (active.current && selection.current === selected) {
+        closeCatalog();
+        onNavigate("downloads");
+      }
+    } catch (error) {
+      if (active.current)
+        setDownloadError(
+          `《${origin.name}》${created ? "任务已创建，但刷新任务列表失败，可前往下载任务查看：" : "创建下载失败："}${error instanceof Error ? error.message : String(error)}`,
+        );
+    } finally {
+      creating.current = false;
+      if (active.current) setDownloading(false);
+    }
+  };
   const selectedOrigins = origin
     ? (result?.results.find((book) =>
         book.origins.some(
@@ -142,12 +166,20 @@ export function NovelsView({
     : [];
   return (
     <section className="novel-workspace">
-      {error && !origin && (
+      {downloadError && !origin && (
+        <div className="alert novel-status" role="alert">
+          <p>{downloadError}</p>
+          <button className="secondary-button" onClick={() => onNavigate("downloads")}>
+            查看下载任务
+          </button>
+        </div>
+      )}
+      {sourceError && !origin && (
         <p className="alert novel-status" role="alert">
-          {error}
+          {sourceError}
         </p>
       )}
-      {busy && !origin && (
+      {sourceBusy && !origin && (
         <div className="novel-status">
           <LoadingStatus label="正在处理小说操作…" />
         </div>
@@ -156,7 +188,7 @@ export function NovelsView({
         <SearchControls
           kind="小说"
           cancelLabel="取消搜索"
-          busy={busy || searching}
+          busy={sourceBusy || downloading || searching}
           searching={searching}
           sourceKey={singleKey}
           sources={searchSources}
@@ -178,7 +210,7 @@ export function NovelsView({
           sourceKey={singleKey}
           searchMode={searchMode}
           aggregateSourceKeys={aggregateIds}
-          busy={busy || searching}
+          busy={sourceBusy || downloading || searching}
           onSourceChange={setSourceKey}
           onToggleAggregateSource={(id) =>
             setSourceIds(
@@ -202,36 +234,26 @@ export function NovelsView({
       <NovelSearchResults
         result={result}
         searching={searching}
-        busy={busy}
+        busy={downloading}
         error={searchError}
-        onOpen={(book) => {
-          returnFocus.current = document.activeElement as HTMLElement;
-          const first =
-            book.origins.find((value) =>
-              state.sources.some(
-                (source) => source.id === value.sourceId && source.downloadSupported,
-              ),
-            ) ?? book.origins[0];
-          if (first) void select(first);
-        }}
-        onPage={(page) => {
-          if (result)
-            void search(
-              page,
-              result.keyword,
-              result.sources.map((source) => source.sourceId),
-            );
-        }}
+        onOpen={openBook}
+        onPage={changePage}
       />
       {origin && (
         <NovelDetailsDialog
           origin={origin}
+          book={result?.sources
+            .find((source) => source.sourceId === origin.sourceId)
+            ?.books.find((book) => book.bookUrl === origin.bookUrl)}
           origins={selectedOrigins}
           sources={state.sources}
           catalog={catalog}
-          error={catalogError ?? error}
-          busy={busy}
-          onSelect={(value) => void select(value)}
+          error={catalogError}
+          loading={loading}
+          downloading={downloading}
+          downloadError={downloadError}
+          onRefresh={() => select(origin, true)}
+          onSelect={select}
           onClose={closeCatalog}
           onDownload={download}
         />

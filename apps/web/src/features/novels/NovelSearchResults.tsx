@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import type { NovelOrigin, NovelSearch } from "../../api/novels.js";
 import { AsyncImage } from "../../app/AsyncImage.js";
 import { Icon } from "../../app/Icon.js";
@@ -45,7 +45,14 @@ function BookCard({ book, busy, onOpen }: { book: Book; busy: boolean; onOpen: P
   );
 }
 
-export function NovelSearchResults({ result, searching, busy, error, onOpen, onPage }: Props) {
+export const NovelSearchResults = memo(function NovelSearchResults({
+  result,
+  searching,
+  busy,
+  error,
+  onOpen,
+  onPage,
+}: Props) {
   const [layout, setLayout] = useState<"grid" | "list">("grid");
   const [grouping, setGrouping] = useState<"grouped" | "flat">("grouped");
   const failed = result?.sources.filter((source) => source.status === "error") ?? [];
@@ -206,4 +213,4 @@ export function NovelSearchResults({ result, searching, busy, error, onOpen, onP
       )}
     </section>
   );
-}
+});
