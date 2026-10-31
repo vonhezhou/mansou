@@ -1,0 +1,16 @@
+{
+  "sourceCommit": "60c632c",
+  "origin": "http://192.168.30.147:3210",
+  "errors": [],
+  "initialCount": 5,
+  "distinctIcons": true,
+  "disabledSourceIncluded": true,
+  "countAcrossPages": true,
+  "originalSourcesUnchanged": true,
+  "mobile": {
+    "width": 390,
+    "scrollWidth": 390,
+    "badge": "5"
+  },
+  "passed": true
+}

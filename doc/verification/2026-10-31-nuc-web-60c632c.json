@@ -1,0 +1,14 @@
+{
+  "sourceCommit": "60c632c",
+  "environment": {
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64"
+  },
+  "image": "mansou:novel-build-60c632c",
+  "command": "pnpm --filter @mansou/web exec vitest run --maxWorkers=2 --minWorkers=1",
+  "filesPassed": 25,
+  "testsPassed": 141,
+  "rawLogSha256": "dfcb5d0661f6594fa82a8475f42bbfcdd8310252ba15db1f1f1f68f9f636122f",
+  "passed": true
+}
