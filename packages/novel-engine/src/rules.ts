@@ -44,6 +44,7 @@ const blockTags =
   "address,article,aside,blockquote,br,caption,dd,details,div,dl,dt,fieldset,figcaption,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hr,li,main,nav,ol,p,pre,section,summary,table,tbody,td,tfoot,th,thead,tr,ul";
 
 function textValue($: CheerioAPI, item: Selection, own = false): string {
+  if (item.is("script,style")) return "";
   const clone = item.clone();
   clone.find("script,style").remove();
   if (own)
@@ -61,7 +62,7 @@ function ruleParts(rule: string): {
   replacement: string;
   first: boolean;
 } {
-  if (/(@(?:js|webjs|xpath|json|put|get):|<js>|\{\{|%%|^\s*(?:\$|\/\/)|\bjava\.)/i.test(rule))
+  if (/(@(?:js|webjs|xpath|json|put|get):|<js>|\{\{|^\s*(?:\$|\/\/)|\bjava\.)/i.test(rule))
     unsupported(rule);
   const parts = rule.split("##");
   if (parts.length > 4 || (parts[3] !== undefined && parts[3] !== "#")) unsupported(rule);
@@ -86,6 +87,32 @@ function ruleParts(rule: string): {
     replacement: (parts[2] ?? "").replace(/\$0/g, () => "$&"),
     first: parts[3] === "#",
   };
+}
+
+function composition(rule: string): { operator: string; parts: string[] } {
+  const combinations = ["||", "&&", "%%"]
+    .map((operator) => ({ operator, parts: splitRule(rule, operator) }))
+    .filter(({ parts }) => parts.length > 1);
+  // Legado 按首次出现的运算符分割；其余运算符会落入选择器，不假定布尔表达式优先级。
+  if (combinations.length > 1) unsupported(rule);
+  return combinations[0] ?? { operator: "&&", parts: [rule] };
+}
+
+function combine<T>(rule: string, read: (branch: string) => T[]): T[] {
+  const { operator, parts } = composition(rule);
+  const lists: T[][] = [];
+  for (const part of parts) {
+    if (!part.trim()) continue;
+    const items = read(part);
+    if (!items.length) continue;
+    if (operator === "||") return items;
+    lists.push(items);
+  }
+  if (operator !== "%%") return lists.flat();
+  const result: T[] = [];
+  for (let index = 0; index < (lists[0]?.length ?? 0); index++)
+    for (const list of lists) if (index < list.length) result.push(list[index]!);
+  return result;
 }
 
 function selectorSegment(segment: string): {
@@ -160,23 +187,22 @@ export function validateRule(rule: string, mode: "elements" | "string" = "elemen
   if (!rule) return;
   const parsed = ruleParts(rule);
   if (mode === "elements" && parsed.regex) unsupported(rule);
-  for (const alternate of splitRule(parsed.base, "||"))
-    for (const combined of splitRule(alternate, "&&")) {
-      if (!combined.trim()) continue;
-      const segments = paths(combined);
-      if (mode === "string") {
-        const terminal = segments.pop();
-        if (terminal && !/^[\w:-]+$/.test(terminal)) unsupported(rule);
-      }
-      for (const segment of segments) {
-        const css = /^\s*@css:/i.test(parsed.base) ? segment : selectorSegment(segment).css;
-        try {
-          validator.root().find(css);
-        } catch {
-          unsupported(rule);
-        }
+  for (const combined of composition(parsed.base).parts) {
+    if (!combined.trim()) continue;
+    const segments = paths(combined);
+    if (mode === "string") {
+      const terminal = segments.pop();
+      if (terminal && !/^[\w:-]+$/.test(terminal)) unsupported(rule);
+    }
+    for (const segment of segments) {
+      const css = /^\s*@css:/i.test(parsed.base) ? segment : selectorSegment(segment).css;
+      try {
+        validator.root().find(css);
+      } catch {
+        unsupported(rule);
       }
     }
+  }
 }
 
 function select($: CheerioAPI, root: Selection, segments: string[], literalCss = false): Selection {
@@ -228,17 +254,11 @@ export class HtmlRules {
 
   elements(rule: string, root: Selection = this.$.root()): Selection {
     validateRule(rule);
-    for (const alternate of splitRule(rule, "||")) {
-      let elements = this.$([] as AnyNode[]);
-      for (const branch of splitRule(alternate, "&&"))
-        if (branch.trim())
-          elements = this.$([
-            ...elements.toArray(),
-            ...select(this.$, root, paths(branch), /^\s*@css:/i.test(rule)).toArray(),
-          ]);
-      if (elements.length) return elements;
-    }
-    return this.$([] as AnyNode[]);
+    return this.$(
+      combine(rule, (branch) =>
+        select(this.$, root, paths(branch), /^\s*@css:/i.test(rule)).toArray(),
+      ),
+    );
   }
 
   replace(rule: string, value: string): string {
@@ -260,55 +280,53 @@ export class HtmlRules {
     if (!rule) return "";
     validateRule(rule, "string");
     const parsed = ruleParts(rule);
-    for (const alternate of splitRule(parsed.base, "||")) {
+    const values = combine(parsed.base, (branch) => {
       const values: string[] = [];
-      for (const branch of splitRule(alternate, "&&")) {
-        if (!branch.trim()) continue;
-        const segments = paths(branch);
-        const terminal = segments.pop() ?? "text";
-        const selection = select(this.$, this.$(node), segments, /^\s*@css:/i.test(parsed.base));
-        selection.each((_, element) => {
-          const item = this.$(element);
-          let value: string;
-          if (terminal === "text") value = textValue(this.$, item);
-          else if (terminal === "all") value = this.$.html(item);
-          else if (terminal === "html") {
-            const clone = item.clone();
-            clone.find("script,style").remove();
-            value = this.$.html(clone);
-          } else if (terminal === "textNodes" || terminal === "ownText") {
-            const texts = item
-              .contents()
-              .toArray()
-              .filter((n) => n.type === "text")
-              .map((n) => this.$(n).text());
-            value =
-              terminal === "textNodes"
-                ? texts
-                    .map((t) => t.trim())
-                    .filter(Boolean)
-                    .join("\n")
-                : textValue(this.$, item, true);
-          } else {
-            if (!/^[\w:-]+$/.test(terminal)) unsupported(rule);
-            value = item.attr(terminal) ?? "";
-          }
-          value = value.trim();
-          if (value) values.push(value);
-        });
-      }
-      if (values.length) {
-        const value = values.join("\n");
-        if (!parsed.regex) return value;
-        if (!parsed.first) return value.replace(parsed.regex, parsed.replacement);
-        const match = parsed.regex.exec(value);
-        return match
-          ? match[0].replace(
-              new RegExp(parsed.regex.source, parsed.regex.flags.replace("g", "")),
-              parsed.replacement,
-            )
-          : "";
-      }
+      const segments = paths(branch);
+      const terminal = segments.pop() ?? "text";
+      const selection = select(this.$, this.$(node), segments, /^\s*@css:/i.test(parsed.base));
+      selection.each((_, element) => {
+        const item = this.$(element);
+        let value: string;
+        if (terminal === "text") value = textValue(this.$, item);
+        else if (terminal === "all") value = this.$.html(item);
+        else if (terminal === "html") {
+          const clone = item.clone();
+          clone.find("script,style").remove();
+          value = this.$.html(clone);
+        } else if (terminal === "textNodes" || terminal === "ownText") {
+          const texts = item
+            .contents()
+            .toArray()
+            .filter((n) => n.type === "text")
+            .map((n) => this.$(n).text());
+          value =
+            terminal === "textNodes"
+              ? texts
+                  .map((t) => t.trim())
+                  .filter(Boolean)
+                  .join("\n")
+              : textValue(this.$, item, true);
+        } else {
+          if (!/^[\w:-]+$/.test(terminal)) unsupported(rule);
+          value = item.attr(terminal) ?? "";
+        }
+        value = value.trim();
+        if (value) values.push(value);
+      });
+      return values;
+    });
+    if (values.length) {
+      const value = values.join("\n");
+      if (!parsed.regex) return value;
+      if (!parsed.first) return value.replace(parsed.regex, parsed.replacement);
+      const match = parsed.regex.exec(value);
+      return match
+        ? match[0].replace(
+            new RegExp(parsed.regex.source, parsed.regex.flags.replace("g", "")),
+            parsed.replacement,
+          )
+        : "";
     }
     return "";
   }

@@ -49,3 +49,30 @@ it("children、all 等规则在导入校验与执行阶段保持一致", () => {
   expect(() => validateRule("children[!0]", "elements")).not.toThrow();
   expect(() => validateRule("children@all", "string")).not.toThrow();
 });
+
+it("交错组合 %% 保留节点顺序，按首个非空分支长度交错", () => {
+  const parser = new HtmlRules("<div><a>A</a><a>C</a><b>B</b><b>D</b><b>E</b></div>");
+  expect(parser.elements(".missing%%a%%b").text()).toBe("ABCD");
+  expect(parser.string("a@text%%b@text", parser.$("div")[0]!)).toBe("A\nB\nC\nD");
+});
+
+it("交错字符串以每个元素为单位，不能拆散 textNodes 的内部换行", () => {
+  const parser = new HtmlRules(
+    "<div><a>甲<span>忽略</span>乙</a><a>丙</a><b>一</b><b>二</b></div>",
+  );
+  expect(parser.string("a@textNodes%%b@text", parser.$("div")[0]!)).toBe("甲\n乙\n一\n丙\n二");
+});
+
+it("交错组合兼容 CSS 模式，属性中的 %% 作为字面值处理", () => {
+  const parser = new HtmlRules('<tag class="a" title="%%">A</tag><tag class="b">B</tag>');
+  expect(parser.elements('@CSS:tag.a[title="%%"]%%tag.b').text()).toBe("AB");
+});
+
+it("不同组合运算符混用时明确拒绝，不能自创优先级后静默解析", () => {
+  expect(() => validateRule("a&&b||c")).toThrow(/不支持规则/);
+});
+
+it("直接选择脚本或样式提取 text 时不返回代码", () => {
+  const parser = new HtmlRules("<script>bad()</script><style>bad</style>");
+  expect(parser.string("script@text", parser.$.root()[0]!)).toBe("");
+});
