@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { AppDialog } from "../../app/AppDialog.js";
 import { Icon } from "../../app/Icon.js";
@@ -8,7 +8,14 @@ import { SubscriptionSettings } from "./SubscriptionSettings.js";
 import { SourceRepositoryPanel } from "./SourceRepositoryPanel.js";
 import type { SourcesViewProps } from "./types.js";
 
+const managementTabs = [
+  { key: "installed", label: "已安装源" },
+  { key: "subscriptions", label: "订阅管理" },
+] as const;
+
 export function SourcesView(props: SourcesViewProps) {
+  const [activeView, setActiveView] = useState<"installed" | "subscriptions">("installed");
+  const tabId = useId();
   const [repositoryOpen, setRepositoryOpen] = useState(false);
   const [sourceDialog, setSourceDialog] = useState<"settings" | "cookies" | null>(null);
   const enabledSources = props.sourceMetadata.filter(
@@ -22,15 +29,55 @@ export function SourcesView(props: SourcesViewProps) {
           <span className="eyebrow">SOURCE LIBRARY</span>
           <h1>漫画源</h1>
           <p>
-            安装、启用并配置你的内容来源。已安装 {props.sourceMetadata.length} 个，启用{" "}
-            {enabledSources} 个。
+            {activeView === "installed"
+              ? `已安装 ${props.sourceMetadata.length} 个漫画源，启用 ${enabledSources} 个。`
+              : "管理提供漫画源列表的订阅。"}
           </p>
         </div>
-        <button className="button-with-icon" onClick={() => setRepositoryOpen(true)}>
-          <Icon name="plus" size={17} />
-          安装漫画源
-        </button>
+        {activeView === "installed" && (
+          <button className="button-with-icon" onClick={() => setRepositoryOpen(true)}>
+            <Icon name="plus" size={17} />
+            安装漫画源
+          </button>
+        )}
       </header>
+      <div
+        className="source-management-tabs"
+        role="tablist"
+        aria-label="漫画源管理"
+        onKeyDown={(event) => {
+          const current = managementTabs.findIndex((tab) => tab.key === activeView);
+          const next =
+            event.key === "Home"
+              ? 0
+              : event.key === "End"
+                ? managementTabs.length - 1
+                : event.key === "ArrowRight"
+                  ? (current + 1) % managementTabs.length
+                  : event.key === "ArrowLeft"
+                    ? (current + managementTabs.length - 1) % managementTabs.length
+                    : -1;
+          if (next < 0) return;
+          event.preventDefault();
+          setActiveView(managementTabs[next].key);
+          event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+        }}
+      >
+        {managementTabs.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            id={`${tabId}-${tab.key}-tab`}
+            aria-controls={`${tabId}-${tab.key}-panel`}
+            aria-selected={activeView === tab.key}
+            tabIndex={activeView === tab.key ? 0 : -1}
+            onClick={() => setActiveView(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
       {props.operation && !props.operation.sourceKey && (
         <div className="source-operation-status">
           <LoadingStatus label={props.operation.label} />
@@ -59,23 +106,41 @@ export function SourcesView(props: SourcesViewProps) {
           近期状态更新失败，以下为上次获取的记录，稍后将自动重试。
         </p>
       )}
-      <SubscriptionSettings busy={props.busy} onSaved={props.onRepositorySaved} />
-      <InstalledSourcesList
-        busy={props.busy}
-        operation={props.operation}
-        sourceMetadata={props.sourceMetadata}
-        onSetSourceEnabled={props.onSetSourceEnabled}
-        onUpdateSource={props.onUpdateSource}
-        onUninstallSource={props.onUninstallSource}
-        onConfigureSource={(key, mode) => {
-          if (key !== props.sourceKey) props.onSourceChange(key);
-          const source = props.sourceMetadata.find((source) => source.key === key);
-          if (mode === "settings" && (source?.enabled === true || source?.enabled === 1)) {
-            props.onLoadSourceSettings(key);
-          }
-          setSourceDialog(mode);
-        }}
-      />
+      <div
+        role="tabpanel"
+        id={`${tabId}-subscriptions-panel`}
+        aria-labelledby={`${tabId}-subscriptions-tab`}
+        hidden={activeView !== "subscriptions"}
+      >
+        {activeView === "subscriptions" && (
+          <SubscriptionSettings busy={props.busy} onSaved={props.onRepositorySaved} />
+        )}
+      </div>
+      <div
+        role="tabpanel"
+        id={`${tabId}-installed-panel`}
+        aria-labelledby={`${tabId}-installed-tab`}
+        hidden={activeView !== "installed"}
+      >
+        {activeView === "installed" && (
+          <InstalledSourcesList
+            busy={props.busy}
+            operation={props.operation}
+            sourceMetadata={props.sourceMetadata}
+            onSetSourceEnabled={props.onSetSourceEnabled}
+            onUpdateSource={props.onUpdateSource}
+            onUninstallSource={props.onUninstallSource}
+            onConfigureSource={(key, mode) => {
+              if (key !== props.sourceKey) props.onSourceChange(key);
+              const source = props.sourceMetadata.find((source) => source.key === key);
+              if (mode === "settings" && (source?.enabled === true || source?.enabled === 1)) {
+                props.onLoadSourceSettings(key);
+              }
+              setSourceDialog(mode);
+            }}
+          />
+        )}
+      </div>
       {sourceDialog && (
         <AppDialog
           title={`${props.sourceMetadata.find((source) => source.key === props.sourceKey)?.name ?? props.sourceKey} · ${sourceDialog === "settings" ? "源设置与账号" : "Cookie"}`}

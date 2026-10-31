@@ -277,11 +277,15 @@ it("opens the selected source configuration without mixing it with repository in
   expect(container.querySelector("dialog")?.textContent).toContain("Cookie：a");
   expect(container.querySelector("dialog form")).toBeNull();
   await click(container.querySelector('[aria-label="关闭源 A · Cookie"]'));
+  expect(container.querySelector('section[aria-label="漫画源订阅"]')).toBeNull();
+  expect(mansouApi.getSourceRepository).not.toHaveBeenCalled();
+  await click(button("订阅管理"));
   expect(container.querySelector('section[aria-label="漫画源订阅"]')).not.toBeNull();
   expect(button("管理订阅")).toBeUndefined();
   await click(button("添加订阅"));
   expect(container.querySelector("dialog")?.textContent).toContain("订阅地址");
   await click(container.querySelector('[aria-label="关闭添加订阅"]'));
+  await click(button("已安装源"));
   await click(button("安装漫画源"));
   expect(container.querySelector<HTMLDialogElement>("dialog")?.open).toBe(true);
   expect(container.querySelector(".repository-panel")?.closest("dialog")).not.toBeNull();
