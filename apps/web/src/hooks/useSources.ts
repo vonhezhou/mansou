@@ -10,6 +10,7 @@ export function useSources(
   runWith: RunWith,
   sourceKey: string,
   setSourceKey: (value: string) => void,
+  metadataActive = false,
 ) {
   const [managedSourceKey, setManagedSourceKey] = useState("");
   const [sources, setSources] = useState<Source[]>([]);
@@ -22,6 +23,31 @@ export function useSources(
   const [cookieText, setCookieText] = useState("");
   const [sourceOperation, setSourceOperation] = useState<SourceOperation | null>(null);
   const [managingSources, setManagingSources] = useState(false);
+  const [metadataRefreshError, setMetadataRefreshError] = useState(false);
+
+  useEffect(() => {
+    if (!metadataActive || managingSources) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    async function refreshMetadata() {
+      try {
+        const metadata = await mansouApi.listSourceMetadata();
+        if (!cancelled) {
+          setSourceMetadata(metadata);
+          setMetadataRefreshError(false);
+        }
+      } catch {
+        if (!cancelled) setMetadataRefreshError(true);
+      } finally {
+        if (!cancelled) timer = setTimeout(refreshMetadata, 30_000);
+      }
+    }
+    void refreshMetadata();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [metadataActive, managingSources]);
 
   useEffect(() => {
     if (!sourceMetadata.some((source) => source.key === managedSourceKey))
@@ -194,6 +220,7 @@ export function useSources(
     settingsJson,
     sourceSettingsKey,
     sourceMetadata,
+    metadataRefreshError,
     sourceSettings,
     sources,
     loadSources,

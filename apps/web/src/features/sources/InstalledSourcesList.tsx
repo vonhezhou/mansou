@@ -1,6 +1,7 @@
 import type { SourceMetadata } from "../../types.js";
 
 import type { SourceOperation } from "./types.js";
+import { SourceHealthStatus } from "./SourceHealthStatus.js";
 
 type InstalledSourcesListProps = {
   busy: boolean;
@@ -63,6 +64,7 @@ export function InstalledSourcesList(props: InstalledSourcesListProps) {
                         : "已禁用"}
                   </span>
                 </div>
+                <SourceHealthStatus health={source.health} />
                 <div className="source-actions">
                   {source.availableVersion && (
                     <button disabled={props.busy} onClick={() => props.onUpdateSource(source.key)}>

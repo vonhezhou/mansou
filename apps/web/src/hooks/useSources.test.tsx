@@ -12,8 +12,8 @@ const installed = [{ key: "mock", name: "Mock" }];
 const metadata = [{ key: "mock", name: "Mock", enabled: true }];
 const repository = [{ key: "example", name: "示例源", fileName: "example.js" }];
 
-function Harness() {
-  state = useSources(async (_, task) => task(), "", changeSource);
+function Harness({ active = false }: { active?: boolean }) {
+  state = useSources(async (_, task) => task(), "", changeSource, active);
   return null;
 }
 
@@ -27,6 +27,41 @@ beforeEach(async () => {
   vi.spyOn(mansouApi, "listAvailableSources").mockResolvedValue([]);
   vi.spyOn(mansouApi, "refreshRepository").mockResolvedValue({ sources: repository });
   await act(async () => root.render(<Harness />));
+});
+
+it("进入源管理时刷新近期状态，离开后停止刷新并丢弃旧响应", async () => {
+  vi.useFakeTimers();
+  try {
+    await act(async () => root.render(<Harness active />));
+    expect(mansouApi.listSourceMetadata).toHaveBeenCalledTimes(1);
+    await act(async () => vi.advanceTimersByTimeAsync(30_000));
+    expect(mansouApi.listSourceMetadata).toHaveBeenCalledTimes(2);
+    const pending = deferred<typeof metadata>();
+    vi.mocked(mansouApi.listSourceMetadata).mockReturnValueOnce(pending.promise);
+    await act(async () => vi.advanceTimersByTimeAsync(30_000));
+    await act(async () => root.render(<Harness />));
+    await act(async () => pending.resolve([{ key: "stale", name: "过期源", enabled: true }]));
+    expect(state.sourceMetadata).toEqual(metadata);
+    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+    expect(mansouApi.listSourceMetadata).toHaveBeenCalledTimes(3);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("状态刷新失败时保留记录并提示，后续成功可恢复", async () => {
+  vi.useFakeTimers();
+  try {
+    await act(async () => root.render(<Harness active />));
+    vi.mocked(mansouApi.listSourceMetadata).mockRejectedValueOnce(new Error("offline"));
+    await act(async () => vi.advanceTimersByTimeAsync(30_000));
+    expect(state.sourceMetadata).toEqual(metadata);
+    expect(state.metadataRefreshError).toBe(true);
+    await act(async () => vi.advanceTimersByTimeAsync(30_000));
+    expect(state.metadataRefreshError).toBe(false);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 afterEach(async () => {

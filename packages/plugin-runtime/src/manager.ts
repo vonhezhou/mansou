@@ -9,6 +9,7 @@ import {
   type Result,
 } from "./executors/protocol.js";
 import { classifyPluginError, PluginRuntimeError } from "./errors.js";
+import { SourceHealthTracker } from "./health.js";
 
 type Entry = {
   filePath: string;
@@ -17,6 +18,7 @@ type Entry = {
   active: number;
   queue: Array<() => void>;
   closed: boolean;
+  health: SourceHealthTracker;
 };
 type Diagnostic = {
   time: string;
@@ -47,6 +49,7 @@ export class PluginManager implements SourceRegistry {
       active: 0,
       queue: [],
       closed: false,
+      health: new SourceHealthTracker(),
     };
     // The executor transports only the explicitly allowed, typed source protocol.
     entry.provider = Object.fromEntries(
@@ -72,6 +75,9 @@ export class PluginManager implements SourceRegistry {
       ...entry.executor.metadata,
       filePath: entry.filePath,
     }));
+  }
+  health(key: string) {
+    return this.entries.get(key)?.health.snapshot() ?? new SourceHealthTracker().snapshot();
   }
   diagnostics() {
     return {
@@ -114,10 +120,14 @@ export class PluginManager implements SourceRegistry {
     else entry.active++;
     if (entry.closed) throw new PluginRuntimeError("SOURCE_NOT_LOADED", "Source closed");
     try {
-      return await entry.executor.call(operation, args);
+      const result = await entry.executor.call(operation, args);
+      if (!entry.closed) entry.health.record(operation);
+      return result;
     } catch (error) {
       this.record(entry.executor.metadata.key, operation, error);
-      throw classifyPluginError(error, entry.executor.metadata.key, operation);
+      const classified = classifyPluginError(error, entry.executor.metadata.key, operation);
+      if (!entry.closed) entry.health.record(operation, classified.code);
+      throw classified;
     } finally {
       const resume = entry.queue.shift();
       if (resume) resume();

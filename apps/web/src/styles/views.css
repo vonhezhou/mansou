@@ -376,6 +376,53 @@
 .source-enabled {
   color: var(--color-success);
 }
+.source-health {
+  grid-column: 1 / -1;
+  min-width: 0;
+  font-size: 12px;
+}
+.source-health > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  list-style: none;
+}
+.source-health > summary::-webkit-details-marker {
+  display: none;
+}
+.source-health > summary > svg {
+  margin-left: auto;
+  color: var(--color-muted);
+}
+.source-health[open] > summary > svg {
+  transform: rotate(90deg);
+}
+.source-health-label {
+  color: var(--color-muted);
+  font-weight: 600;
+}
+.source-health-available .source-health-label {
+  color: var(--color-success);
+}
+.source-health-unstable .source-health-label,
+.source-health-restricted .source-health-label,
+.source-health-suspected_broken .source-health-label {
+  color: var(--color-warning);
+}
+.source-health-evidence {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-soft);
+  overflow-wrap: anywhere;
+}
+.source-health-evidence p {
+  margin: 6px 0;
+}
+.source-health-operation {
+  padding-block: 10px;
+  border-bottom: 1px solid var(--color-border);
+}
 .source-actions {
   grid-column: 1 / -1;
   display: flex;

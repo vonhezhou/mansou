@@ -140,6 +140,7 @@ export class SourceService implements SourceRegistry {
       this.storage.listSources().map((source) => ({
         ...source,
         canUninstall: this.repository.canUninstall(source.script_path),
+        health: this.manager.health(source.key),
       })),
     );
   }

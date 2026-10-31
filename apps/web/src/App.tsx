@@ -55,7 +55,12 @@ function Workspace({
     [],
   );
   const downloadsState = useDownloads(runWith);
-  const sourcesState = useSources(runWith, sourceKey, setSourceKey);
+  const sourcesState = useSources(
+    runWith,
+    sourceKey,
+    setSourceKey,
+    activeTab === "sources" && !refreshing,
+  );
   const searchState = useSearch({
     runWith,
     sourceKey,
@@ -208,6 +213,7 @@ function Workspace({
 
       {activeTab === "sources" && (
         <SourcesView
+          metadataRefreshError={sourcesState.metadataRefreshError}
           busy={sourcesBusy}
           operation={sourcesState.sourceOperation}
           sourceKey={sourcesState.managedSourceKey}

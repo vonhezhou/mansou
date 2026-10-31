@@ -91,6 +91,11 @@ export function SourcesView(props: SourcesViewProps) {
           />
         )}
       </details>
+      {props.metadataRefreshError && (
+        <p className="muted" role="status">
+          近期状态更新失败，以下为上次获取的记录，稍后将自动重试。
+        </p>
+      )}
       <InstalledSourcesList
         busy={props.busy}
         operation={props.operation}

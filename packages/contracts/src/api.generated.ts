@@ -960,6 +960,35 @@ export interface components {
       hash?: string;
       installed_at?: string;
       updated_at?: string;
+      health?: components["schemas"]["SourceHealth"];
+    };
+    /**
+     * @description 近期使用推测，不表示已检测确认源损坏，也不会自动禁用源。
+     * @enum {string}
+     */
+    SourceHealthStatus: "unknown" | "available" | "unstable" | "suspected_broken" | "restricted";
+    /** @description 仅统计本次源加载后最近24小时内搜索、详情、章节列表的真实调用， 每项功能最多50条；空结果视为成功，图片、配置与未支持能力不计入。 同一功能连续至少3次执行错误且跨越至少2分钟才推测疑似失效； 网络、超时与访问限制不会据此推测损坏。 按访问受限、疑似失效、偶发异常、近期可用顺序汇总各功能状态。 数据不持久化，源重载、禁用、更新或服务重启后重新积累。 */
+    SourceHealth: {
+      status: components["schemas"]["SourceHealthStatus"];
+      /** Format: date-time */
+      observedSince: string;
+      /** Format: date-time */
+      checkedAt: string;
+      operations: components["schemas"]["SourceOperationHealth"][];
+    };
+    SourceOperationHealth: {
+      /** @enum {string} */
+      operation: "search" | "comicDetails" | "comicPages";
+      status: components["schemas"]["SourceHealthStatus"];
+      successCount: number;
+      failureCount: number;
+      consecutiveFailures: number;
+      /** Format: date-time */
+      lastSuccessAt?: string;
+      /** Format: date-time */
+      lastFailureAt?: string;
+      /** @description 分类错误码，不返回插件原始错误、调用参数或凭据。 */
+      lastErrorCode?: string;
     };
     SourceAuth: {
       loggedIn: boolean;

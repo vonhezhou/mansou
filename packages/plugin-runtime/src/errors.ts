@@ -6,6 +6,7 @@ export type PluginErrorCode =
   | "PLUGIN_API_MISSING"
   | "PLUGIN_TIMEOUT"
   | "PLUGIN_NETWORK_ERROR"
+  | "PLUGIN_RATE_LIMITED"
   | "PLUGIN_SOURCE_ERROR"
   | "SOURCE_INTERACTION_EXPIRED"
   | "SOURCE_NOT_LOADED"
@@ -39,6 +40,9 @@ export class PluginRuntimeError extends Error {
 export function classifyPluginError(error: unknown, sourceKey?: string, operation?: string) {
   if (error instanceof PluginRuntimeError) return error;
   const message = error instanceof Error ? error.message : String(error);
+  if (/\b429\b|too many requests|rate limit/i.test(message)) {
+    return new PluginRuntimeError("PLUGIN_RATE_LIMITED", message, sourceKey, operation, error);
+  }
   if (message.includes("not defined") || message.includes("is not a function")) {
     return new PluginRuntimeError("PLUGIN_API_MISSING", message, sourceKey, operation, error);
   }
