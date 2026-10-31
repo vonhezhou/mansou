@@ -80,12 +80,13 @@ describe("application lifecycle", () => {
     expect(built.context.sources.get("other")).toBe(provider);
     expect(built.context.sources.list().map((source) => source.key)).toContain("mock");
   });
-  it("uninstalls enabled and disabled sources without removing downloads or restoring them on reload", async () => {
-    const built = await build();
-    await initializeApp(built.context);
-    const { sources, storage, paths } = built.context;
-    const script = path.join(paths.scripts, "removable.js");
-    const install = async () => {
+  it.each([false, true])(
+    "uninstalls a source (disabled=%s) without restoring it on reload",
+    async (disabled) => {
+      const built = await build();
+      await initializeApp(built.context);
+      const { sources, storage, paths } = built.context;
+      const script = path.join(paths.scripts, "removable.js");
       await writeFile(
         script,
         'class Removable extends ComicSource { key = "removable"; name = "Removable"; }',
@@ -95,9 +96,6 @@ describe("application lifecycle", () => {
       storage.setSourceSettings("removable", { region: "cn" });
       storage.setPluginData("removable", "account", ["user", "secret"]);
       storage.setCookieJar("removable", { cookies: [] });
-    };
-    for (const disabled of [false, true]) {
-      await install();
       if (disabled) await sources.setEnabled("removable", false);
       expect(
         (await sources.metadata()).find((source) => source.key === "removable")?.canUninstall,
@@ -115,10 +113,13 @@ describe("application lifecycle", () => {
       expect(storage.getCookieJar("removable")).toBeNull();
       await sources.loadInstalled();
       expect(sources.list().some((source) => source.key === "removable")).toBe(false);
-    }
-    const missing = await built.app.inject({ method: "DELETE", url: "/api/v1/sources/removable" });
-    expect(missing.statusCode).toBe(404);
-  });
+      const missing = await built.app.inject({
+        method: "DELETE",
+        url: "/api/v1/sources/removable",
+      });
+      expect(missing.statusCode).toBe(404);
+    },
+  );
   it("protects running downloads and bundled scripts during source uninstall", async () => {
     const built = await build();
     await initializeApp(built.context);

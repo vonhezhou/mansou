@@ -120,7 +120,7 @@ describe("runtime api compatibility", () => {
     ).toBe(16);
   });
 
-  it("runs compute asynchronously, rejects invalid code and terminates runaway work", async () => {
+  it("runs compute asynchronously", async () => {
     const { compute } = await createRuntimeApi(
       "mock",
       new SourceDataStore(storage),
@@ -130,7 +130,23 @@ describe("runtime api compatibility", () => {
     expect(await compute("value => Convert.hexEncode(Convert.sha256(value))", "abc")).toBe(
       crypto.createHash("sha256").update("abc").digest("hex"),
     );
+  });
+
+  it("rejects compute code that does not evaluate to a function", async () => {
+    const { compute } = await createRuntimeApi(
+      "mock",
+      new SourceDataStore(storage),
+      new SourceCookieStore(storage, dataDir),
+    );
     await expect(compute("42")).rejects.toThrow("does not evaluate to a function");
+  });
+
+  it("terminates runaway compute work and allows subsequent calls", async () => {
+    const { compute } = await createRuntimeApi(
+      "mock",
+      new SourceDataStore(storage),
+      new SourceCookieStore(storage, dataDir),
+    );
     const limited = await createApi(
       "mock",
       new SourceDataStore(storage),
