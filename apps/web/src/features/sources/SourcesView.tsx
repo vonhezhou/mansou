@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { LoadingStatus } from "../../app/LoadingStatus.js";
+import { AppDialog } from "../../app/AppDialog.js";
 import { Icon } from "../../app/Icon.js";
 import { CurrentSourcePanel } from "./CurrentSourcePanel.js";
 import { InstalledSourcesList } from "./InstalledSourcesList.js";
@@ -7,21 +8,18 @@ import { SourceRepositoryPanel } from "./SourceRepositoryPanel.js";
 import type { SourcesViewProps } from "./types.js";
 
 export function SourcesView(props: SourcesViewProps) {
-  const [repositoryLoaded, setRepositoryLoaded] = useState(false);
+  const [repositoryOpen, setRepositoryOpen] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const settingsRef = useRef<HTMLDetailsElement>(null);
   const sourceSelectRef = useRef<HTMLSelectElement>(null);
-  const repositoryRef = useRef<HTMLDetailsElement>(null);
-  const focusTarget = useRef<"repository" | "settings" | null>(null);
+  const focusTarget = useRef<"settings" | null>(null);
   useLayoutEffect(() => {
     if (props.busy) return;
-    if (focusTarget.current === "repository") {
-      repositoryRef.current?.querySelector("input")?.focus({ preventScroll: true });
-    } else if (focusTarget.current === "settings") {
+    if (focusTarget.current === "settings") {
       sourceSelectRef.current?.focus({ preventScroll: true });
     }
     focusTarget.current = null;
-  }, [repositoryLoaded, settingsLoaded, props.busy]);
+  }, [settingsLoaded, props.busy]);
   const enabledSources = props.sourceMetadata.filter(
     (source) => source.enabled === true || source.enabled === 1,
   ).length;
@@ -43,18 +41,7 @@ export function SourcesView(props: SourcesViewProps) {
             {enabledSources} 个。
           </p>
         </div>
-        <button
-          className="button-with-icon"
-          onClick={() => {
-            if (repositoryRef.current) {
-              focusTarget.current = repositoryLoaded ? null : "repository";
-              setRepositoryLoaded(true);
-              repositoryRef.current.open = true;
-              repositoryRef.current.querySelector("input")?.focus({ preventScroll: true });
-              repositoryRef.current.scrollIntoView({ block: "nearest" });
-            }
-          }}
-        >
+        <button className="button-with-icon" onClick={() => setRepositoryOpen(true)}>
           <Icon name="plus" size={17} />
           安装漫画源
         </button>
@@ -64,22 +51,13 @@ export function SourcesView(props: SourcesViewProps) {
           <LoadingStatus label={props.operation.label} />
         )}
       </div>
-      <details
-        className="disclosure"
-        ref={repositoryRef}
-        onToggle={(event) => {
-          if (event.currentTarget.open) setRepositoryLoaded(true);
-        }}
-      >
-        <summary>
-          <span className="summary-icon" aria-hidden="true">
-            <Icon name="plus" />
-          </span>
-          <span>
-            安装新源<small>从仓库添加更多漫画来源</small>
-          </span>
-        </summary>
-        {repositoryLoaded && (
+      {repositoryOpen && (
+        <AppDialog title="安装漫画源" wide onClose={() => setRepositoryOpen(false)}>
+          {props.error && (
+            <p className="alert" role="alert">
+              {props.error}
+            </p>
+          )}
           <SourceRepositoryPanel
             busy={props.busy}
             operation={props.operation}
@@ -89,8 +67,8 @@ export function SourcesView(props: SourcesViewProps) {
             onRefreshRepository={props.onRefreshRepository}
             onReloadSources={props.onReloadSources}
           />
-        )}
-      </details>
+        </AppDialog>
+      )}
       {props.metadataRefreshError && (
         <p className="muted" role="status">
           近期状态更新失败，以下为上次获取的记录，稍后将自动重试。

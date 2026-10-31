@@ -111,7 +111,7 @@ export function AuthGate({
         )}
         <details className="auth-servers">
           <summary>管理与切换服务器</summary>
-          <ServerPicker manage />
+          <ServerPicker />
         </details>
       </section>
     </main>

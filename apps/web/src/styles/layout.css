@@ -158,48 +158,20 @@
   background: #ffffff17;
   color: #fff;
 }
-.server-card {
-  margin: 16px 3px 14px;
-  border-radius: 12px;
-  padding: 14px;
-  background: #00000024;
-  border: 1px solid #ffffff0f;
-}
-.sidebar .health {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font-size: 11px;
-  color: #c4d8d1;
-}
-.sidebar .health.online {
-  color: #c4d8d1;
-}
-.sidebar .health.online::before {
-  background: #75d39f;
-  box-shadow: 0 0 0 3px #75d39f1f;
-}
-.sidebar .health.offline {
-  color: #ffc0c6;
-}
-.server-row {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 14px;
-  font-size: 11px;
-  color: #9bb9b0;
-  gap: 8px;
-}
-.server-row strong {
-  color: #d4e1dd;
-  font-weight: 500;
-}
 .server-profile {
-  padding: 13px 8px 3px;
+  width: 100%;
+  margin-top: 16px;
+  padding: 13px 8px;
+  text-align: left;
+  background: transparent;
+  border-radius: 0;
   border-top: 1px solid #ffffff12;
   display: flex;
   align-items: center;
   gap: 10px;
+}
+button.server-profile:hover {
+  background: #ffffff0a;
 }
 .server-avatar {
   flex-shrink: 0;
@@ -211,7 +183,7 @@
   background: #2c5149;
   color: var(--sidebar-accent);
 }
-.server-profile > div {
+.server-profile-copy {
   min-width: 0;
   display: grid;
   gap: 2px;
@@ -220,8 +192,11 @@
   color: #e8efed;
   font-size: 11px;
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.server-profile div span {
+.server-profile-copy > span {
   color: #9bb9b0;
   font-size: 10px;
   overflow: hidden;
@@ -235,8 +210,7 @@
 .sidebar-is-collapsed .nav-label,
 .sidebar-is-collapsed .sidebar .nav-item span,
 .sidebar-is-collapsed .sidebar .nav-item b,
-.sidebar-is-collapsed .server-card,
-.sidebar-is-collapsed .server-profile > div {
+.sidebar-is-collapsed .server-profile-copy {
   display: none;
 }
 .sidebar-is-collapsed .sidebar .nav-item {
@@ -341,11 +315,6 @@
 }
 .skip-link:focus {
   top: 12px;
-}
-@media (max-height: 650px) and (min-width: 761px) {
-  .server-card {
-    display: none;
-  }
 }
 @media (max-width: 1100px) {
   .current-source-header,

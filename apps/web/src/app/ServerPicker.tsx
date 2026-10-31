@@ -1,4 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Icon } from "./Icon.js";
+import { AppDialog } from "./AppDialog.js";
 import {
   normalizeServerOrigin,
   readServerPreferences,
@@ -8,8 +10,9 @@ import {
   switchServer,
 } from "../lib/servers.js";
 
-export function ServerPicker({ manage = false }: { manage?: boolean }) {
+export function ServerPicker() {
   const [preferences, setPreferences] = useState(readServerPreferences);
+  const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
@@ -23,6 +26,14 @@ export function ServerPicker({ manage = false }: { manage?: boolean }) {
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
+  }
+
+  function closeForm() {
+    setFormOpen(false);
+    setEditing(null);
+    setName("");
+    setAddress("");
+    setError("");
   }
 
   function save(event: FormEvent) {
@@ -45,93 +56,114 @@ export function ServerPicker({ manage = false }: { manage?: boolean }) {
         servers,
         lastOrigin: latest.lastOrigin === editing ? origin : latest.lastOrigin,
       });
-      setEditing(null);
-      setName("");
-      setAddress("");
+      closeForm();
     });
   }
 
   return (
     <div className="server-picker">
-      <label>
-        当前服务器
-        <select
-          aria-label="切换服务器"
-          value={window.location.origin}
-          onChange={(event) => run(() => switchServer(event.target.value))}
-        >
-          {preferences.servers.map((server) => (
-            <option key={server.origin} value={server.origin}>
-              {server.name} · {server.origin}
-            </option>
-          ))}
-        </select>
-      </label>
-      {error && (
+      {error && !formOpen && (
         <p className="alert" role="alert">
           {error}
         </p>
       )}
-      {manage && (
-        <>
-          <p className="muted">
-            名单保存在浏览器中，切换时打开目标服务器的漫搜页面。登录状态由各服务器分别保存。
-          </p>
-          <ul className="saved-servers">
-            {preferences.servers.map((server) => (
-              <li key={server.origin}>
-                <div>
-                  <strong>
-                    {server.name}
-                    {server.origin === window.location.origin ? "（当前）" : ""}
-                  </strong>
-                  <span>{server.origin}</span>
-                </div>
-                <div className="actions">
-                  <button
-                    className="secondary-button"
-                    type="button"
-                    aria-label={`编辑${server.name}`}
-                    onClick={() => {
-                      setEditing(server.origin);
-                      setName(server.name);
-                      setAddress(server.origin);
-                      setError("");
-                    }}
-                  >
-                    编辑
-                  </button>
-                  <button
-                    className="secondary-button"
-                    type="button"
-                    aria-label={`删除${server.name}`}
-                    disabled={server.origin === window.location.origin}
-                    onClick={() =>
-                      run(() => {
-                        const latest = readServerPreferences();
-                        saveServerPreferences({
-                          servers: latest.servers.filter((item) => item.origin !== server.origin),
-                          lastOrigin:
-                            latest.lastOrigin === server.origin
-                              ? window.location.origin
-                              : latest.lastOrigin,
-                        });
-                        if (editing === server.origin) {
-                          setEditing(null);
-                          setName("");
-                          setAddress("");
-                        }
-                      })
+      <div className="repository-heading">
+        <p className="muted">保存常用服务器，在卡片中切换当前使用的服务器。</p>
+        <button
+          type="button"
+          className="button-with-icon"
+          onClick={() => {
+            closeForm();
+            setFormOpen(true);
+          }}
+        >
+          <Icon name="plus" size={17} />
+          添加服务器
+        </button>
+      </div>
+      <div className="source-list installed-source-grid saved-servers">
+        {preferences.servers.map((server) => (
+          <article
+            key={server.origin}
+            className={
+              server.origin === window.location.origin ? "saved-server-current" : undefined
+            }
+          >
+            <span className="source-avatar" aria-hidden="true">
+              <Icon name="server" />
+            </span>
+            <div className="source-info">
+              <strong>{server.name}</strong>
+              <span className="muted">{server.origin}</span>
+            </div>
+            {server.origin === window.location.origin && (
+              <span className="saved-server-status">
+                <Icon name="check" size={14} />
+                当前使用
+              </span>
+            )}
+            <div className="source-actions">
+              {server.origin !== window.location.origin && (
+                <button
+                  type="button"
+                  className="saved-server-switch"
+                  aria-label={`切换到${server.name}`}
+                  onClick={() => run(() => switchServer(server.origin))}
+                >
+                  切换服务器
+                </button>
+              )}
+              <button
+                className="secondary-button"
+                type="button"
+                aria-label={`编辑${server.name}`}
+                onClick={() => {
+                  setFormOpen(true);
+                  setEditing(server.origin);
+                  setName(server.name);
+                  setAddress(server.origin);
+                  setError("");
+                }}
+              >
+                编辑
+              </button>
+              <button
+                className="danger-subtle"
+                type="button"
+                aria-label={`删除${server.name}`}
+                disabled={server.origin === window.location.origin}
+                onClick={() =>
+                  run(() => {
+                    const latest = readServerPreferences();
+                    saveServerPreferences({
+                      servers: latest.servers.filter((item) => item.origin !== server.origin),
+                      lastOrigin:
+                        latest.lastOrigin === server.origin
+                          ? window.location.origin
+                          : latest.lastOrigin,
+                    });
+                    if (editing === server.origin) {
+                      setEditing(null);
+                      setName("");
+                      setAddress("");
                     }
-                  >
-                    删除
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+                  })
+                }
+              >
+                删除
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+      {formOpen && (
+        <AppDialog title={editing ? "编辑服务器" : "添加服务器"} onClose={closeForm}>
           <form className="server-form" onSubmit={save}>
-            <h3>{editing ? "编辑服务器" : "添加服务器"}</h3>
+            {error && (
+              <p className="alert" role="alert">
+                {error}
+              </p>
+            )}
             <label>
               服务器名称
               <input
@@ -155,23 +187,12 @@ export function ServerPicker({ manage = false }: { manage?: boolean }) {
             </label>
             <div className="actions">
               <button type="submit">{editing ? "保存修改" : "保存服务器"}</button>
-              {editing && (
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => {
-                    setEditing(null);
-                    setName("");
-                    setAddress("");
-                    setError("");
-                  }}
-                >
-                  取消编辑
-                </button>
-              )}
+              <button type="button" className="secondary-button" onClick={closeForm}>
+                取消
+              </button>
             </div>
           </form>
-        </>
+        </AppDialog>
       )}
     </div>
   );

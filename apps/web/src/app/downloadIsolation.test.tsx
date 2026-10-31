@@ -123,7 +123,9 @@ it("keeps source management independent of progress without losing its input sta
   expect(container.querySelector(".current-source-panel")).toBeNull();
   expect(container.querySelector(".repository-panel")).toBeNull();
   expect(mansouApi.getSourceAuth).not.toHaveBeenCalled();
-  const settings = container.querySelectorAll<HTMLDetailsElement>(".disclosure")[1];
+  const settings = [...container.querySelectorAll<HTMLDetailsElement>(".disclosure")].find(
+    (element) => element.querySelector("summary")?.textContent?.includes("源设置与 Cookie"),
+  )!;
   await act(async () => {
     settings.open = true;
     settings.dispatchEvent(new Event("toggle"));

@@ -27,7 +27,7 @@ export function SettingsView(props: SettingsViewProps) {
       </header>
       <section className="settings-panel">
         <h2>漫搜服务器</h2>
-        <ServerPicker manage />
+        <ServerPicker />
       </section>
       <section className="settings-panel">
         <h2>服务器与存储</h2>

@@ -7,6 +7,7 @@ export type SourceOperation = {
 };
 
 export type SourcesViewProps = {
+  error?: string | null;
   metadataRefreshError?: boolean;
   busy: boolean;
   operation?: SourceOperation | null;

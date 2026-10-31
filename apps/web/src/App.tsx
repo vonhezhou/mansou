@@ -218,6 +218,7 @@ function Workspace({
 
       {activeTab === "sources" && (
         <SourcesView
+          error={error}
           metadataRefreshError={sourcesState.metadataRefreshError}
           busy={sourcesBusy}
           operation={sourcesState.sourceOperation}

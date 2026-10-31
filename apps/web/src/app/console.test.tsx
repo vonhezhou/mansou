@@ -17,6 +17,20 @@ beforeEach(() => {
     configurable: true,
     value: vi.fn(),
   });
+  Object.defineProperties(HTMLDialogElement.prototype, {
+    showModal: {
+      configurable: true,
+      value: function (this: HTMLDialogElement) {
+        this.open = true;
+      },
+    },
+    close: {
+      configurable: true,
+      value: function (this: HTMLDialogElement) {
+        this.open = false;
+      },
+    },
+  });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -27,6 +41,8 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+  Reflect.deleteProperty(HTMLDialogElement.prototype, "showModal");
+  Reflect.deleteProperty(HTMLDialogElement.prototype, "close");
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -41,7 +57,7 @@ function button(label: string) {
   return [...container.querySelectorAll("button")].find((item) => item.textContent === label);
 }
 
-it("keeps account and refresh actions reachable in settings after collapsing navigation, and persists the theme", async () => {
+it("opens settings from the server profile after collapsing navigation, keeps account and refresh reachable, and persists the theme", async () => {
   const refresh = vi.fn();
   const downloadStore = createDownloadSnapshotStore();
   downloadStore.setSnapshot(
@@ -75,7 +91,7 @@ it("keeps account and refresh actions reachable in settings after collapsing nav
   }
   await render(<Harness />);
   await click(container.querySelector('[aria-label="收起侧边栏"]'));
-  await click(container.querySelector('.sidebar [aria-label="系统设置"]'));
+  await click(container.querySelector('.sidebar [aria-label="管理与切换漫搜服务器"]'));
   expect(container.querySelector("main")?.textContent).toContain("账号设置入口");
   expect(container.querySelector("main")?.textContent).not.toContain("搜索页面");
   await click(button("刷新状态"));
@@ -196,6 +212,7 @@ it.each(["flat", "grouped"] as const)(
 
 it("opens the selected source configuration without mixing it with repository installation", async () => {
   const changeSource = vi.fn();
+  const install = vi.fn();
   const enabled = vi.fn();
   const metadata = [
     { key: "a", name: "源 A", enabled: true },
@@ -207,7 +224,7 @@ it("opens the selected source configuration without mixing it with repository in
       busy: false,
       sourceKey: key,
       sourceMetadata: metadata,
-      availableSources: [],
+      availableSources: [{ key: "c", name: "仓库源 C", fileName: "variant-c.js" }],
       sourceSettings: null,
       sourceSettingsKey: "",
       settingsJson: "{}",
@@ -221,7 +238,7 @@ it("opens the selected source configuration without mixing it with repository in
       onSettingsJsonChange: vi.fn(),
       onCookieUrlChange: vi.fn(),
       onCookieTextChange: vi.fn(),
-      onInstallSource: vi.fn(),
+      onInstallSource: install,
       onUninstallSource: vi.fn(),
       onRefreshRepository: vi.fn(),
       onUpdateSource: vi.fn(),
@@ -242,9 +259,16 @@ it("opens the selected source configuration without mixing it with repository in
     "b",
   );
   expect(container.querySelector(".current-source-panel")?.closest("details")?.open).toBe(true);
-  expect(container.querySelector("details")?.open).toBe(false);
+  expect(container.querySelector(".repository-panel")).toBeNull();
   expect(container.querySelector(".current-source-panel")?.textContent).toContain("此源已禁用");
   expect(container.querySelector(".current-source-panel")?.textContent).not.toContain("Cookie：b");
   await click(cards[1]?.querySelector('[role="switch"]'));
   expect(enabled).toHaveBeenCalledWith(metadata[1], true);
+  await click(button("安装漫画源"));
+  expect(container.querySelector<HTMLDialogElement>("dialog")?.open).toBe(true);
+  expect(container.querySelector(".repository-panel")?.closest("dialog")).not.toBeNull();
+  await click(container.querySelector(".repository-source-card button"));
+  expect(install).toHaveBeenCalledWith("variant-c.js");
+  await click(container.querySelector('[aria-label="关闭安装漫画源"]'));
+  expect(container.querySelector(".repository-panel")).toBeNull();
 });

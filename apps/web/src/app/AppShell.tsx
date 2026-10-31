@@ -4,7 +4,7 @@ import type { Health } from "../types.js";
 import { navigationItems, type TabKey } from "./navigation.js";
 import { Icon } from "./Icon.js";
 import { SettingsView } from "./SettingsView.js";
-import { ServerPicker } from "./ServerPicker.js";
+import { readServerPreferences, subscribeServers } from "../lib/servers.js";
 import type { DownloadSnapshotStore } from "../lib/downloadSnapshot.js";
 
 type AppShellProps = {
@@ -26,6 +26,13 @@ export function AppShell(props: AppShellProps) {
     props.downloadStore.subscribe,
     props.downloadStore.getActiveCount,
   );
+  const [serverPreferences, setServerPreferences] = useState(readServerPreferences);
+  const currentServer = serverPreferences.servers.find(
+    (server) => server.origin === window.location.origin,
+  );
+  const serverName =
+    currentServer?.name === "当前服务器" ? "漫搜服务器" : (currentServer?.name ?? "漫搜服务器");
+  useEffect(() => subscribeServers(() => setServerPreferences(readServerPreferences())), []);
   const workspaceRef = useRef<HTMLElement>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [theme, setTheme] = useState(document.documentElement.dataset.theme ?? "light");
@@ -111,32 +118,21 @@ export function AppShell(props: AppShellProps) {
             {navigationItems.filter((item) => item.key === "settings").map(navButton)}
             {themeButton}
           </div>
-          <div className="server-card">
-            <ServerPicker />
-            <span
-              className={`health ${props.health?.ok ? "online" : props.busy ? "connecting" : "offline"}`}
-              role="status"
-            >
-              {props.health?.ok ? "服务运行正常" : props.busy ? "正在连接服务…" : "服务未连接"}
-            </span>
-            <div className="server-row">
-              <span>已安装漫画源</span>
-              <strong>{props.sourceCount} 个</strong>
-            </div>
-            <div className="server-row">
-              <span>进行中的任务</span>
-              <strong>{downloadCount} 个</strong>
-            </div>
-          </div>
-          <div className="server-profile">
+          <button
+            type="button"
+            className="server-profile"
+            aria-label="管理与切换漫搜服务器"
+            title="管理与切换漫搜服务器"
+            onClick={() => props.onTabChange("settings")}
+          >
             <span className="server-avatar">
               <Icon name="server" />
             </span>
-            <div>
-              <strong>Mansou Server</strong>
+            <span className="server-profile-copy">
+              <strong>{serverName}</strong>
               <span title={window.location.host}>{window.location.host}</span>
-            </div>
-          </div>
+            </span>
+          </button>
         </div>
       </aside>
       <div className="workspace-frame">
