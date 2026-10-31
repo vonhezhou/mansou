@@ -1,0 +1,14 @@
+{
+  "sourceCommit": "a683977",
+  "environment": {
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64"
+  },
+  "image": "mansou:novel-build-a683977",
+  "command": "pnpm --filter @mansou/web exec vitest run --maxWorkers=2 --minWorkers=1",
+  "filesPassed": 25,
+  "testsPassed": 140,
+  "rawLogSha256": "181847fb3e4e41ba6044d30cdccd79d3a86ef1039036acf3a1b6b7ea4ee913ee",
+  "passed": true
+}
