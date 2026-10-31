@@ -1,0 +1,849 @@
+{
+  "startedAt": "2026-10-31T08:32:37.602Z",
+  "environment": {
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64",
+    "runner": "docker",
+    "image": "mansou:novel-59c1c9e",
+    "imageId": "sha256:fb8c4395467a2a62a21432f86cf335ffdb371eb2f826e2f2a9470ce09e5ed411",
+    "runtime": {
+      "node": "v22.23.4",
+      "arch": "x64",
+      "platform": "linux"
+    }
+  },
+  "chapters": 1000,
+  "milestone": {
+    "pause": 100,
+    "kill": 250,
+    "fail": 450
+  },
+  "events": [
+    {
+      "stage": "container-started",
+      "elapsedMs": 547,
+      "name": "mansou-novel-verify-mansou-novels-acceptance-0fpgun-1",
+      "containerId": "8e8acc826ccada7b2cd9ded004f83c106d1ddde3679c736f09aadac1b1b49326"
+    },
+    {
+      "stage": "started",
+      "elapsedMs": 872,
+      "taskId": "467347fd-4e04-4ce5-9d6b-7654f19a1915"
+    },
+    {
+      "stage": "paused",
+      "elapsedMs": 19680,
+      "completed": 100
+    },
+    {
+      "stage": "killed",
+      "elapsedMs": 47361,
+      "cached": 250,
+      "removedChapterCache": 126
+    },
+    {
+      "stage": "container-started",
+      "elapsedMs": 47864,
+      "name": "mansou-novel-verify-mansou-novels-acceptance-0fpgun-2",
+      "containerId": "3bd9cdbc085b96b44593fadf35955fc4340f71bfd0e8aa1cd70ac2b971658045"
+    },
+    {
+      "stage": "failed-as-expected",
+      "elapsedMs": 85107,
+      "completed": 449
+    },
+    {
+      "stage": "completed",
+      "elapsedMs": 188529,
+      "bytes": 1947614,
+      "sha256": "0012c31579e3e7c01ccdc036feb6f9167a445f9192a80d1adc430cdde6407049"
+    },
+    {
+      "stage": "container-started",
+      "elapsedMs": 189292,
+      "name": "mansou-novel-verify-mansou-novels-acceptance-0fpgun-3",
+      "containerId": "a5441dd5e50df051496d14a1d49adbe5c6f263850581273a424d52b9c758ec53"
+    },
+    {
+      "stage": "backup-restored",
+      "elapsedMs": 189430
+    }
+  ],
+  "passed": true,
+  "completed": 1000,
+  "bytes": 1947614,
+  "sha256": "0012c31579e3e7c01ccdc036feb6f9167a445f9192a80d1adc430cdde6407049",
+  "elapsedMs": 189492,
+  "downloadElapsedMs": 188529,
+  "chapterRequests": 1102,
+  "restoredCachedChapters": 249,
+  "lostCacheRefetched": 126,
+  "rssPeakMiB": 175.43359375,
+  "health": {
+    "samples": 188,
+    "failures": 0,
+    "p95Ms": 1.3341769999969983,
+    "maxMs": 2.0038669999994454
+  },
+  "resourceSamples": [
+    {
+      "elapsedMs": 1011.4294400000001,
+      "rssMiB": 138.796875
+    },
+    {
+      "elapsedMs": 2008.5269360000002,
+      "rssMiB": 145.46875
+    },
+    {
+      "elapsedMs": 3011.292008,
+      "rssMiB": 137.29296875
+    },
+    {
+      "elapsedMs": 4010.538806,
+      "rssMiB": 146.82421875
+    },
+    {
+      "elapsedMs": 5009.951917,
+      "rssMiB": 152.765625
+    },
+    {
+      "elapsedMs": 6010.091607,
+      "rssMiB": 145.046875
+    },
+    {
+      "elapsedMs": 7010.301338,
+      "rssMiB": 154.7265625
+    },
+    {
+      "elapsedMs": 8010.909822,
+      "rssMiB": 144.48828125
+    },
+    {
+      "elapsedMs": 9010.673014,
+      "rssMiB": 133.82421875
+    },
+    {
+      "elapsedMs": 10010.895531,
+      "rssMiB": 137.30859375
+    },
+    {
+      "elapsedMs": 11011.189875,
+      "rssMiB": 126.8515625
+    },
+    {
+      "elapsedMs": 12011.071633,
+      "rssMiB": 136.36328125
+    },
+    {
+      "elapsedMs": 13011.008966,
+      "rssMiB": 126.26953125
+    },
+    {
+      "elapsedMs": 14010.725255,
+      "rssMiB": 135.921875
+    },
+    {
+      "elapsedMs": 15011.179443,
+      "rssMiB": 125.94921875
+    },
+    {
+      "elapsedMs": 16012.149253,
+      "rssMiB": 134.59765625
+    },
+    {
+      "elapsedMs": 17012.337675,
+      "rssMiB": 118.86328125
+    },
+    {
+      "elapsedMs": 18012.344636,
+      "rssMiB": 131.8359375
+    },
+    {
+      "elapsedMs": 19013.003637,
+      "rssMiB": 140.5625
+    },
+    {
+      "elapsedMs": 20012.767239,
+      "rssMiB": 137.35546875
+    },
+    {
+      "elapsedMs": 21012.996867,
+      "rssMiB": 123.44140625
+    },
+    {
+      "elapsedMs": 22013.103737,
+      "rssMiB": 135.71484375
+    },
+    {
+      "elapsedMs": 23012.340367,
+      "rssMiB": 144.75
+    },
+    {
+      "elapsedMs": 24012.941956,
+      "rssMiB": 136.0625
+    },
+    {
+      "elapsedMs": 25014.027701,
+      "rssMiB": 144.71875
+    },
+    {
+      "elapsedMs": 26014.800103,
+      "rssMiB": 135.44140625
+    },
+    {
+      "elapsedMs": 27014.827061,
+      "rssMiB": 144.43359375
+    },
+    {
+      "elapsedMs": 28013.680499,
+      "rssMiB": 131.94140625
+    },
+    {
+      "elapsedMs": 29014.640047,
+      "rssMiB": 142.0234375
+    },
+    {
+      "elapsedMs": 30015.149805,
+      "rssMiB": 131.09765625
+    },
+    {
+      "elapsedMs": 31015.445702,
+      "rssMiB": 139.17578125
+    },
+    {
+      "elapsedMs": 32014.606596,
+      "rssMiB": 146.2421875
+    },
+    {
+      "elapsedMs": 33015.22676899999,
+      "rssMiB": 136.43359375
+    },
+    {
+      "elapsedMs": 34015.567710999996,
+      "rssMiB": 145.94921875
+    },
+    {
+      "elapsedMs": 35016.33278,
+      "rssMiB": 133.97265625
+    },
+    {
+      "elapsedMs": 36017.26805499999,
+      "rssMiB": 145.19140625
+    },
+    {
+      "elapsedMs": 37016.536737999995,
+      "rssMiB": 133.63671875
+    },
+    {
+      "elapsedMs": 38016.877982,
+      "rssMiB": 141.70703125
+    },
+    {
+      "elapsedMs": 39017.203979,
+      "rssMiB": 127.93359375
+    },
+    {
+      "elapsedMs": 40016.453546,
+      "rssMiB": 140.79296875
+    },
+    {
+      "elapsedMs": 41017.025334,
+      "rssMiB": 129.66796875
+    },
+    {
+      "elapsedMs": 42017.075278,
+      "rssMiB": 141.81640625
+    },
+    {
+      "elapsedMs": 43016.970055,
+      "rssMiB": 150.46875
+    },
+    {
+      "elapsedMs": 44017.159827999996,
+      "rssMiB": 141.7578125
+    },
+    {
+      "elapsedMs": 45017.360186,
+      "rssMiB": 150.44140625
+    },
+    {
+      "elapsedMs": 46017.075829999994,
+      "rssMiB": 142.24609375
+    },
+    {
+      "elapsedMs": 47016.665293,
+      "rssMiB": 152.31640625
+    },
+    {
+      "elapsedMs": 48017.403893999995,
+      "rssMiB": 131.07421875
+    },
+    {
+      "elapsedMs": 49016.651832999996,
+      "rssMiB": 147.921875
+    },
+    {
+      "elapsedMs": 50017.439304,
+      "rssMiB": 139.9765625
+    },
+    {
+      "elapsedMs": 51018.079139999994,
+      "rssMiB": 151.06640625
+    },
+    {
+      "elapsedMs": 52017.561069999996,
+      "rssMiB": 140.11328125
+    },
+    {
+      "elapsedMs": 53018.284018,
+      "rssMiB": 150.40625
+    },
+    {
+      "elapsedMs": 54017.986991,
+      "rssMiB": 139.30859375
+    },
+    {
+      "elapsedMs": 55018.443225999996,
+      "rssMiB": 150.015625
+    },
+    {
+      "elapsedMs": 56018.753837,
+      "rssMiB": 137.9765625
+    },
+    {
+      "elapsedMs": 57018.926134999994,
+      "rssMiB": 125.69140625
+    },
+    {
+      "elapsedMs": 58018.836624999996,
+      "rssMiB": 135.66796875
+    },
+    {
+      "elapsedMs": 59019.137228,
+      "rssMiB": 124.08203125
+    },
+    {
+      "elapsedMs": 60019.526131,
+      "rssMiB": 132.5390625
+    },
+    {
+      "elapsedMs": 61019.142354999996,
+      "rssMiB": 139.796875
+    },
+    {
+      "elapsedMs": 62019.08416699999,
+      "rssMiB": 129.30859375
+    },
+    {
+      "elapsedMs": 63020.046495999995,
+      "rssMiB": 138.984375
+    },
+    {
+      "elapsedMs": 64018.278763999995,
+      "rssMiB": 126.9921875
+    },
+    {
+      "elapsedMs": 65018.891258999996,
+      "rssMiB": 135.796875
+    },
+    {
+      "elapsedMs": 66018.882678,
+      "rssMiB": 122.2265625
+    },
+    {
+      "elapsedMs": 67019.424187,
+      "rssMiB": 132.3828125
+    },
+    {
+      "elapsedMs": 68019.481479,
+      "rssMiB": 140.6796875
+    },
+    {
+      "elapsedMs": 69019.601329,
+      "rssMiB": 130.67578125
+    },
+    {
+      "elapsedMs": 70020.406301,
+      "rssMiB": 140.40234375
+    },
+    {
+      "elapsedMs": 71020.978624,
+      "rssMiB": 129.1015625
+    },
+    {
+      "elapsedMs": 72021.001338,
+      "rssMiB": 139.03515625
+    },
+    {
+      "elapsedMs": 73021.180604,
+      "rssMiB": 145.23046875
+    },
+    {
+      "elapsedMs": 74020.81292699999,
+      "rssMiB": 135.28515625
+    },
+    {
+      "elapsedMs": 75020.60332899999,
+      "rssMiB": 144.61328125
+    },
+    {
+      "elapsedMs": 76021.479737,
+      "rssMiB": 132.11328125
+    },
+    {
+      "elapsedMs": 77021.64454899999,
+      "rssMiB": 141.75390625
+    },
+    {
+      "elapsedMs": 78022.639333,
+      "rssMiB": 145.765625
+    },
+    {
+      "elapsedMs": 79021.98671299999,
+      "rssMiB": 134.890625
+    },
+    {
+      "elapsedMs": 80022.23232499999,
+      "rssMiB": 144.59375
+    },
+    {
+      "elapsedMs": 81022.735319,
+      "rssMiB": 132.87890625
+    },
+    {
+      "elapsedMs": 82023.440405,
+      "rssMiB": 141.83984375
+    },
+    {
+      "elapsedMs": 83024.305064,
+      "rssMiB": 127.73046875
+    },
+    {
+      "elapsedMs": 84023.72710799999,
+      "rssMiB": 138.42578125
+    },
+    {
+      "elapsedMs": 85023.393264,
+      "rssMiB": 146.73828125
+    },
+    {
+      "elapsedMs": 86024.957172,
+      "rssMiB": 138.875
+    },
+    {
+      "elapsedMs": 87024.855065,
+      "rssMiB": 150.0390625
+    },
+    {
+      "elapsedMs": 88025.472421,
+      "rssMiB": 153.4765625
+    },
+    {
+      "elapsedMs": 89024.897675,
+      "rssMiB": 144.89453125
+    },
+    {
+      "elapsedMs": 90025.174593,
+      "rssMiB": 153.09375
+    },
+    {
+      "elapsedMs": 91025.56247399999,
+      "rssMiB": 142.12890625
+    },
+    {
+      "elapsedMs": 92025.694232,
+      "rssMiB": 152.2421875
+    },
+    {
+      "elapsedMs": 93026.26099499999,
+      "rssMiB": 140.15234375
+    },
+    {
+      "elapsedMs": 94026.437987,
+      "rssMiB": 148.58984375
+    },
+    {
+      "elapsedMs": 95026.58329499999,
+      "rssMiB": 134.62890625
+    },
+    {
+      "elapsedMs": 96026.485592,
+      "rssMiB": 145.078125
+    },
+    {
+      "elapsedMs": 97026.185998,
+      "rssMiB": 153.328125
+    },
+    {
+      "elapsedMs": 98026.568319,
+      "rssMiB": 144.0703125
+    },
+    {
+      "elapsedMs": 99025.57487499999,
+      "rssMiB": 153.11328125
+    },
+    {
+      "elapsedMs": 100029.984323,
+      "rssMiB": 140.515625
+    },
+    {
+      "elapsedMs": 101026.76506599999,
+      "rssMiB": 149.625
+    },
+    {
+      "elapsedMs": 102026.25934399999,
+      "rssMiB": 134.79296875
+    },
+    {
+      "elapsedMs": 103027.09239199999,
+      "rssMiB": 146.91015625
+    },
+    {
+      "elapsedMs": 104027.304894,
+      "rssMiB": 153.6484375
+    },
+    {
+      "elapsedMs": 105027.34120499999,
+      "rssMiB": 144.19921875
+    },
+    {
+      "elapsedMs": 106027.37118799999,
+      "rssMiB": 153.2265625
+    },
+    {
+      "elapsedMs": 107027.538608,
+      "rssMiB": 140.75
+    },
+    {
+      "elapsedMs": 108028.48873699999,
+      "rssMiB": 148.94921875
+    },
+    {
+      "elapsedMs": 109027.211857,
+      "rssMiB": 154.5703125
+    },
+    {
+      "elapsedMs": 110028.203883,
+      "rssMiB": 142.7890625
+    },
+    {
+      "elapsedMs": 111028.86014399999,
+      "rssMiB": 150.3828125
+    },
+    {
+      "elapsedMs": 112028.74356999999,
+      "rssMiB": 154.921875
+    },
+    {
+      "elapsedMs": 113028.846764,
+      "rssMiB": 144.5703125
+    },
+    {
+      "elapsedMs": 114029.226715,
+      "rssMiB": 154.12109375
+    },
+    {
+      "elapsedMs": 115029.716284,
+      "rssMiB": 141.88671875
+    },
+    {
+      "elapsedMs": 116029.656388,
+      "rssMiB": 148.33984375
+    },
+    {
+      "elapsedMs": 117030.514476,
+      "rssMiB": 156.67578125
+    },
+    {
+      "elapsedMs": 118030.019682,
+      "rssMiB": 145.67578125
+    },
+    {
+      "elapsedMs": 119030.881841,
+      "rssMiB": 155.16796875
+    },
+    {
+      "elapsedMs": 120031.20178199999,
+      "rssMiB": 142.77734375
+    },
+    {
+      "elapsedMs": 121030.558758,
+      "rssMiB": 148.42578125
+    },
+    {
+      "elapsedMs": 122031.84976099999,
+      "rssMiB": 156.7734375
+    },
+    {
+      "elapsedMs": 123031.98410799999,
+      "rssMiB": 142.35546875
+    },
+    {
+      "elapsedMs": 124031.67582199999,
+      "rssMiB": 150.8984375
+    },
+    {
+      "elapsedMs": 125031.66023899999,
+      "rssMiB": 158.66015625
+    },
+    {
+      "elapsedMs": 126031.893183,
+      "rssMiB": 150.79296875
+    },
+    {
+      "elapsedMs": 127032.221059,
+      "rssMiB": 160.40625
+    },
+    {
+      "elapsedMs": 128032.45998,
+      "rssMiB": 150.01953125
+    },
+    {
+      "elapsedMs": 129032.07831099999,
+      "rssMiB": 159.84375
+    },
+    {
+      "elapsedMs": 130031.97609,
+      "rssMiB": 149.17578125
+    },
+    {
+      "elapsedMs": 131032.43477600001,
+      "rssMiB": 159.05859375
+    },
+    {
+      "elapsedMs": 132031.929378,
+      "rssMiB": 147.51171875
+    },
+    {
+      "elapsedMs": 133032.868284,
+      "rssMiB": 157.6328125
+    },
+    {
+      "elapsedMs": 134033.052765,
+      "rssMiB": 163.53515625
+    },
+    {
+      "elapsedMs": 135033.021629,
+      "rssMiB": 154.34765625
+    },
+    {
+      "elapsedMs": 136033.512712,
+      "rssMiB": 164.85546875
+    },
+    {
+      "elapsedMs": 137033.512557,
+      "rssMiB": 155.28515625
+    },
+    {
+      "elapsedMs": 138033.086935,
+      "rssMiB": 166.0703125
+    },
+    {
+      "elapsedMs": 139033.004182,
+      "rssMiB": 153.62890625
+    },
+    {
+      "elapsedMs": 140033.637922,
+      "rssMiB": 161.234375
+    },
+    {
+      "elapsedMs": 141033.09056799999,
+      "rssMiB": 169.046875
+    },
+    {
+      "elapsedMs": 142033.191135,
+      "rssMiB": 154.16796875
+    },
+    {
+      "elapsedMs": 143033.457035,
+      "rssMiB": 160.98046875
+    },
+    {
+      "elapsedMs": 144033.62161,
+      "rssMiB": 169.33984375
+    },
+    {
+      "elapsedMs": 145034.026329,
+      "rssMiB": 157.21875
+    },
+    {
+      "elapsedMs": 146033.568056,
+      "rssMiB": 166.3671875
+    },
+    {
+      "elapsedMs": 147034.07362399998,
+      "rssMiB": 155.94921875
+    },
+    {
+      "elapsedMs": 148034.256802,
+      "rssMiB": 165.3828125
+    },
+    {
+      "elapsedMs": 149033.662965,
+      "rssMiB": 150.5859375
+    },
+    {
+      "elapsedMs": 150034.305294,
+      "rssMiB": 162.24609375
+    },
+    {
+      "elapsedMs": 151034.422117,
+      "rssMiB": 169.55078125
+    },
+    {
+      "elapsedMs": 152034.561186,
+      "rssMiB": 158.12109375
+    },
+    {
+      "elapsedMs": 153035.61252,
+      "rssMiB": 168.03125
+    },
+    {
+      "elapsedMs": 154035.394075,
+      "rssMiB": 169.640625
+    },
+    {
+      "elapsedMs": 155034.370051,
+      "rssMiB": 155.5390625
+    },
+    {
+      "elapsedMs": 156035.535331,
+      "rssMiB": 163.0859375
+    },
+    {
+      "elapsedMs": 157035.220744,
+      "rssMiB": 169.7109375
+    },
+    {
+      "elapsedMs": 158035.02354,
+      "rssMiB": 155.33203125
+    },
+    {
+      "elapsedMs": 159034.990862,
+      "rssMiB": 160.55859375
+    },
+    {
+      "elapsedMs": 160035.286452,
+      "rssMiB": 165.6875
+    },
+    {
+      "elapsedMs": 161035.933935,
+      "rssMiB": 170.04296875
+    },
+    {
+      "elapsedMs": 162036.080898,
+      "rssMiB": 158.9296875
+    },
+    {
+      "elapsedMs": 163036.025009,
+      "rssMiB": 167.2421875
+    },
+    {
+      "elapsedMs": 164035.583113,
+      "rssMiB": 156.578125
+    },
+    {
+      "elapsedMs": 165036.439253,
+      "rssMiB": 163.3359375
+    },
+    {
+      "elapsedMs": 166036.62451,
+      "rssMiB": 167.80859375
+    },
+    {
+      "elapsedMs": 167036.735444,
+      "rssMiB": 172.0625
+    },
+    {
+      "elapsedMs": 168036.63254,
+      "rssMiB": 159.31640625
+    },
+    {
+      "elapsedMs": 169036.892879,
+      "rssMiB": 166.8125
+    },
+    {
+      "elapsedMs": 170037.008546,
+      "rssMiB": 171.75
+    },
+    {
+      "elapsedMs": 171039.684875,
+      "rssMiB": 169.49609375
+    },
+    {
+      "elapsedMs": 172038.725,
+      "rssMiB": 170.4140625
+    },
+    {
+      "elapsedMs": 173037.000471,
+      "rssMiB": 172.87890625
+    },
+    {
+      "elapsedMs": 174037.907307,
+      "rssMiB": 172.9609375
+    },
+    {
+      "elapsedMs": 175037.36922999998,
+      "rssMiB": 173.13671875
+    },
+    {
+      "elapsedMs": 176037.894471,
+      "rssMiB": 175.43359375
+    },
+    {
+      "elapsedMs": 177037.668912,
+      "rssMiB": 161.59765625
+    },
+    {
+      "elapsedMs": 178038.316162,
+      "rssMiB": 163.859375
+    },
+    {
+      "elapsedMs": 179037.21059499998,
+      "rssMiB": 166.4765625
+    },
+    {
+      "elapsedMs": 180036.844002,
+      "rssMiB": 167.96875
+    },
+    {
+      "elapsedMs": 181037.37564399999,
+      "rssMiB": 166.70703125
+    },
+    {
+      "elapsedMs": 182037.35026,
+      "rssMiB": 167.34375
+    },
+    {
+      "elapsedMs": 183037.707964,
+      "rssMiB": 174.2578125
+    },
+    {
+      "elapsedMs": 184038.266988,
+      "rssMiB": 126.484375
+    },
+    {
+      "elapsedMs": 185037.96603,
+      "rssMiB": 133.9453125
+    },
+    {
+      "elapsedMs": 186038.147462,
+      "rssMiB": 140.2890625
+    },
+    {
+      "elapsedMs": 187037.96124,
+      "rssMiB": 126.30078125
+    },
+    {
+      "elapsedMs": 188038.305264,
+      "rssMiB": 130.42578125
+    }
+  ],
+  "backupRestore": {
+    "passed": true,
+    "newDataDirectory": true,
+    "sha256": "0012c31579e3e7c01ccdc036feb6f9167a445f9192a80d1adc430cdde6407049"
+  },
+  "finishedAt": "2026-10-31T08:35:47.094Z"
+}

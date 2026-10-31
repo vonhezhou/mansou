@@ -1,0 +1,44 @@
+{
+  "origin": "http://192.168.30.147:3210",
+  "errors": [],
+  "attempts": [
+    {
+      "name": "就爱文学",
+      "books": 0,
+      "error": {
+        "code": "SOURCE_ERROR",
+        "message": "fetch failed"
+      }
+    },
+    {
+      "name": "新笔趣阁",
+      "books": 30
+    }
+  ],
+  "catalog": {
+    "chapters": 2467,
+    "pages": 1
+  },
+  "task": {
+    "id": "8557a1a7-2e07-43bc-960e-3dfb9ebfdd2c",
+    "name": "凡人修仙传",
+    "sourceName": "新笔趣阁"
+  },
+  "txt": {
+    "status": 200,
+    "bytes": 13231,
+    "sha256": "14dbcca50455b1a80f49e302f46ff2c97efa73b3d159a1283521999666635064"
+  },
+  "mobile": {
+    "width": 390,
+    "scrollWidth": 390
+  },
+  "passed": true,
+  "networkProbe": {
+    "site": "就爱文学",
+    "method": "GET homepage",
+    "causeCode": "UND_ERR_SOCKET",
+    "cause": "other side closed",
+    "proxyConfigured": false
+  }
+}

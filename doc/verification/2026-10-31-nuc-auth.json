@@ -1,0 +1,25 @@
+{
+  "image": "mansou:novel-59c1c9e",
+  "checks": {
+    "anonymousNovelRead": 401,
+    "anonymousNovelWrite": 401,
+    "login": 200,
+    "sessionRead": 200,
+    "missingCsrf": 403,
+    "foreignOrigin": 403,
+    "validNovelImport": 200,
+    "createToken": 200,
+    "tokenRead": 200,
+    "revokeToken": 200,
+    "revokedTokenRejected": 401,
+    "sessionAfterRestart": 200,
+    "logout": 200,
+    "loggedOutRejected": 401
+  },
+  "passed": true,
+  "runtime": {
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "tests": 391,
+  "testFiles": 66,
+  "workspaceSuites": 6,
+  "platform": "Linux-6.12.113+deb13-amd64-x86_64-with-glibc2.41",
+  "image": "mansou:novel-build-59c1c9e",
+  "command": "pnpm -r --workspace-concurrency=1 test --maxWorkers=2 --minWorkers=1"
+}

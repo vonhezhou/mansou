@@ -121,3 +121,18 @@ pnpm --filter @mansou/server storage import-json
 `storage backup` 直接复制 `mansou.sqlite`，不执行在线 SQLite 快照，也不包含插件、缓存和下载文件。因此只应在服务已正常停止、数据库连接关闭后使用；不能将其视为运行中数据库的完整一致性备份。`storage restore <备份文件路径>` 同样需要先停止服务，使用与服务一致的 `MANSOU_DATA_DIR`，且不要留下来自另一份数据库的 WAL/SHM 文件。
 
 管理员密码恢复见 [鉴权说明](auth.md)。
+
+## NUC 小说分支测试部署
+
+2026-10-31 经用户授权，已将 `codex/novel-search` 的应用提交 `59c1c9e` 构建为 `mansou:novel-59c1c9e`，在 NUC 测试环境部署。访问 `http://192.168.30.147:3210/#novels`；沿用该可信局域网测试环境原有的免登录配置。
+
+当前发布目录为 `/home/von/codes/venera/mansou-novel/current`，保留原 `/home/von/codes/venera/venera_web/.env` 和 `data/`。统一操作入口：
+
+```sh
+ssh nuc /home/von/codes/venera/mansou-novel/compose.sh ps
+ssh nuc /home/von/codes/venera/mansou-novel/compose.sh logs --tail=100 mansou
+```
+
+不要在旧源码目录直接执行重新构建，以免把当前测试镜像切回旧版本。原镜像和升级前完整备份保留在 NUC，具体位置见[部署验收记录](verification/2026-10-31-nuc-deployment.json)。升级检查比较持久化源、启停及任务身份，并核对真实启用源加载；运行时临时测试源不作为持久化数据保留的依据。
+
+五个小说基线源来自用户提供的私有 JSON，通过 API 导入，未内置到镜像。新笔趣阁已实测搜索和两章 TXT 导出；其他源的网络、规则与完整目录限制见[验收说明](novel-acceptance.md)。

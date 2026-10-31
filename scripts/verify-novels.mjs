@@ -27,10 +27,16 @@ assert(
 const output = path.resolve(
   value("--output", path.join(tmpdir(), "mansou-novel-verification.json")),
 );
+const image = value("--image");
+if (image) assert.equal(process.platform, "linux", "Docker 验收模式需要 Linux 主机");
 const entry = path.resolve(value("--server-entry", path.join(root, "apps/server/dist/server.js")));
 const dataDir = await mkdtemp(path.join(tmpdir(), "mansou-novels-acceptance-"));
 const backupDir = `${dataDir}-restored`;
 let activeDataDir = dataDir;
+const containerName = `mansou-novel-verify-${path
+  .basename(dataDir)
+  .replace(/[^a-z0-9-]/gi, "")
+  .toLowerCase()}`;
 const exec = promisify(execFile);
 const milestone = {
   pause: Math.floor(chapters * 0.1),
@@ -44,7 +50,13 @@ const events = [];
 const started = performance.now();
 const report = {
   startedAt: new Date().toISOString(),
-  environment: { node: process.version, platform: process.platform, arch: process.arch },
+  environment: {
+    node: process.version,
+    platform: process.platform,
+    arch: process.arch,
+    runner: image ? "docker" : "process",
+    ...(image ? { image } : {}),
+  },
   chapters,
   milestone,
   events,
@@ -130,63 +142,109 @@ const fixture = createServer((req, res) => {
   res.statusCode = 404;
   res.end("not found");
 });
+let serverGeneration = 0;
 async function startServer() {
-  const child = spawn(process.execPath, [entry], {
-    cwd: path.resolve(path.dirname(entry), ".."),
-    env: {
-      ...process.env,
-      AUTH_MODE: "none",
-      AUTH_ORIGIN: "",
-      HOST: "127.0.0.1",
-      PORT: "0",
-      MANSOU_DATA_DIR: activeDataDir,
-      MANSOU_ACCESS_TOKEN: "",
-      MANSOU_PROXY: "",
-      MANSOU_NO_PROXY: "*",
-      MANSOU_DOWNLOAD_RETRIES: "1",
-      MANSOU_DOWNLOAD_TASK_CONCURRENCY: "1",
-    },
+  const name = `${containerName}-${++serverGeneration}`;
+  const environment = {
+    AUTH_MODE: "none",
+    AUTH_ORIGIN: "",
+    HOST: "127.0.0.1",
+    PORT: "0",
+    MANSOU_DATA_DIR: image ? "/data" : activeDataDir,
+    MANSOU_ACCESS_TOKEN: "",
+    MANSOU_PROXY: "",
+    MANSOU_NO_PROXY: "*",
+    MANSOU_DOWNLOAD_RETRIES: "1",
+    MANSOU_DOWNLOAD_TASK_CONCURRENCY: "1",
+  };
+  const command = image ? "docker" : process.execPath;
+  const commandArgs = image
+    ? [
+        "run",
+        "--rm",
+        "--name",
+        name,
+        "--network",
+        "host",
+        "--user",
+        `${process.getuid()}:${process.getgid()}`,
+        "--mount",
+        `type=bind,src=${activeDataDir},dst=/data`,
+        ...Object.entries(environment).flatMap(([key, value]) => ["--env", `${key}=${value}`]),
+        image,
+      ]
+    : [entry];
+  const child = spawn(command, commandArgs, {
+    cwd: image ? root : path.resolve(path.dirname(entry), ".."),
+    env: { ...process.env, ...environment },
     stdio: ["ignore", "pipe", "pipe"],
   });
-  const server = { child, logs: [], url: "", exit: once(child, "exit") };
-  await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      child.kill("SIGKILL");
-      reject(new Error("服务启动超过 30 秒"));
-    }, 30000);
-    const append = (chunk) => {
-      server.logs.push(chunk.toString());
-      if (server.logs.length > 40) server.logs.shift();
-      const found = chunk.toString().match(/Server listening at (http:\/\/127\.0\.0\.1:\d+)/);
-      if (found) {
+  const server = { child, name, logs: [], url: "", exit: once(child, "exit") };
+  void server.exit.catch(() => {});
+  try {
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        child.kill("SIGKILL");
+        reject(new Error("服务启动超过 30 秒"));
+      }, 30000);
+      const append = (chunk) => {
+        server.logs.push(chunk.toString());
+        if (server.logs.length > 40) server.logs.shift();
+        const found = chunk.toString().match(/Server listening at (http:\/\/127\.0\.0\.1:\d+)/);
+        if (found) {
+          clearTimeout(timer);
+          server.url = found[1];
+          resolve();
+        }
+      };
+      child.stdout.on("data", append);
+      child.stderr.on("data", append);
+      child.once("error", (error) => {
         clearTimeout(timer);
-        server.url = found[1];
-        resolve();
-      }
-    };
-    child.stdout.on("data", append);
-    child.stderr.on("data", append);
-    child.once("error", (error) => {
-      clearTimeout(timer);
-      reject(error);
+        reject(error);
+      });
+      child.once("exit", () => {
+        clearTimeout(timer);
+        reject(new Error(`服务提前退出：${server.logs.join("")}`));
+      });
     });
-    child.once("exit", () => {
-      clearTimeout(timer);
-      reject(new Error(`服务提前退出：${server.logs.join("")}`));
-    });
-  });
-  current = server;
-  return server;
+    if (image) {
+      const { stdout } = await exec("docker", ["inspect", "--format", "{{json .}}", name]);
+      // 仅保存镜像身份和实际服务 PID，不把容器环境变量或凭据写入报告。
+      const inspect = JSON.parse(stdout);
+      server.pid = inspect.State.Pid;
+      if (report.environment.imageId)
+        assert.equal(inspect.Image, report.environment.imageId, "验收期间镜像不能改变");
+      report.environment.imageId = inspect.Image;
+      record("container-started", { name, containerId: inspect.Id });
+      const runtime = await exec("docker", [
+        "exec",
+        name,
+        "node",
+        "-p",
+        "JSON.stringify({node:process.version,arch:process.arch,platform:process.platform})",
+      ]);
+      report.environment.runtime = JSON.parse(runtime.stdout);
+    } else server.pid = child.pid;
+    current = server;
+    return server;
+  } catch (error) {
+    if (image) await exec("docker", ["rm", "--force", name]).catch(() => {});
+    child.kill("SIGKILL");
+    throw error;
+  }
 }
 async function stopServer(signal = "SIGTERM") {
   const server = current;
   current = undefined;
   if (!server) return;
-  server.child.kill(signal);
+  if (image) await exec("docker", ["kill", "--signal", signal, server.name]);
+  else server.child.kill(signal);
   await Promise.race([
     server.exit,
     delay(10000, undefined, { ref: false }).then(() => {
       if (server.child.exitCode === null && server.child.signalCode === null) {
+        if (image) void exec("docker", ["rm", "--force", server.name]).catch(() => {});
         server.child.kill("SIGKILL");
         throw new Error("服务未在 10 秒内关闭");
       }
@@ -225,7 +283,7 @@ const monitor = setInterval(async () => {
   try {
     const response = await fetch(`${server.url}/health`, { signal: AbortSignal.timeout(5000) });
     if (current === server) health.push({ ms: performance.now() - at, status: response.status });
-    const { stdout } = await exec("ps", ["-o", "rss=", "-p", String(server.child.pid)]);
+    const { stdout } = await exec("ps", ["-o", "rss=", "-p", String(server.pid)]);
     if (current === server)
       samples.push({
         elapsedMs: performance.now() - started,

@@ -47,4 +47,28 @@ node scripts/verify-novel-sources.mjs \
 - [Node 22 跨目录备份恢复](verification/2026-10-31-node22-production-backup.json)：关闭后复制完整数据，在新目录重启，源、任务与 TXT 哈希一致。
 - [五源在线复核](verification/2026-10-31-five-sources.json)：5 个源搜索均有结果；4 个源取得完整目录及前中后样章，精华书阁手机版在 100 页/2000 项上限处仍未遍历完，未继续中后章节或整本验证。样章提取不等于正文质量、目录顺序、作品完整性或长期可用性验收。
 
-以上不等于 Docker/Linux/目标 NAS 已通过。本机缺少 Docker 环境，容器实跑仍待验证；一小时运行尚在执行，完成前不能记为通过。
+以上 macOS 结果不替代 Docker/Linux 验收。后续已完成的 NUC 实跑见下节；NUC 持续验收尚未结束，不代表所有 NAS 设备或任意书源均可用。
+
+## Linux Docker / NUC 验收
+
+在 Linux 主机上，镜像模式直接强制退出并重建完整容器，使用独立临时数据和本机网络的合成站点，不替换已有业务服务：
+
+```sh
+node scripts/verify-novels.mjs --image mansou:novel-59c1c9e \
+  --chapters 1000 --output /tmp/novels-docker.json
+python3 scripts/verify-deployment-auth.py --image mansou:novel-59c1c9e \
+  --output /tmp/novels-auth.json
+```
+
+镜像模式记录镜像 ID、容器 ID 和实际 Node 进程的 RSS；容器以当前 UID/GID 写测试数据，备份恢复会切换到新挂载目录。鉴权工具只在独立临时容器创建随机测试账号，密码经 stdin 传入，不记录到参数、报告或仓库，结束后清理临时账号和数据。
+
+2026-10-31 已在 NUC 的 Debian 13 x86_64、Docker 26.1.5、Compose 2.26.1 和 Node 22.23.4 完成：
+
+- [真实 Docker 千章恢复](verification/2026-10-31-nuc-docker-1000.json)：189.492 秒，RSS 峰值约 175.43 MiB，188 次健康检查均成功，TXT SHA-256 与合成预期一致。包含强制退出、容器重建、缺失缓存重抓、故障重试与新目录恢复。
+- [独立鉴权容器](verification/2026-10-31-nuc-auth.json)：匿名拒绝、登录、CSRF、API Token 撤销、重启会话保留及退出全部通过。
+- [Linux 全量回归](verification/2026-10-31-nuc-regression.json)：66 个测试文件、391 项测试通过，使用单工作区、每包两个 worker 限制测试资源，未跳过用例或放宽超时。
+- [部署记录](verification/2026-10-31-nuc-deployment.json)：原持久化源、启停状态和原下载任务保留，已有数据已完整备份。旧版临时注入的 mock 并未入库，新版不恢复该测试注入。
+- [真实网页流程](verification/2026-10-31-nuc-browser.json)：新笔趣阁搜索、2467 项目录、前两章下载和 TXT 导出成功，移动端 390px 无横向溢出。就爱文学在 NUC 出口出现对端断开连接，与 macOS 出口观测不同；未自动判定规则失效或需要浏览器。
+- [macOS 一小时运行](verification/2026-10-31-macos-soak-hour.json)：422 轮、140 次取消、84 次故障重试通过；归档按一分钟聚合 RSS 并保留原始报告摘要及完整事件计数，避免提交大量重复的秒级样本。
+
+NUC 的一小时 Docker 循环还在运行，不能用上述短时容器结果替代长时结果。完成条件、PID 和报告位置见任务计划。

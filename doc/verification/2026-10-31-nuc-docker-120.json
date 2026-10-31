@@ -1,0 +1,185 @@
+{
+  "startedAt": "2026-10-31T08:25:33.743Z",
+  "environment": {
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64",
+    "runner": "docker",
+    "image": "mansou:novel-59c1c9e",
+    "imageId": "sha256:fb8c4395467a2a62a21432f86cf335ffdb371eb2f826e2f2a9470ce09e5ed411",
+    "runtime": {
+      "node": "v22.23.4",
+      "arch": "x64",
+      "platform": "linux"
+    }
+  },
+  "chapters": 120,
+  "milestone": {
+    "pause": 12,
+    "kill": 30,
+    "fail": 54
+  },
+  "events": [
+    {
+      "stage": "container-started",
+      "elapsedMs": 538,
+      "name": "mansou-novel-verify-mansou-novels-acceptance-nx1tn8-1",
+      "containerId": "ad52e910ea35cc6aa5b5ddf6a731725540d45e30b7d0ae30fa9afa326b783009"
+    },
+    {
+      "stage": "started",
+      "elapsedMs": 880,
+      "taskId": "d2822921-7cf9-4d35-ae08-51630c56a7c0"
+    },
+    {
+      "stage": "paused",
+      "elapsedMs": 3330,
+      "completed": 12
+    },
+    {
+      "stage": "killed",
+      "elapsedMs": 6734,
+      "cached": 30,
+      "removedChapterCache": 16
+    },
+    {
+      "stage": "container-started",
+      "elapsedMs": 7261,
+      "name": "mansou-novel-verify-mansou-novels-acceptance-nx1tn8-2",
+      "containerId": "81c636302afc479e2ea48cb68f5c22f2dc850031aeb9dc9ef95a7e4a581dd2ba"
+    },
+    {
+      "stage": "failed-as-expected",
+      "elapsedMs": 11859,
+      "completed": 53
+    },
+    {
+      "stage": "completed",
+      "elapsedMs": 23982,
+      "bytes": 233547,
+      "sha256": "192a8c64381219251457bd928e61b08188790cded0b62ca056910338762949d7"
+    },
+    {
+      "stage": "container-started",
+      "elapsedMs": 24575,
+      "name": "mansou-novel-verify-mansou-novels-acceptance-nx1tn8-3",
+      "containerId": "7fdca4275a796550ff01b45d3d699759e90e7b3cbebda10351fb40ee08bac47b"
+    },
+    {
+      "stage": "backup-restored",
+      "elapsedMs": 24705
+    }
+  ],
+  "passed": true,
+  "completed": 120,
+  "bytes": 233547,
+  "sha256": "192a8c64381219251457bd928e61b08188790cded0b62ca056910338762949d7",
+  "elapsedMs": 24758,
+  "downloadElapsedMs": 23981,
+  "chapterRequests": 134,
+  "restoredCachedChapters": 29,
+  "lostCacheRefetched": 16,
+  "rssPeakMiB": 152.83984375,
+  "health": {
+    "samples": 22,
+    "failures": 0,
+    "p95Ms": 1.3235170000007201,
+    "maxMs": 1.7805069999999432
+  },
+  "resourceSamples": [
+    {
+      "elapsedMs": 1010.1181509999999,
+      "rssMiB": 139.984375
+    },
+    {
+      "elapsedMs": 2009.094954,
+      "rssMiB": 150.03125
+    },
+    {
+      "elapsedMs": 3009.116341,
+      "rssMiB": 141.52734375
+    },
+    {
+      "elapsedMs": 4009.173742,
+      "rssMiB": 147.421875
+    },
+    {
+      "elapsedMs": 5008.625547,
+      "rssMiB": 138.52734375
+    },
+    {
+      "elapsedMs": 6010.064424,
+      "rssMiB": 148.671875
+    },
+    {
+      "elapsedMs": 8009.8403419999995,
+      "rssMiB": 122.1328125
+    },
+    {
+      "elapsedMs": 9010.516333,
+      "rssMiB": 140.54296875
+    },
+    {
+      "elapsedMs": 10010.767466,
+      "rssMiB": 130.96484375
+    },
+    {
+      "elapsedMs": 11011.678678,
+      "rssMiB": 143.6796875
+    },
+    {
+      "elapsedMs": 12011.175579,
+      "rssMiB": 148.88671875
+    },
+    {
+      "elapsedMs": 13010.927891,
+      "rssMiB": 140.8203125
+    },
+    {
+      "elapsedMs": 14011.299981,
+      "rssMiB": 152.83984375
+    },
+    {
+      "elapsedMs": 15012.177117,
+      "rssMiB": 148.5078125
+    },
+    {
+      "elapsedMs": 16012.737627,
+      "rssMiB": 119.94921875
+    },
+    {
+      "elapsedMs": 17012.614247,
+      "rssMiB": 133.28515625
+    },
+    {
+      "elapsedMs": 18013.028553,
+      "rssMiB": 125.640625
+    },
+    {
+      "elapsedMs": 19013.394358,
+      "rssMiB": 137.6484375
+    },
+    {
+      "elapsedMs": 20013.763570000003,
+      "rssMiB": 129.3671875
+    },
+    {
+      "elapsedMs": 21014.610269,
+      "rssMiB": 138.1328125
+    },
+    {
+      "elapsedMs": 22015.073762,
+      "rssMiB": 131.4765625
+    },
+    {
+      "elapsedMs": 23015.016532,
+      "rssMiB": 124.40234375
+    }
+  ],
+  "backupRestore": {
+    "passed": true,
+    "newDataDirectory": true,
+    "sha256": "192a8c64381219251457bd928e61b08188790cded0b62ca056910338762949d7"
+  },
+  "finishedAt": "2026-10-31T08:25:58.501Z"
+}
