@@ -1,4 +1,5 @@
 import { useLayoutEffect, useId, useRef, type ReactNode } from "react";
+import { Icon } from "./Icon.js";
 
 export function AppDialog({
   title,
@@ -38,11 +39,12 @@ export function AppDialog({
         <h2 id={titleId}>{title}</h2>
         <button
           type="button"
-          className="quiet-button"
+          className="icon-button"
           aria-label={`关闭${title}`}
+          title={`关闭${title}`}
           onClick={onClose}
         >
-          关闭
+          <Icon name="close" />
         </button>
       </header>
       {children}

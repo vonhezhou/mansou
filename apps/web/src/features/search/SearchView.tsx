@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { LoadingStatus } from "../../app/LoadingStatus.js";
+import { Icon } from "../../app/Icon.js";
 import { SourcePicker } from "./SourcePicker.js";
 import { ChapterPreview } from "./ChapterPreview.js";
 import { ComicDetailsPanel } from "./ComicDetailsPanel.js";
@@ -106,8 +107,15 @@ export function SearchView(props: SearchViewProps) {
         >
           <div className="dialog-header">
             <span>漫画详情</span>
-            <button className="quiet-button" autoFocus onClick={props.onCloseDetails}>
-              关闭
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="关闭漫画详情"
+              title="关闭漫画详情"
+              autoFocus
+              onClick={props.onCloseDetails}
+            >
+              <Icon name="close" />
             </button>
           </div>
           {props.pendingComic && (

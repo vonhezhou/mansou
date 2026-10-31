@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from "react";
 import type { SourceUiEvent } from "../../types.js";
+import { Icon } from "../../app/Icon.js";
 
 type Props = {
   dialog: Extract<SourceUiEvent, { type: "dialog" }>;
@@ -30,12 +31,13 @@ export function SourceActionDialog({ dialog, onChoose }: Props) {
         <h2 id={titleId}>{dialog.title}</h2>
         <button
           type="button"
-          className="quiet-button"
+          className="icon-button"
           aria-label="关闭源操作对话框"
+          title="关闭源操作对话框"
           autoFocus
           onClick={() => onChoose(null)}
         >
-          关闭
+          <Icon name="close" />
         </button>
       </header>
       <p>{dialog.message}</p>
