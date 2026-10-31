@@ -1605,6 +1605,488 @@ paths:
           required: true
           schema:
             type: string
+  /api/v1/novels/sources:
+    get:
+      operationId: listNovelSources
+      tags:
+        - novels
+      summary: listNovelSources
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NovelState"
+        "400":
+          description: Invalid input
+        "404":
+          description: Not found
+        "409":
+          description: Operation conflicts with task state
+        "422":
+          description: Unsupported rule or upstream failure
+  /api/v1/novels/sources/import:
+    post:
+      operationId: importNovelSources
+      tags:
+        - novels
+      summary: importNovelSources
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NovelState"
+        "400":
+          description: Invalid input
+        "404":
+          description: Not found
+        "409":
+          description: Operation conflicts with task state
+        "422":
+          description: Unsupported rule or upstream failure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NovelImportRequest"
+  /api/v1/novels/sources/{id}:
+    put:
+      operationId: setNovelSourceEnabled
+      tags:
+        - novels
+      summary: setNovelSourceEnabled
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NovelState"
+        "400":
+          description: Invalid input
+        "404":
+          description: Not found
+        "409":
+          description: Operation conflicts with task state
+        "422":
+          description: Unsupported rule or upstream failure
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: &a1
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+              required:
+                - enabled
+    delete:
+      operationId: deleteNovelSource
+      tags:
+        - novels
+      summary: deleteNovelSource
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NovelState"
+        "400":
+          description: Invalid input
+        "404":
+          description: Not found
+        "409":
+          description: Operation conflicts with task state
+        "422":
+          description: Unsupported rule or upstream failure
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: *a1
+  /api/v1/novels/sources/{id}/rule:
+    get:
+      operationId: getNovelSourceRule
+      tags:
+        - novels
+      summary: getNovelSourceRule
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          description: Invalid input
+        "404":
+          description: Not found
+        "409":
+          description: Operation conflicts with task state
+        "422":
+          description: Unsupported rule or upstream failure
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: *a1
+  /api/v1/novels/subscriptions:
+    post:
+      operationId: addNovelSubscription
+      tags:
+        - novels
+      summary: addNovelSubscription
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NovelState"
+        "400":
+          description: Invalid input
+        "404":
+          description: Not found
+        "409":
+          description: Operation conflicts with task state
+        "422":
+          description: Unsupported rule or upstream failure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NovelSubscriptionRequest"
+  /api/v1/novels/subscriptions/{id}:
+    put:
+      operationId: updateNovelSubscription
+      tags:
+        - novels
+      summary: updateNovelSubscription
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NovelState"
+        "400":
+          description: Invalid input
+        "404":
+          description: Not found
+        "409":
+          description: Operation conflicts with task state
+        "422":
+          description: Unsupported rule or upstream failure
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: *a1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NovelSubscriptionRequest"
+    delete:
+      operationId: deleteNovelSubscription
+      tags:
+        - novels
+      summary: deleteNovelSubscription
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NovelState"
+        "400":
+          description: Invalid input
+        "404":
+          description: Not found
+        "409":
+          description: Operation conflicts with task state
+        "422":
+          description: Unsupported rule or upstream failure
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: *a1
+  /api/v1/novels/subscriptions/{id}/refresh:
+    post:
+      operationId: refreshNovelSubscription
+      tags:
+        - novels
+      summary: refreshNovelSubscription
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NovelState"
+        "400":
+          description: Invalid input
+        "404":
+          description: Not found
+        "409":
+          description: Operation conflicts with task state
+        "422":
+          description: Unsupported rule or upstream failure
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: *a1
+  /api/v1/novels/search:
+    post:
+      operationId: searchNovels
+      tags:
+        - novels
+      summary: searchNovels
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NovelSearch"
+        "400":
+          description: Invalid input
+        "404":
+          description: Not found
+        "409":
+          description: Operation conflicts with task state
+        "422":
+          description: Unsupported rule or upstream failure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NovelSearchRequest"
+  /api/v1/novels/catalog:
+    post:
+      operationId: getNovelCatalog
+      tags:
+        - novels
+      summary: getNovelCatalog
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NovelCatalog"
+        "400":
+          description: Invalid input
+        "404":
+          description: Not found
+        "409":
+          description: Operation conflicts with task state
+        "422":
+          description: Unsupported rule or upstream failure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NovelCatalogRequest"
+  /api/v1/novels/downloads:
+    get:
+      operationId: listNovelDownloads
+      tags:
+        - novels
+      summary: listNovelDownloads
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NovelTask"
+        "400":
+          description: Invalid input
+        "404":
+          description: Not found
+        "409":
+          description: Operation conflicts with task state
+        "422":
+          description: Unsupported rule or upstream failure
+    post:
+      operationId: createNovelDownload
+      tags:
+        - novels
+      summary: createNovelDownload
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NovelTask"
+        "400":
+          description: Invalid input
+        "404":
+          description: Not found
+        "409":
+          description: Operation conflicts with task state
+        "422":
+          description: Unsupported rule or upstream failure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NovelDownloadRequest"
+  /api/v1/novels/downloads/{id}/pause:
+    post:
+      operationId: pauseNovelDownload
+      tags:
+        - novels
+      summary: pauseNovelDownload
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NovelTask"
+        "400":
+          description: Invalid input
+        "404":
+          description: Not found
+        "409":
+          description: Operation conflicts with task state
+        "422":
+          description: Unsupported rule or upstream failure
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: *a1
+  /api/v1/novels/downloads/{id}/resume:
+    post:
+      operationId: resumeNovelDownload
+      tags:
+        - novels
+      summary: resumeNovelDownload
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NovelTask"
+        "400":
+          description: Invalid input
+        "404":
+          description: Not found
+        "409":
+          description: Operation conflicts with task state
+        "422":
+          description: Unsupported rule or upstream failure
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: *a1
+  /api/v1/novels/downloads/{id}/cancel:
+    post:
+      operationId: cancelNovelDownload
+      tags:
+        - novels
+      summary: cancelNovelDownload
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NovelTask"
+        "400":
+          description: Invalid input
+        "404":
+          description: Not found
+        "409":
+          description: Operation conflicts with task state
+        "422":
+          description: Unsupported rule or upstream failure
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: *a1
+  /api/v1/novels/downloads/{id}:
+    delete:
+      operationId: deleteNovelDownload
+      tags:
+        - novels
+      summary: deleteNovelDownload
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NovelTask"
+        "400":
+          description: Invalid input
+        "404":
+          description: Not found
+        "409":
+          description: Operation conflicts with task state
+        "422":
+          description: Unsupported rule or upstream failure
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: *a1
+  /api/v1/novels/downloads/{id}/txt:
+    get:
+      operationId: exportNovelTxt
+      tags:
+        - novels
+      summary: exportNovelTxt
+      responses:
+        "200":
+          description: OK
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Invalid input
+        "404":
+          description: Not found
+        "409":
+          description: Operation conflicts with task state
+        "422":
+          description: Unsupported rule or upstream failure
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: *a1
 components:
   securitySchemes:
     sessionAuth:
@@ -2461,3 +2943,297 @@ components:
       required:
         - token
         - entry
+
+    NovelSource:
+      type: object
+      properties:
+        id: &a1
+          type: string
+        groupId: *a1
+        name: *a1
+        url: *a1
+        enabled: &a2
+          type: boolean
+        hash: *a1
+        searchSupported: *a2
+        downloadSupported: *a2
+        searchError: *a1
+        downloadError: *a1
+      required:
+        - id
+        - groupId
+        - name
+        - url
+        - enabled
+        - hash
+        - searchSupported
+        - downloadSupported
+    NovelSubscription:
+      type: object
+      properties:
+        id: *a1
+        name: *a1
+        url: *a1
+        enabled: *a2
+        updatedAt: *a1
+        error: *a1
+        count: &a3
+          type: integer
+      required:
+        - id
+        - name
+        - enabled
+        - count
+    NovelState:
+      type: object
+      properties:
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/NovelSource"
+        subscriptions:
+          type: array
+          items:
+            $ref: "#/components/schemas/NovelSubscription"
+      required:
+        - sources
+        - subscriptions
+    NovelBook:
+      type: object
+      properties:
+        name: *a1
+        author: *a1
+        bookUrl: *a1
+        coverUrl: *a1
+        intro: *a1
+        kind: *a1
+        lastChapter: *a1
+        wordCount: *a1
+      required:
+        - name
+        - author
+        - bookUrl
+    NovelOrigin:
+      type: object
+      properties:
+        sourceId: *a1
+        sourceName: *a1
+        name: *a1
+        author: *a1
+        bookUrl: *a1
+        coverUrl: *a1
+      required:
+        - sourceId
+        - sourceName
+        - name
+        - author
+        - bookUrl
+    NovelSearch:
+      type: object
+      properties:
+        keyword: *a1
+        page: *a3
+        elapsedMs:
+          type: number
+        cancelled: *a2
+        totalSources: *a3
+        completedSources: *a3
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              name: *a1
+              author: *a1
+              origins:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NovelOrigin"
+            required:
+              - name
+              - author
+              - origins
+        sources:
+          type: array
+          items:
+            type: object
+            properties:
+              sourceId: *a1
+              sourceName: *a1
+              status:
+                type: string
+                enum:
+                  - ok
+                  - error
+              elapsedMs:
+                type: number
+              books:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NovelBook"
+              error:
+                type: object
+                properties:
+                  code: *a1
+                  message: *a1
+                required:
+                  - code
+                  - message
+            required:
+              - sourceId
+              - sourceName
+              - status
+              - elapsedMs
+              - books
+      required:
+        - keyword
+        - page
+        - elapsedMs
+        - cancelled
+        - totalSources
+        - completedSources
+        - results
+        - sources
+    NovelChapter:
+      type: object
+      properties:
+        title: *a1
+        url: *a1
+      required:
+        - title
+        - url
+    NovelCatalog:
+      type: object
+      properties:
+        bookUrl: *a1
+        tocUrl: *a1
+        tocComplete: *a2
+        tocPages: *a3
+        chapters:
+          type: array
+          items:
+            $ref: "#/components/schemas/NovelChapter"
+      required:
+        - bookUrl
+        - tocUrl
+        - tocComplete
+        - tocPages
+        - chapters
+    NovelTask:
+      type: object
+      properties:
+        id: *a1
+        sourceId: *a1
+        sourceName: *a1
+        name: *a1
+        author: *a1
+        bookUrl: *a1
+        status:
+          type: string
+          enum:
+            - queued
+            - running
+            - paused
+            - completed
+            - failed
+            - cancelled
+        phase: *a1
+        completed: *a3
+        total: *a3
+        all: *a2
+        start: *a3
+        limit: *a3
+        error: *a1
+        current: *a1
+        createdAt: *a1
+        updatedAt: *a1
+      required:
+        - id
+        - sourceId
+        - sourceName
+        - name
+        - author
+        - bookUrl
+        - status
+        - phase
+        - completed
+        - total
+        - all
+        - start
+        - limit
+        - createdAt
+        - updatedAt
+    NovelImportRequest:
+      type: object
+      properties:
+        sources:
+          oneOf:
+            - &a4
+              type: object
+              additionalProperties: true
+            - type: array
+              items: *a4
+      required:
+        - sources
+    NovelSubscriptionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        url:
+          type: string
+          format: uri
+        enabled: *a2
+      required:
+        - name
+        - url
+    NovelSearchRequest:
+      type: object
+      properties:
+        keyword:
+          type: string
+          minLength: 1
+          maxLength: 100
+        page:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 1
+        sourceIds:
+          type: array
+          items: *a1
+      required:
+        - keyword
+    NovelCatalogRequest:
+      type: object
+      properties:
+        sourceId: *a1
+        bookUrl:
+          type: string
+          format: uri
+      required:
+        - sourceId
+        - bookUrl
+    NovelDownloadRequest:
+      type: object
+      properties:
+        sourceId: *a1
+        book:
+          $ref: "#/components/schemas/NovelBook"
+        all:
+          type: boolean
+          default: true
+        start:
+          type: integer
+          minimum: 1
+          default: 1
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50000
+          default: 3
+      required:
+        - sourceId
+        - book

@@ -142,6 +142,9 @@ importers:
       '@mansou/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@mansou/novel-engine':
+        specifier: workspace:*
+        version: link:../../packages/novel-engine
       '@mansou/plugin-runtime':
         specifier: workspace:*
         version: link:../../packages/plugin-runtime
@@ -219,6 +222,21 @@ importers:
         version: 2.9.1
 
   packages/core: {}
+
+  packages/novel-engine:
+    dependencies:
+      cheerio:
+        specifier: ^1.2.0
+        version: 1.2.0
+      domhandler:
+        specifier: ^5.0.3
+        version: 5.0.3
+      iconv-lite:
+        specifier: ^0.6.3
+        version: 0.6.3
+      json5:
+        specifier: ^2.2.3
+        version: 2.2.3
 
   packages/plugin-runtime:
     dependencies:
@@ -1870,6 +1888,11 @@ packages:
 
   json-stable-stringify-without-jsonify@1.0.1:
     resolution: {integrity: sha512-Bdboy+l7tA3OGW6FjyFHWkP5LuByj1Tk33Ljyq0axyzdk9//JSi2u3fP1QSmd1KNwq6VOKYGlAu87CisVir6Pw==}
+
+  json5@2.2.3:
+    resolution: {integrity: sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg==}
+    engines: {node: '>=6'}
+    hasBin: true
 
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
@@ -4042,6 +4065,8 @@ snapshots:
   json-schema-traverse@1.0.0: {}
 
   json-stable-stringify-without-jsonify@1.0.1: {}
+
+  json5@2.2.3: {}
 
   keyv@4.5.4:
     dependencies:

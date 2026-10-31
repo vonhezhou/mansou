@@ -1,3 +1,7 @@
+import { NovelEngineExecutor } from "./services/novels/engineExecutor.js";
+import path from "node:path";
+import { NovelSourceService } from "./services/novels/sourceService.js";
+import { NovelDownloadService } from "./services/novels/downloadService.js";
 import { createStorage } from "@mansou/storage";
 import { PluginManager } from "@mansou/plugin-runtime";
 import { AuthService } from "./auth/service.js";
@@ -50,6 +54,24 @@ export function createApplication(
     config.downloadTaskConcurrency,
     onError,
   );
+  const novelEngine = new NovelEngineExecutor(http.fetch, config.requestTimeoutMs);
+  const novelSources = new NovelSourceService(
+    storage.novels,
+    http.fetch,
+    config.requestTimeoutMs,
+    novelEngine,
+  );
+  const novelDownloads = new NovelDownloadService(
+    storage.novels,
+    novelSources,
+    novelEngine,
+    {
+      outputDir: path.join(paths.downloads, "novels"),
+      concurrency: config.downloadTaskConcurrency,
+      retries: config.downloadRetries,
+    },
+    onError,
+  );
   let initialization: Promise<void> | undefined;
   let closing: Promise<void> | undefined;
   return {
@@ -60,6 +82,9 @@ export function createApplication(
     search,
     imageProxy,
     downloads,
+    novelSources,
+    novelDownloads,
+    novelEngine,
     storage,
     auth,
     initialize() {
@@ -70,13 +95,15 @@ export function createApplication(
         );
         await sources.loadInstalled();
         await downloads.init();
+        novelDownloads.init();
       })());
     },
     close() {
       return (closing ??= (async () => {
         await initialization?.catch(() => undefined);
         try {
-          await downloads.close();
+          await Promise.all([downloads.close(), novelDownloads.close()]);
+          await novelEngine.close();
         } finally {
           try {
             await sources.close();

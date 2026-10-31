@@ -24,7 +24,7 @@ describe("storage migrations", () => {
     }
   });
 
-  it.each([1, 3, 4, 5, 6])(
+  it.each([1, 3, 4, 5, 6, 7])(
     "opens a version %i database without changing existing history",
     async (version) => {
       const dir = await mkdtemp(path.join(os.tmpdir(), "mansou-storage-test-"));
@@ -35,6 +35,7 @@ describe("storage migrations", () => {
         try {
           db.prepare("delete from schema_migrations where version > ?").run(version);
           if (version < 6) db.exec("drop index idx_download_items_task_order");
+          if (version < 7) db.exec("drop table novel_records");
           db.exec(
             "create table history (id text primary key, page integer); insert into history values ('mock:comic-1', 3)",
           );
@@ -55,7 +56,10 @@ describe("storage migrations", () => {
           ]);
           expect(
             reopened.prepare("select max(version) as version from schema_migrations").get(),
-          ).toEqual({ version: 6 });
+          ).toEqual({ version: 7 });
+          expect(
+            reopened.prepare("select name from sqlite_master where name = 'novel_records'").get(),
+          ).toEqual({ name: "novel_records" });
         } finally {
           reopened.close();
         }
@@ -81,7 +85,7 @@ it("upgrades an existing version 5 database without changing image records and a
     initial.close();
     const legacy = new Database(path.join(dir, "mansou.sqlite"));
     legacy.exec(
-      "drop index idx_download_items_task_order; delete from schema_migrations where version = 6",
+      "drop index idx_download_items_task_order; drop table novel_records; delete from schema_migrations where version >= 6",
     );
     legacy.close();
     const upgraded = createStorage(dir);

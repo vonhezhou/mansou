@@ -4,6 +4,7 @@
 
 - [项目介绍与快速开始](../README.md)：功能、首次使用和本地开发。
 - [部署说明](deployment.md)：NAS/VPS、Docker、HTTPS、升级和备份恢复。
+- [小说功能](novels.md)：自定义书源、合集订阅、搜索与 TXT 下载，以及兼容和恢复边界。
 - [配置参考](configuration.md)：环境变量、默认值、数据目录和代理。
 - [鉴权说明](auth.md)：管理员初始化、会话、API Token 和密码恢复。
 - [API 文档](api.md)：OpenAPI、接口与事件格式。
@@ -15,7 +16,7 @@
 - [服务端架构](server_architecture.md)：当前业务服务、源接口、插件适配与执行容器边界。
 - [前端架构](web_architecture.md)：网页结构、请求约定与测试。
 - [安全反馈](../SECURITY.md)：漏洞反馈方式与部署边界。
-- [第三方说明](../THIRD_PARTY_NOTICES.md)：Venera、外部插件、依赖和内容的许可边界。
+- [第三方说明](../THIRD_PARTY_NOTICES.md)：Venera、Legado、外部书源与插件、依赖和内容的许可边界。
 
 ## 设计背景
 

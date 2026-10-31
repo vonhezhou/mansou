@@ -1,3 +1,4 @@
+import { NovelStorage } from "./novels.js";
 import type { DownloadTask, DownloadItem, SourceRecord } from "./records.js";
 export type {
   DownloadTask,
@@ -30,9 +31,11 @@ export function createStorage(dataDir: string) {
 
 class AppStorage {
   readonly auth: AuthStorage;
+  readonly novels: NovelStorage;
 
   constructor(private readonly db: Database.Database) {
     this.auth = new AuthStorage(db);
+    this.novels = new NovelStorage(db);
   }
 
   close() {
@@ -427,6 +430,19 @@ function migrate(db: Database.Database) {
       db.exec(`
         create index if not exists idx_download_items_task_order on download_items(task_id, id);
         insert or ignore into schema_migrations(version, applied_at) values (6, datetime('now'));
+      `);
+    })();
+  }
+  if (version < 7) {
+    db.transaction(() => {
+      db.exec(`
+        create table if not exists novel_records (
+          kind text not null,
+          id text not null,
+          value_json text not null,
+          primary key(kind, id)
+        );
+        insert into schema_migrations(version, applied_at) values (7, datetime('now'));
       `);
     })();
   }

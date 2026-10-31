@@ -1,0 +1,101 @@
+.novel-stack {
+  display: grid;
+  gap: 18px;
+}
+.novel-panel {
+  padding: 22px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  min-width: 0;
+}
+.novel-panel h2 {
+  margin-top: 0;
+  font-size: 17px;
+}
+.novel-panel label {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.novel-panel textarea,
+.novel-panel input:not([type="checkbox"]) {
+  width: 100%;
+}
+.novel-rule-editor {
+  font-family: monospace;
+  resize: vertical;
+}
+.novel-inline,
+.novel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+}
+.novel-inline label {
+  flex: 1 1 180px;
+  margin-bottom: 0;
+}
+.novel-inline {
+  margin-bottom: 16px;
+}
+.novel-tabs {
+  margin-bottom: 24px;
+}
+.novel-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-block: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+.novel-row > div:first-child {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+.novel-row p {
+  margin-block: 6px;
+}
+.novel-url {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.novel-source-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 14px;
+}
+.novel-source-picker label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.novel-catalog {
+  list-style: none;
+  padding-left: 0;
+  max-height: 320px;
+  overflow: auto;
+  line-height: 1.9;
+}
+.novel-panel progress {
+  width: 100%;
+  margin-bottom: 12px;
+}
+.novel-export {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 16px;
+  border-radius: 6px;
+}
+@media (max-width: 600px) {
+  .novel-panel {
+    padding: 16px;
+  }
+  .novel-actions button {
+    min-height: 40px;
+  }
+}

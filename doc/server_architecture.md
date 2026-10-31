@@ -2,6 +2,12 @@
 
 本文描述当前实现。产品范围是源管理、搜索、聚合搜索、章节预览和下载。
 
+## 小说功能
+
+小说功能使用独立的文本模型与 `/api/v1/novels` 路由，共用应用鉴权、代理和 SQLite。`services/novels/sourceService` 管理原始 JSON、订阅快照与搜索；`downloadService` 复用 DownloadScheduler，按章节落盘和恢复，成功后生成 TXT。漫画和小说的任务调度器及列表分别管理，不将文本映射为图片。
+
+`packages/novel-engine` 执行阅读书源规则子集。服务端通过 `engineExecutor` 在有并发和内存限制的 Worker 中执行搜索、目录和正文解析，网络通过消息回到主线程的应用 HTTP 客户端，保留代理和请求超时。取消、关闭或解析超时会终止线程及其请求。订阅更新不改变已创建下载的规则和目录快照。持久化、支持范围与限制见[小说功能](novels.md)。
+
 ## 职责与依赖
 
 ```mermaid

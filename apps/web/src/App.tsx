@@ -1,3 +1,4 @@
+import { NovelsView } from "./features/novels/NovelsView.js";
 import { useCallback, useEffect, useState } from "react";
 import { downloadsEventUrl, mansouApi } from "./api/mansou.js";
 import { AuthGate } from "./features/auth/AuthGate.js";
@@ -215,6 +216,8 @@ function Workspace({
           onCreateDownload={(mode) => void searchState.createDownload(mode)}
         />
       )}
+
+      {activeTab === "novels" && <NovelsView />}
 
       {activeTab === "sources" && (
         <SourcesView

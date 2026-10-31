@@ -1368,6 +1368,397 @@ export const openApiDocument = {
         ],
       },
     },
+    "/api/v1/novels/sources": {
+      get: {
+        operationId: "listNovelSources",
+        tags: ["novels"],
+        summary: "listNovelSources",
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/NovelState" } },
+            },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Not found" },
+          "409": { description: "Operation conflicts with task state" },
+          "422": { description: "Unsupported rule or upstream failure" },
+        },
+      },
+    },
+    "/api/v1/novels/sources/import": {
+      post: {
+        operationId: "importNovelSources",
+        tags: ["novels"],
+        summary: "importNovelSources",
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/NovelState" } },
+            },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Not found" },
+          "409": { description: "Operation conflicts with task state" },
+          "422": { description: "Unsupported rule or upstream failure" },
+        },
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/NovelImportRequest" } },
+          },
+        },
+      },
+    },
+    "/api/v1/novels/sources/{id}": {
+      put: {
+        operationId: "setNovelSourceEnabled",
+        tags: ["novels"],
+        summary: "setNovelSourceEnabled",
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/NovelState" } },
+            },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Not found" },
+          "409": { description: "Operation conflicts with task state" },
+          "422": { description: "Unsupported rule or upstream failure" },
+        },
+        parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: { enabled: { type: "boolean" } },
+                required: ["enabled"],
+              },
+            },
+          },
+        },
+      },
+      delete: {
+        operationId: "deleteNovelSource",
+        tags: ["novels"],
+        summary: "deleteNovelSource",
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/NovelState" } },
+            },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Not found" },
+          "409": { description: "Operation conflicts with task state" },
+          "422": { description: "Unsupported rule or upstream failure" },
+        },
+        parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
+      },
+    },
+    "/api/v1/novels/sources/{id}/rule": {
+      get: {
+        operationId: "getNovelSourceRule",
+        tags: ["novels"],
+        summary: "getNovelSourceRule",
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { type: "object", additionalProperties: true } },
+            },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Not found" },
+          "409": { description: "Operation conflicts with task state" },
+          "422": { description: "Unsupported rule or upstream failure" },
+        },
+        parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
+      },
+    },
+    "/api/v1/novels/subscriptions": {
+      post: {
+        operationId: "addNovelSubscription",
+        tags: ["novels"],
+        summary: "addNovelSubscription",
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/NovelState" } },
+            },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Not found" },
+          "409": { description: "Operation conflicts with task state" },
+          "422": { description: "Unsupported rule or upstream failure" },
+        },
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/NovelSubscriptionRequest" },
+            },
+          },
+        },
+      },
+    },
+    "/api/v1/novels/subscriptions/{id}": {
+      put: {
+        operationId: "updateNovelSubscription",
+        tags: ["novels"],
+        summary: "updateNovelSubscription",
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/NovelState" } },
+            },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Not found" },
+          "409": { description: "Operation conflicts with task state" },
+          "422": { description: "Unsupported rule or upstream failure" },
+        },
+        parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/NovelSubscriptionRequest" },
+            },
+          },
+        },
+      },
+      delete: {
+        operationId: "deleteNovelSubscription",
+        tags: ["novels"],
+        summary: "deleteNovelSubscription",
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/NovelState" } },
+            },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Not found" },
+          "409": { description: "Operation conflicts with task state" },
+          "422": { description: "Unsupported rule or upstream failure" },
+        },
+        parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
+      },
+    },
+    "/api/v1/novels/subscriptions/{id}/refresh": {
+      post: {
+        operationId: "refreshNovelSubscription",
+        tags: ["novels"],
+        summary: "refreshNovelSubscription",
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/NovelState" } },
+            },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Not found" },
+          "409": { description: "Operation conflicts with task state" },
+          "422": { description: "Unsupported rule or upstream failure" },
+        },
+        parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
+      },
+    },
+    "/api/v1/novels/search": {
+      post: {
+        operationId: "searchNovels",
+        tags: ["novels"],
+        summary: "searchNovels",
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/NovelSearch" } },
+            },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Not found" },
+          "409": { description: "Operation conflicts with task state" },
+          "422": { description: "Unsupported rule or upstream failure" },
+        },
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/NovelSearchRequest" } },
+          },
+        },
+      },
+    },
+    "/api/v1/novels/catalog": {
+      post: {
+        operationId: "getNovelCatalog",
+        tags: ["novels"],
+        summary: "getNovelCatalog",
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/NovelCatalog" } },
+            },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Not found" },
+          "409": { description: "Operation conflicts with task state" },
+          "422": { description: "Unsupported rule or upstream failure" },
+        },
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/NovelCatalogRequest" } },
+          },
+        },
+      },
+    },
+    "/api/v1/novels/downloads": {
+      get: {
+        operationId: "listNovelDownloads",
+        tags: ["novels"],
+        summary: "listNovelDownloads",
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": {
+                schema: { type: "array", items: { $ref: "#/components/schemas/NovelTask" } },
+              },
+            },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Not found" },
+          "409": { description: "Operation conflicts with task state" },
+          "422": { description: "Unsupported rule or upstream failure" },
+        },
+      },
+      post: {
+        operationId: "createNovelDownload",
+        tags: ["novels"],
+        summary: "createNovelDownload",
+        responses: {
+          "200": {
+            description: "OK",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/NovelTask" } } },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Not found" },
+          "409": { description: "Operation conflicts with task state" },
+          "422": { description: "Unsupported rule or upstream failure" },
+        },
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/NovelDownloadRequest" } },
+          },
+        },
+      },
+    },
+    "/api/v1/novels/downloads/{id}/pause": {
+      post: {
+        operationId: "pauseNovelDownload",
+        tags: ["novels"],
+        summary: "pauseNovelDownload",
+        responses: {
+          "200": {
+            description: "OK",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/NovelTask" } } },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Not found" },
+          "409": { description: "Operation conflicts with task state" },
+          "422": { description: "Unsupported rule or upstream failure" },
+        },
+        parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
+      },
+    },
+    "/api/v1/novels/downloads/{id}/resume": {
+      post: {
+        operationId: "resumeNovelDownload",
+        tags: ["novels"],
+        summary: "resumeNovelDownload",
+        responses: {
+          "200": {
+            description: "OK",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/NovelTask" } } },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Not found" },
+          "409": { description: "Operation conflicts with task state" },
+          "422": { description: "Unsupported rule or upstream failure" },
+        },
+        parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
+      },
+    },
+    "/api/v1/novels/downloads/{id}/cancel": {
+      post: {
+        operationId: "cancelNovelDownload",
+        tags: ["novels"],
+        summary: "cancelNovelDownload",
+        responses: {
+          "200": {
+            description: "OK",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/NovelTask" } } },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Not found" },
+          "409": { description: "Operation conflicts with task state" },
+          "422": { description: "Unsupported rule or upstream failure" },
+        },
+        parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
+      },
+    },
+    "/api/v1/novels/downloads/{id}": {
+      delete: {
+        operationId: "deleteNovelDownload",
+        tags: ["novels"],
+        summary: "deleteNovelDownload",
+        responses: {
+          "200": {
+            description: "OK",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/NovelTask" } } },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Not found" },
+          "409": { description: "Operation conflicts with task state" },
+          "422": { description: "Unsupported rule or upstream failure" },
+        },
+        parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
+      },
+    },
+    "/api/v1/novels/downloads/{id}/txt": {
+      get: {
+        operationId: "exportNovelTxt",
+        tags: ["novels"],
+        summary: "exportNovelTxt",
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "text/plain; charset=utf-8": { schema: { type: "string", format: "binary" } },
+            },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Not found" },
+          "409": { description: "Operation conflicts with task state" },
+          "422": { description: "Unsupported rule or upstream failure" },
+        },
+        parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
+      },
+    },
   },
   components: {
     securitySchemes: {
@@ -2008,6 +2399,237 @@ export const openApiDocument = {
           entry: { $ref: "#/components/schemas/ApiToken" },
         },
         required: ["token", "entry"],
+      },
+      NovelSource: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          groupId: { type: "string" },
+          name: { type: "string" },
+          url: { type: "string" },
+          enabled: { type: "boolean" },
+          hash: { type: "string" },
+          searchSupported: { type: "boolean" },
+          downloadSupported: { type: "boolean" },
+          searchError: { type: "string" },
+          downloadError: { type: "string" },
+        },
+        required: [
+          "id",
+          "groupId",
+          "name",
+          "url",
+          "enabled",
+          "hash",
+          "searchSupported",
+          "downloadSupported",
+        ],
+      },
+      NovelSubscription: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          name: { type: "string" },
+          url: { type: "string" },
+          enabled: { type: "boolean" },
+          updatedAt: { type: "string" },
+          error: { type: "string" },
+          count: { type: "integer" },
+        },
+        required: ["id", "name", "enabled", "count"],
+      },
+      NovelState: {
+        type: "object",
+        properties: {
+          sources: { type: "array", items: { $ref: "#/components/schemas/NovelSource" } },
+          subscriptions: {
+            type: "array",
+            items: { $ref: "#/components/schemas/NovelSubscription" },
+          },
+        },
+        required: ["sources", "subscriptions"],
+      },
+      NovelBook: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          author: { type: "string" },
+          bookUrl: { type: "string" },
+          coverUrl: { type: "string" },
+          intro: { type: "string" },
+          kind: { type: "string" },
+          lastChapter: { type: "string" },
+          wordCount: { type: "string" },
+        },
+        required: ["name", "author", "bookUrl"],
+      },
+      NovelOrigin: {
+        type: "object",
+        properties: {
+          sourceId: { type: "string" },
+          sourceName: { type: "string" },
+          name: { type: "string" },
+          author: { type: "string" },
+          bookUrl: { type: "string" },
+          coverUrl: { type: "string" },
+        },
+        required: ["sourceId", "sourceName", "name", "author", "bookUrl"],
+      },
+      NovelSearch: {
+        type: "object",
+        properties: {
+          keyword: { type: "string" },
+          page: { type: "integer" },
+          elapsedMs: { type: "number" },
+          cancelled: { type: "boolean" },
+          totalSources: { type: "integer" },
+          completedSources: { type: "integer" },
+          results: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                author: { type: "string" },
+                origins: { type: "array", items: { $ref: "#/components/schemas/NovelOrigin" } },
+              },
+              required: ["name", "author", "origins"],
+            },
+          },
+          sources: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                sourceId: { type: "string" },
+                sourceName: { type: "string" },
+                status: { type: "string", enum: ["ok", "error"] },
+                elapsedMs: { type: "number" },
+                books: { type: "array", items: { $ref: "#/components/schemas/NovelBook" } },
+                error: {
+                  type: "object",
+                  properties: { code: { type: "string" }, message: { type: "string" } },
+                  required: ["code", "message"],
+                },
+              },
+              required: ["sourceId", "sourceName", "status", "elapsedMs", "books"],
+            },
+          },
+        },
+        required: [
+          "keyword",
+          "page",
+          "elapsedMs",
+          "cancelled",
+          "totalSources",
+          "completedSources",
+          "results",
+          "sources",
+        ],
+      },
+      NovelChapter: {
+        type: "object",
+        properties: { title: { type: "string" }, url: { type: "string" } },
+        required: ["title", "url"],
+      },
+      NovelCatalog: {
+        type: "object",
+        properties: {
+          bookUrl: { type: "string" },
+          tocUrl: { type: "string" },
+          tocComplete: { type: "boolean" },
+          tocPages: { type: "integer" },
+          chapters: { type: "array", items: { $ref: "#/components/schemas/NovelChapter" } },
+        },
+        required: ["bookUrl", "tocUrl", "tocComplete", "tocPages", "chapters"],
+      },
+      NovelTask: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          sourceId: { type: "string" },
+          sourceName: { type: "string" },
+          name: { type: "string" },
+          author: { type: "string" },
+          bookUrl: { type: "string" },
+          status: {
+            type: "string",
+            enum: ["queued", "running", "paused", "completed", "failed", "cancelled"],
+          },
+          phase: { type: "string" },
+          completed: { type: "integer" },
+          total: { type: "integer" },
+          all: { type: "boolean" },
+          start: { type: "integer" },
+          limit: { type: "integer" },
+          error: { type: "string" },
+          current: { type: "string" },
+          createdAt: { type: "string" },
+          updatedAt: { type: "string" },
+        },
+        required: [
+          "id",
+          "sourceId",
+          "sourceName",
+          "name",
+          "author",
+          "bookUrl",
+          "status",
+          "phase",
+          "completed",
+          "total",
+          "all",
+          "start",
+          "limit",
+          "createdAt",
+          "updatedAt",
+        ],
+      },
+      NovelImportRequest: {
+        type: "object",
+        properties: {
+          sources: {
+            oneOf: [
+              { type: "object", additionalProperties: true },
+              { type: "array", items: { type: "object", additionalProperties: true } },
+            ],
+          },
+        },
+        required: ["sources"],
+      },
+      NovelSubscriptionRequest: {
+        type: "object",
+        properties: {
+          name: { type: "string", minLength: 1, maxLength: 100 },
+          url: { type: "string", format: "uri" },
+          enabled: { type: "boolean" },
+        },
+        required: ["name", "url"],
+      },
+      NovelSearchRequest: {
+        type: "object",
+        properties: {
+          keyword: { type: "string", minLength: 1, maxLength: 100 },
+          page: { type: "integer", minimum: 1, maximum: 1000, default: 1 },
+          sourceIds: { type: "array", items: { type: "string" } },
+        },
+        required: ["keyword"],
+      },
+      NovelCatalogRequest: {
+        type: "object",
+        properties: { sourceId: { type: "string" }, bookUrl: { type: "string", format: "uri" } },
+        required: ["sourceId", "bookUrl"],
+      },
+      NovelDownloadRequest: {
+        type: "object",
+        properties: {
+          sourceId: { type: "string" },
+          book: { $ref: "#/components/schemas/NovelBook" },
+          all: { type: "boolean", default: true },
+          start: { type: "integer", minimum: 1, default: 1 },
+          limit: { type: "integer", minimum: 1, maximum: 50000, default: 3 },
+        },
+        required: ["sourceId", "book"],
       },
     },
   },

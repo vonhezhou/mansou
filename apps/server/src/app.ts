@@ -1,3 +1,4 @@
+import { registerNovelRoutes } from "./routes/novels.js";
 import { createApplication, type Application } from "./application.js";
 import { readConfig, validateConfig, type AppConfig } from "./config/config.js";
 import { AppError } from "./errors.js";
@@ -43,7 +44,13 @@ export async function buildApp(
   const context = createApplication(config, authConfig, (error) =>
     app.log.error({ error }, "Background operation failed"),
   );
-  app.addHook("preClose", async () => context.downloads.close());
+  app.addHook("preClose", async () => {
+    await Promise.all([
+      context.downloads.close(),
+      context.novelDownloads.close(),
+      context.novelEngine.close(),
+    ]);
+  });
   app.addHook("onClose", async () => context.close());
   registerAuthHook(app, context.auth);
   try {
@@ -98,6 +105,7 @@ export async function buildApp(
         await registerSourceRepositoryRoutes(api, context);
         await registerSourceRoutes(api, context);
         await registerSearchRoutes(api, context);
+        await registerNovelRoutes(api, context);
         await registerComicRoutes(api, context);
         await registerImageRoutes(api, context);
         await registerDownloadRoutes(api, context);

@@ -238,3 +238,7 @@ data: [{"id":"task-id","status":"running"}]
 - 原有设置 GET/PUT/DELETE 路径保留；PUT 按字段定义校验整批值，失败返回 400 且不部分写入。
 
 登录失败返回 422 与 `SOURCE_LOGIN_FAILED`，不透出插件原始登录错误。当前 `webview` 可为 `unavailable` 或 `unsupported`，尚不执行网页登录。完整请求和响应类型以 OpenAPI YAML 为准。
+
+## 小说实验接口
+
+`/api/v1/novels` 提供书源 JSON 导入与规则读取、合集订阅、搜索、目录、文本下载任务及 TXT 导出。接口类型和请求参数以 OpenAPI YAML 为准；小说与漫画任务分别列出。兼容范围、更新语义和恢复粒度见[小说说明](novels.md)。

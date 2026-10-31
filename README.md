@@ -1,11 +1,12 @@
 # 漫搜 · Mansou
 
-面向 NAS 和 VPS 自托管的多源漫画搜索与下载工具，兼容 Venera 漫画源插件生态。
+面向 NAS 和 VPS 自托管的多源漫画搜索与下载工具，兼容 Venera 漫画源插件生态，并提供实验性的小说搜索与 TXT 下载。
 
 通过浏览器管理漫画源、搜索漫画、预览章节并下载到服务器，无需安装桌面客户端。项目仍在持续开发，当前面向个人使用，支持单管理员登录与独立 API Token。
 
 ## 功能
 
+- **小说（实验）**：导入自定义阅读书源 JSON、管理合集订阅、搜索与聚合搜索、可恢复的章节下载与 TXT 导出，支持有限规则子集，详见 [小说说明](doc/novels.md)。
 - **多源搜索**：单源搜索、聚合搜索、详情与章节列表。
 - **源管理**：安装、更新、启停、配置，以及插件支持的账号与 Cookie 登录。
 - **章节预览**：查看章节图片，确认内容后创建下载任务。
@@ -98,6 +99,7 @@ apps/web                 React/Vite 网页客户端
 packages/contracts       OpenAPI YAML、生成类型与运行时契约
 packages/core            源接口与领域模型
 packages/plugin-runtime  Venera 插件适配、宿主能力与 Worker 执行器
+packages/novel-engine    文本书源规则、搜索、目录与正文解析
 packages/storage         SQLite 业务数据与认证存储
 packages/shared          共享工具包（预留）
 doc                      使用、部署与架构文档
