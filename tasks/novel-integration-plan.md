@@ -40,7 +40,7 @@
 
 ## NUC 部署与当前续跑入口
 
-- 运行地址：`http://192.168.30.147:3210/#novels`。镜像 `mansou:novel-59c1c9e`，镜像 ID `sha256:fb8c4395467a2a62a21432f86cf335ffdb371eb2f826e2f2a9470ce09e5ed411`。源提交 `59c1c9e`；本轮后续修改只涉及验收工具和文档，不改变该镜像中的应用实现。
+- 运行地址：`http://192.168.30.147:3210/#novels`。当前镜像 `mansou:novel-6499aff`，镜像 ID `sha256:4f424056a31c1910e13ae30937d5719882e8178b06c3b5ed3db46803de1d6f15`，应用提交 `6499aff`。首次部署及独立一小时任务仍使用 `mansou:novel-59c1c9e`，镜像 ID `sha256:fb8c4395467a2a62a21432f86cf335ffdb371eb2f826e2f2a9470ce09e5ed411`；不把旧镜像的长时证据归到新镜像。
 - 发布目录 `/home/von/codes/venera/mansou-novel/current`；统一操作入口 `/home/von/codes/venera/mansou-novel/compose.sh`。原 `.env` 和数据继续使用 `/home/von/codes/venera/venera_web/` 下文件，不在旧源码目录重新构建覆盖当前镜像。
 - 升级前完整备份：`/home/von/codes/venera/mansou-novel/backups/20261031T083527Z`。已核对 2 个持久化漫画源及启停状态、1 个原下载任务保留；旧版运行时临时注入的 mock 并无持久化记录，新版不再注入。首次运行时列表比较触发回滚，确认根因后改为持久化元数据及真实启用源加载双重检查，再次部署通过。
 - Linux Docker 1000 章通过：容器强制退出后重建、缓存重用/缺失重抓、失败恢复、新目录备份恢复均通过，TXT 与合成预期的 SHA-256 一致。189.492 秒，服务 RSS 峰值 175.43 MiB，188 次健康检查全成功；合成站点不代表真实站点吞吐。证据 `doc/verification/2026-10-31-nuc-docker-1000.json`。
@@ -49,3 +49,5 @@
 - macOS 60 分钟验收已正常结束：422 轮、140 次取消、84 次故障重试；RSS 峰值 169.17 MiB，首末一分钟平均约 115.33/111.77 MiB，未据此声称所有场景无泄漏。证据 `doc/verification/2026-10-31-macos-soak-hour.json`。
 - **下一步只需继续检查 NUC 一小时任务，不重复启动**：SSH `nuc`，PID `757879`；元数据 `/home/von/codes/venera/mansou-novel/evidence/docker-soak-process.json`，报告 `docker-soak-hour.json`、日志 `docker-soak-hour.log` 在同一目录。须等待 `soak.running=false`、`passed=true`、最终成功日志且进程退出，归档报告并更新此计划；失败则调查根因、补回归后以新产物重新验收。
 - NUC 持续验收完成后核对正式测试服务仍健康、文档与工作区，提交最终证据，再停用 `automation`。不合并主干、不推送，不扩大到其他服务器。Docker/NUC 通过也不等于任意 NAS 设备、任意书源或互联网长期可用性保证。
+
+- 试用反馈已闭环：“大乘期”首条结果点击缺少可见反馈，已修复为书名入口与卡片内目录，并覆盖移动端从下载页返回后再次打开的定位。两失败源明确为 NUC 出口关闭/重置连接，增加不泄露凭据的原因提示，仍不能宣称该出口可访问。网页 135 项、服务端 217 项、类型/Lint/构建及进程模式 120 章通过；最终应用 `6499aff` 已部署，真实关键词 778 项目录、前两章 TXT、桌面/移动端及该镜像 120 章容器恢复通过。证据见 `doc/verification/2026-10-31-nuc-dacheng-6499aff.json`、`2026-10-31-nuc-docker-6499aff-120.json`。一小时任务继续使用旧镜像，独立记录版本归属；下一步仍只需跟进该已有任务并归档，不重复启动。

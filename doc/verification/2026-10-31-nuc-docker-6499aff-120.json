@@ -1,0 +1,213 @@
+{
+  "startedAt": "2026-10-31T09:09:18.406Z",
+  "environment": {
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64",
+    "runner": "docker",
+    "image": "mansou:novel-6499aff",
+    "imageId": "sha256:4f424056a31c1910e13ae30937d5719882e8178b06c3b5ed3db46803de1d6f15",
+    "runtime": {
+      "node": "v22.23.4",
+      "arch": "x64",
+      "platform": "linux"
+    }
+  },
+  "chapters": 120,
+  "milestone": {
+    "pause": 12,
+    "kill": 30,
+    "fail": 54
+  },
+  "events": [
+    {
+      "stage": "container-started",
+      "elapsedMs": 583,
+      "name": "mansou-novel-verify-mansou-novels-acceptance-0drjqd-1",
+      "containerId": "7a3f6a412bc4a78d3bfad79133c8bcd809f6e580c52397302113c283df3d6450"
+    },
+    {
+      "stage": "started",
+      "elapsedMs": 965,
+      "taskId": "b83efd5f-bcaa-45e3-8b54-be02b33ed4ff"
+    },
+    {
+      "stage": "paused",
+      "elapsedMs": 4025,
+      "completed": 12
+    },
+    {
+      "stage": "killed",
+      "elapsedMs": 8361,
+      "cached": 30,
+      "removedChapterCache": 16
+    },
+    {
+      "stage": "container-started",
+      "elapsedMs": 9113,
+      "name": "mansou-novel-verify-mansou-novels-acceptance-0drjqd-2",
+      "containerId": "6d22df013fea44c7de1f2361c951121fbbadcdd5fc0d9b784df9f05c7b0108d6"
+    },
+    {
+      "stage": "failed-as-expected",
+      "elapsedMs": 14777,
+      "completed": 53
+    },
+    {
+      "stage": "completed",
+      "elapsedMs": 30970,
+      "bytes": 233547,
+      "sha256": "192a8c64381219251457bd928e61b08188790cded0b62ca056910338762949d7"
+    },
+    {
+      "stage": "container-started",
+      "elapsedMs": 31769,
+      "name": "mansou-novel-verify-mansou-novels-acceptance-0drjqd-3",
+      "containerId": "b65528c1bbf84fe839bed0fd13cb34fa2c812540bf923846f617352fca5b9bc1"
+    },
+    {
+      "stage": "backup-restored",
+      "elapsedMs": 31906
+    }
+  ],
+  "passed": true,
+  "completed": 120,
+  "bytes": 233547,
+  "sha256": "192a8c64381219251457bd928e61b08188790cded0b62ca056910338762949d7",
+  "elapsedMs": 31977,
+  "downloadElapsedMs": 30970,
+  "chapterRequests": 134,
+  "restoredCachedChapters": 29,
+  "lostCacheRefetched": 16,
+  "rssPeakMiB": 152.95703125,
+  "health": {
+    "samples": 29,
+    "failures": 0,
+    "p95Ms": 1.4020870000022114,
+    "maxMs": 2.337525999999343
+  },
+  "resourceSamples": [
+    {
+      "elapsedMs": 1010.9835169999999,
+      "rssMiB": 125.375
+    },
+    {
+      "elapsedMs": 2010.0410430000002,
+      "rssMiB": 138.1953125
+    },
+    {
+      "elapsedMs": 3012.37795,
+      "rssMiB": 146.09765625
+    },
+    {
+      "elapsedMs": 4010.5929419999998,
+      "rssMiB": 135.84375
+    },
+    {
+      "elapsedMs": 5010.644232000001,
+      "rssMiB": 136.8203125
+    },
+    {
+      "elapsedMs": 6010.998279,
+      "rssMiB": 143.796875
+    },
+    {
+      "elapsedMs": 7012.242469000001,
+      "rssMiB": 152.73828125
+    },
+    {
+      "elapsedMs": 8010.842949000001,
+      "rssMiB": 133.1484375
+    },
+    {
+      "elapsedMs": 10014.493709,
+      "rssMiB": 150.32421875
+    },
+    {
+      "elapsedMs": 11012.242595,
+      "rssMiB": 148.97265625
+    },
+    {
+      "elapsedMs": 12012.539603000001,
+      "rssMiB": 145.89453125
+    },
+    {
+      "elapsedMs": 13012.475232,
+      "rssMiB": 137.50390625
+    },
+    {
+      "elapsedMs": 14011.416998,
+      "rssMiB": 150.2734375
+    },
+    {
+      "elapsedMs": 15012.796762,
+      "rssMiB": 152.95703125
+    },
+    {
+      "elapsedMs": 16014.085983,
+      "rssMiB": 138.45703125
+    },
+    {
+      "elapsedMs": 17014.564302,
+      "rssMiB": 141.75390625
+    },
+    {
+      "elapsedMs": 18013.895807,
+      "rssMiB": 117.52734375
+    },
+    {
+      "elapsedMs": 19013.574585000002,
+      "rssMiB": 121.98046875
+    },
+    {
+      "elapsedMs": 20012.649137,
+      "rssMiB": 130.08984375
+    },
+    {
+      "elapsedMs": 21013.125857,
+      "rssMiB": 134.03515625
+    },
+    {
+      "elapsedMs": 22014.124957,
+      "rssMiB": 132.515625
+    },
+    {
+      "elapsedMs": 23015.498995,
+      "rssMiB": 134.17578125
+    },
+    {
+      "elapsedMs": 24014.335059,
+      "rssMiB": 130.87109375
+    },
+    {
+      "elapsedMs": 25015.333129,
+      "rssMiB": 127.0390625
+    },
+    {
+      "elapsedMs": 26015.464276,
+      "rssMiB": 129.19140625
+    },
+    {
+      "elapsedMs": 27014.766017,
+      "rssMiB": 135.35546875
+    },
+    {
+      "elapsedMs": 28013.962516,
+      "rssMiB": 127.0234375
+    },
+    {
+      "elapsedMs": 29014.899412,
+      "rssMiB": 135.90625
+    },
+    {
+      "elapsedMs": 30015.330508,
+      "rssMiB": 130.6796875
+    }
+  ],
+  "backupRestore": {
+    "passed": true,
+    "newDataDirectory": true,
+    "sha256": "192a8c64381219251457bd928e61b08188790cded0b62ca056910338762949d7"
+  },
+  "finishedAt": "2026-10-31T09:09:50.383Z"
+}

@@ -1,0 +1,74 @@
+{
+  "sourceCommit": "6499aff",
+  "keyword": "大乘期",
+  "errors": [],
+  "search": {
+    "books": 12,
+    "sources": [
+      {
+        "sourceName": "就爱文学",
+        "status": "error",
+        "error": {
+          "code": "SOURCE_ERROR",
+          "message": "书源网络请求失败：对端关闭了连接（UND_ERR_SOCKET），请检查站点可达性及服务器代理设置"
+        }
+      },
+      {
+        "sourceName": "新笔趣阁",
+        "status": "ok"
+      },
+      {
+        "sourceName": "精华书阁手机版",
+        "status": "ok"
+      },
+      {
+        "sourceName": "笔趣阁[biqusa]",
+        "status": "error",
+        "error": {
+          "code": "SOURCE_ERROR",
+          "message": "书源网络请求失败：连接被重置，可能在 TLS 握手阶段中断（ECONNRESET），请检查站点可达性及服务器代理设置"
+        }
+      },
+      {
+        "sourceName": "错层小说网",
+        "status": "ok"
+      }
+    ]
+  },
+  "loadingBox": {
+    "x": 290.875,
+    "y": 79.984375,
+    "width": 998.25,
+    "height": 96.4375
+  },
+  "catalog": {
+    "chapters": 778,
+    "pages": 1,
+    "box": {
+      "x": 290.875,
+      "y": 79.234375,
+      "width": 998.25,
+      "height": 599.6875
+    }
+  },
+  "focusInsideCatalog": true,
+  "task": {
+    "id": "a8caff5b-901e-42c9-a138-3341aa59c9ba",
+    "name": "大乘期才有逆袭系统"
+  },
+  "txt": {
+    "bytes": 17595,
+    "sha256": "b3b418d92ea2bbe0956867d9f232407995d332ccea2594b157cc9f0fdb0051cb"
+  },
+  "mobile": {
+    "width": 390,
+    "scrollWidth": 390,
+    "catalogBox": {
+      "x": 35,
+      "y": 79.859375,
+      "width": 320,
+      "height": 806.984375
+    }
+  },
+  "passed": true
+}

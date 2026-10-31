@@ -114,6 +114,10 @@ it("网页从搜索结果加载有序目录、提交范围下载，并仅为完�
   expect(
     [...container.querySelectorAll(".novel-catalog li")].map((item) => item.textContent),
   ).toEqual(["1. 第一章", "2. 第二章"]);
+  // 返回列表后再次点击同一本书，也应把焦点带回目录，而不是复用旧选择后无反馈。
+  container.querySelector<HTMLInputElement>("input")!.focus();
+  await act(async () => button(origin.name).click());
+  expect(document.activeElement).toBe(container.querySelector('[aria-label="小说目录"]'));
   const ranges = container.querySelectorAll<HTMLInputElement>('input[type="number"]');
   await setValue(ranges[1], "2");
   expect(container.querySelector('a[href$="/txt"]')).toBeNull();
