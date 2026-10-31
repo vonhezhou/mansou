@@ -82,6 +82,7 @@ it("opens settings from the server profile after collapsing navigation, keeps ac
         error={null}
         health={{ ok: true, name: "test", dataDir: "/data" }}
         downloadStore={downloadStore}
+        novelDownloadStore={createDownloadSnapshotStore()}
         sourceCount={4}
         onRefresh={refresh}
         account={<button>账号设置入口</button>}

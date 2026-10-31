@@ -15,6 +15,7 @@ type AppShellProps = {
   health: Health | null;
   downloadStore: DownloadSnapshotStore;
   sourceCount: number;
+  novelDownloadStore: Pick<DownloadSnapshotStore, "subscribe" | "getActiveCount">;
   children: ReactNode;
   account?: ReactNode;
   onRefresh: () => void;
@@ -25,6 +26,10 @@ export function AppShell(props: AppShellProps) {
   const downloadCount = useSyncExternalStore(
     props.downloadStore.subscribe,
     props.downloadStore.getActiveCount,
+  );
+  const novelDownloadCount = useSyncExternalStore(
+    props.novelDownloadStore.subscribe,
+    props.novelDownloadStore.getActiveCount,
   );
   const [serverPreferences, setServerPreferences] = useState(readServerPreferences);
   const currentServer = serverPreferences.servers.find(
@@ -62,7 +67,11 @@ export function AppShell(props: AppShellProps) {
   );
   function navButton(item: (typeof navigationItems)[number]) {
     const count =
-      item.key === "downloads" ? downloadCount : item.key === "sources" ? props.sourceCount : null;
+      item.key === "downloads"
+        ? downloadCount + novelDownloadCount
+        : item.key === "sources"
+          ? props.sourceCount
+          : null;
     return (
       <button
         className={`nav-item${item.key === props.activeTab ? " active" : ""}`}

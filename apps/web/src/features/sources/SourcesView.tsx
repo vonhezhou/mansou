@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { AppDialog } from "../../app/AppDialog.js";
+import { PageTabs } from "../../app/PageTabs.js";
 import { Icon } from "../../app/Icon.js";
 import { CurrentSourcePanel } from "./CurrentSourcePanel.js";
 import { InstalledSourcesList } from "./InstalledSourcesList.js";
@@ -41,43 +42,13 @@ export function SourcesView(props: SourcesViewProps) {
           </button>
         )}
       </header>
-      <div
-        className="source-management-tabs"
-        role="tablist"
-        aria-label="漫画源管理"
-        onKeyDown={(event) => {
-          const current = managementTabs.findIndex((tab) => tab.key === activeView);
-          const next =
-            event.key === "Home"
-              ? 0
-              : event.key === "End"
-                ? managementTabs.length - 1
-                : event.key === "ArrowRight"
-                  ? (current + 1) % managementTabs.length
-                  : event.key === "ArrowLeft"
-                    ? (current + managementTabs.length - 1) % managementTabs.length
-                    : -1;
-          if (next < 0) return;
-          event.preventDefault();
-          setActiveView(managementTabs[next].key);
-          event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
-        }}
-      >
-        {managementTabs.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            role="tab"
-            id={`${tabId}-${tab.key}-tab`}
-            aria-controls={`${tabId}-${tab.key}-panel`}
-            aria-selected={activeView === tab.key}
-            tabIndex={activeView === tab.key ? 0 : -1}
-            onClick={() => setActiveView(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <PageTabs
+        id={tabId}
+        label="漫画源管理"
+        tabs={managementTabs}
+        value={activeView}
+        onChange={setActiveView}
+      />
       {props.operation && !props.operation.sourceKey && (
         <div className="source-operation-status">
           <LoadingStatus label={props.operation.label} />

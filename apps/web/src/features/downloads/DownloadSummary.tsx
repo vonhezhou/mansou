@@ -1,7 +1,6 @@
-import type { DownloadTask } from "../../types.js";
 import { Icon, type IconName } from "../../app/Icon.js";
 
-type DownloadSummaryProps = { downloads: DownloadTask[] };
+type DownloadSummaryProps = { downloads: readonly { status: string }[] };
 
 export function DownloadSummary({ downloads }: DownloadSummaryProps) {
   const stats: { label: string; value: number; icon: IconName; detail: string }[] = [

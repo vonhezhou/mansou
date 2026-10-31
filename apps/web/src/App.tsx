@@ -1,3 +1,6 @@
+import { NovelSourcesView } from "./features/novels/NovelSourcesView.js";
+import { DownloadsWorkspace } from "./features/downloads/DownloadsWorkspace.js";
+import { useNovelDownloads } from "./hooks/useNovelDownloads.js";
 import { NovelsView } from "./features/novels/NovelsView.js";
 import { useCallback, useEffect, useState } from "react";
 import { downloadsEventUrl, mansouApi } from "./api/mansou.js";
@@ -57,6 +60,7 @@ function Workspace({
     [],
   );
   const downloadsState = useDownloads(runWith);
+  const novelDownloads = useNovelDownloads();
   const sourcesState = useSources(
     runWith,
     sourceKey,
@@ -140,10 +144,12 @@ function Workspace({
       error={error}
       health={health}
       downloadStore={downloadsState.snapshotStore}
+      novelDownloadStore={novelDownloads.store}
       sourceCount={sourcesState.sourceMetadata.length}
       onRefresh={() => {
         void checkHealth();
         void refresh();
+        void novelDownloads.reload().catch(() => {});
       }}
       onTabChange={navigateTo}
       notice={
@@ -217,7 +223,10 @@ function Workspace({
         />
       )}
 
-      {activeTab === "novels" && <NovelsView />}
+      {activeTab === "novels" && (
+        <NovelsView onNavigate={navigateTo} onDownloadCreated={novelDownloads.reload} />
+      )}
+      {activeTab === "novel-sources" && <NovelSourcesView />}
 
       {activeTab === "sources" && (
         <SourcesView
@@ -255,26 +264,33 @@ function Workspace({
       )}
 
       {activeTab === "downloads" && (
-        <LiveDownloadsView
-          busy={downloadsBusy}
-          taskOperations={downloadsState.taskOperations}
-          taskMessages={downloadsState.taskMessages}
-          taskErrors={downloadsState.taskErrors}
-          itemErrors={downloadsState.itemErrors}
-          cacheOperation={downloadsState.cacheOperation}
-          cache={downloadsState.cache}
-          store={downloadsState.snapshotStore}
-          downloadItems={downloadsState.downloadItems}
-          failedItemsOnly={downloadsState.failedItemsOnly}
-          onFailedItemsOnlyChange={downloadsState.setFailedItemsOnly}
-          onPruneCache={() => void downloadsState.pruneCache()}
-          onClearCache={() => void downloadsState.clearCache()}
-          onLoadDownloadItems={(task, offset) =>
-            void downloadsState.loadDownloadItems(task, offset)
-          }
-          onDownloadAction={(task, action) => void downloadsState.downloadAction(task, action)}
-          onRetryDownloadItem={(task, item) => void downloadsState.retryDownloadItem(task, item)}
-        />
+        <DownloadsWorkspace
+          comicStore={downloadsState.snapshotStore}
+          novelStore={novelDownloads.store}
+          novelError={novelDownloads.error}
+          reloadNovels={novelDownloads.reload}
+        >
+          <LiveDownloadsView
+            busy={downloadsBusy}
+            taskOperations={downloadsState.taskOperations}
+            taskMessages={downloadsState.taskMessages}
+            taskErrors={downloadsState.taskErrors}
+            itemErrors={downloadsState.itemErrors}
+            cacheOperation={downloadsState.cacheOperation}
+            cache={downloadsState.cache}
+            store={downloadsState.snapshotStore}
+            downloadItems={downloadsState.downloadItems}
+            failedItemsOnly={downloadsState.failedItemsOnly}
+            onFailedItemsOnlyChange={downloadsState.setFailedItemsOnly}
+            onPruneCache={() => void downloadsState.pruneCache()}
+            onClearCache={() => void downloadsState.clearCache()}
+            onLoadDownloadItems={(task, offset) =>
+              void downloadsState.loadDownloadItems(task, offset)
+            }
+            onDownloadAction={(task, action) => void downloadsState.downloadAction(task, action)}
+            onRetryDownloadItem={(task, item) => void downloadsState.retryDownloadItem(task, item)}
+          />
+        </DownloadsWorkspace>
       )}
     </AppShell>
   );

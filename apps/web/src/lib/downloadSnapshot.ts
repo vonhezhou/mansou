@@ -1,9 +1,16 @@
 import type { DownloadTask } from "../types.js";
 
-export type DownloadSnapshotStore = ReturnType<typeof createDownloadSnapshotStore>;
+export type DownloadSnapshotStore<T extends { status: string } = DownloadTask> = {
+  getSnapshot: () => T[];
+  getActiveCount: () => number;
+  subscribe: (listener: () => void) => () => void;
+  setSnapshot: (tasks: T[]) => void;
+};
 
-export function createDownloadSnapshotStore() {
-  let snapshot: DownloadTask[] = [];
+export function createDownloadSnapshotStore<
+  T extends { status: string } = DownloadTask,
+>(): DownloadSnapshotStore<T> {
+  let snapshot: T[] = [];
   let activeCount = 0;
   const listeners = new Set<() => void>();
   return {
@@ -15,7 +22,7 @@ export function createDownloadSnapshotStore() {
         listeners.delete(listener);
       };
     },
-    setSnapshot(tasks: DownloadTask[]) {
+    setSnapshot(tasks: T[]) {
       snapshot = tasks;
       activeCount = tasks.reduce(
         (count, task) => count + (task.status === "queued" || task.status === "running" ? 1 : 0),

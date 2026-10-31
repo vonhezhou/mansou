@@ -3,9 +3,13 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { NovelsView } from "./NovelsView.js";
 
+const navigate = vi.fn();
+const reloadDownloads = vi.fn(async () => {});
 let root: Root | undefined;
 let container: HTMLDivElement;
 beforeEach(() => {
+  navigate.mockClear();
+  reloadDownloads.mockClear();
   Object.defineProperties(HTMLDialogElement.prototype, {
     showModal: {
       configurable: true,
@@ -111,7 +115,9 @@ it("网页从搜索结果加载有序目录、提交范围下载，并仅为完�
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(async () => root!.render(<NovelsView />));
+  await act(async () =>
+    root!.render(<NovelsView onNavigate={navigate} onDownloadCreated={reloadDownloads} />),
+  );
   const button = (text: string) =>
     [...container.querySelectorAll<HTMLButtonElement>("button")].find(
       (button) => button.textContent === text,
@@ -146,11 +152,11 @@ it("网页从搜索结果加载有序目录、提交范围下载，并仅为完�
   expect(
     requests.find((request) => request.path === "/downloads" && request.body)?.body,
   ).toMatchObject({ sourceId: origin.sourceId, all: false, start: 1, limit: 2, book: origin });
-  expect(container.querySelector('a[href="/api/v1/novels/downloads/task/txt"]')?.textContent).toBe(
-    "下载 TXT",
-  );
+  expect(reloadDownloads).toHaveBeenCalledOnce();
+  expect(navigate).toHaveBeenCalledWith("downloads");
+  expect(container.querySelector("dialog")).toBeNull();
 });
-it.each(["关闭目录", "切换页面", "卸载页面", "加载失败", "Escape"])(
+it.each(["关闭目录", "卸载页面", "加载失败", "Escape"])(
   "加载目录时%s 会取消请求并忽略迟到响应",
   async (action) => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -199,7 +205,9 @@ it.each(["关闭目录", "切换页面", "卸载页面", "加载失败", "Escape
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
-    await act(async () => root!.render(<NovelsView />));
+    await act(async () =>
+      root!.render(<NovelsView onNavigate={navigate} onDownloadCreated={reloadDownloads} />),
+    );
     const button = (text: string) =>
       [...container.querySelectorAll<HTMLButtonElement>("button")].find(
         (button) => button.textContent === text,
@@ -240,7 +248,7 @@ it.each(["关闭目录", "切换页面", "卸载页面", "加载失败", "Escape
     } else if (action === "卸载页面") {
       await act(async () => root!.unmount());
       root = undefined;
-    } else await act(async () => button(action === "关闭目录" ? "关闭目录" : "书源与订阅").click());
+    } else await act(async () => button("关闭目录").click());
     expect(catalogSignal!.aborted).toBe(true);
     // 即使外部边界迟到返回成功，也不能把已关闭的目录重新显示。
     await act(async () =>
@@ -308,7 +316,9 @@ it("单源与聚合选择显式传递源身份，反选为空不能意外搜索�
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(async () => root!.render(<NovelsView />));
+  await act(async () =>
+    root!.render(<NovelsView onNavigate={navigate} onDownloadCreated={reloadDownloads} />),
+  );
   const button = (text: string) =>
     [...container.querySelectorAll<HTMLButtonElement>("button")].find(
       (button) => button.textContent === text,

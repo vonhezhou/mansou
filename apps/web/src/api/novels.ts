@@ -14,7 +14,7 @@ const call = <T>(path: string, body?: unknown, method = "POST", signal?: AbortSi
     signal,
   });
 export const novelApi = {
-  state: () => api<NovelState>("/novels/sources"),
+  state: (signal?: AbortSignal) => api<NovelState>("/novels/sources", { signal }),
   import: (sources: unknown) => call<NovelState>("/sources/import", { sources }),
   rule: (id: string) =>
     api<Record<string, unknown>>(`/novels/sources/${encodeURIComponent(id)}/rule`),
@@ -40,7 +40,7 @@ export const novelApi = {
       "POST",
       signal,
     ),
-  tasks: () => api<NovelTask[]>("/novels/downloads"),
+  tasks: (signal?: AbortSignal) => api<NovelTask[]>("/novels/downloads", { signal }),
   download: (origin: NovelOrigin, all: boolean, start: number, limit: number) =>
     call<NovelTask>("/downloads", { sourceId: origin.sourceId, book: origin, all, start, limit }),
   action: (id: string, action: "pause" | "resume" | "cancel" | "delete") =>

@@ -70,12 +70,17 @@
 .novel-panel progress {
   width: 100%;
   margin-bottom: 12px;
+  accent-color: var(--color-primary);
 }
 .novel-export {
   display: inline-flex;
   align-items: center;
   padding: 10px 16px;
   border-radius: 6px;
+  background: var(--color-primary-strong);
+  color: #fff;
+  text-decoration: none;
+  font-size: 13px;
 }
 @media (max-width: 600px) {
   .novel-panel {
@@ -86,11 +91,6 @@
   }
 }
 
-.novel-main-tabs {
-  padding: 16px 4.2%;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface);
-}
 .novel-status {
   margin: 16px 4.2%;
 }
@@ -111,4 +111,8 @@
 .novel-detail-dialog .novel-actions button[aria-pressed="true"] {
   border-color: var(--color-primary);
   color: var(--color-primary);
+}
+
+.novel-downloads-section {
+  margin-top: 28px;
 }

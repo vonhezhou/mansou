@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { groupDownloads } from "../../lib/downloads.js";
 import { CachePanel } from "./CachePanel.js";
-import { DownloadSummary } from "./DownloadSummary.js";
 import { DownloadTaskCard } from "./DownloadTaskCard.js";
 import type { DownloadsViewProps } from "./types.js";
 
@@ -37,15 +36,7 @@ export function DownloadsView(props: DownloadsViewProps) {
   );
 
   return (
-    <section className="inner-page downloads">
-      <header className="page-title">
-        <div>
-          <span className="eyebrow">DOWNLOAD MANAGER</span>
-          <h1>下载任务</h1>
-          <p>管理服务器上的漫画下载与队列，完成后可获取 CBZ 文件。</p>
-        </div>
-      </header>
-      <DownloadSummary downloads={props.downloads} />
+    <section className="downloads">
       <div className="download-tools">
         <details className="disclosure">
           <summary>图片缓存管理</summary>

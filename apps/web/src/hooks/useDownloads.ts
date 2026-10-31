@@ -8,7 +8,7 @@ type RunWith = (setLoading: (value: boolean) => void, task: () => Promise<void>)
 
 export function useDownloads(runWith: RunWith) {
   // 高频快照由下载视图和计数各自订阅，避免推动整个 Workspace 重新渲染。
-  const [snapshotStore] = useState(createDownloadSnapshotStore);
+  const [snapshotStore] = useState(() => createDownloadSnapshotStore());
   const [downloadItems, setDownloadItems] = useState<Record<string, DownloadItemsPage>>({});
   const [itemErrors, setItemErrors] = useState<Record<string, string>>({});
   const [failedItemsOnly, setFailedItemsOnlyState] = useState(false);
