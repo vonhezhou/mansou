@@ -127,7 +127,8 @@ export function NovelsView() {
     catalogController.current?.abort();
     const controller = new AbortController();
     catalogController.current = controller;
-    setOrigin(value);
+    // 每次选择都代表一次新的打开操作，同一来源重试也需要重新定位。
+    setOrigin({ ...value });
     setCatalog(undefined);
     setCatalogError(undefined);
     setStart(1);
