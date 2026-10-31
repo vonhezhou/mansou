@@ -7,7 +7,7 @@ type InstalledSourcesListProps = {
   busy: boolean;
   operation?: SourceOperation | null;
   sourceMetadata: SourceMetadata[];
-  onConfigureSource: (key: string) => void;
+  onConfigureSource: (key: string, mode: "settings" | "cookies") => void;
   onUninstallSource: (source: SourceMetadata) => void;
   onUpdateSource: (key: string) => void;
   onSetSourceEnabled: (source: SourceMetadata, enabled: boolean) => void;
@@ -74,9 +74,16 @@ export function InstalledSourcesList(props: InstalledSourcesListProps) {
                   <button
                     className="secondary-button"
                     disabled={props.busy}
-                    onClick={() => props.onConfigureSource(source.key)}
+                    onClick={() => props.onConfigureSource(source.key, "settings")}
                   >
-                    配置
+                    源设置
+                  </button>
+                  <button
+                    className="secondary-button"
+                    disabled={props.busy}
+                    onClick={() => props.onConfigureSource(source.key, "cookies")}
+                  >
+                    Cookie
                   </button>
                   {source.canUninstall === false ? (
                     <span className="muted">内置源，仅可禁用</span>

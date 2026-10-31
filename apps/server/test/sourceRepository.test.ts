@@ -60,7 +60,7 @@ describe("source updates", () => {
     await repository.refreshRepository();
     version = "1.1.0";
     filename = "scripts/new.js";
-    config.sourceListUrl = `${base}/migrated/index.json`;
+    await repository.updateRepository({ url: `${base}/migrated/index.json`, cdnBaseUrl: "" });
     const installed = await repository.installSource("example");
     expect(installed.scriptUrl).toBe(`${base}/migrated/scripts/new.js`);
     expect(await readFile(installed.filePath, "utf8")).toContain('version = "1.1.0"');
@@ -73,7 +73,10 @@ describe("source updates", () => {
     ]);
   });
   it("honors explicit CDN overrides", async () => {
-    config.sourceCdnBaseUrl = `${base}/cdn/`;
+    await repository.updateRepository({
+      url: `${base}/migrated/index.json`,
+      cdnBaseUrl: `${base}/cdn/`,
+    });
     expect((await repository.installSource("example")).scriptUrl).toBe(
       `${base}/cdn/scripts/new.js`,
     );

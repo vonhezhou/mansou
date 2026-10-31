@@ -60,7 +60,8 @@ export interface paths {
     };
     /** List repository sources */
     get: operations["getSourceRepository"];
-    put?: never;
+    /** Save subscription settings and refresh sources */
+    put: operations["updateSourceRepository"];
     post?: never;
     delete?: never;
     options?: never;
@@ -915,8 +916,8 @@ export interface components {
     };
     RepositorySource: {
       key?: string;
-      name?: string;
-      version?: string;
+      name: string;
+      version: string;
       url?: string;
       filename?: string;
       fileName?: string;
@@ -925,6 +926,7 @@ export interface components {
     };
     SourceRepository: {
       url: string;
+      cdnBaseUrl: string;
       sources: components["schemas"]["RepositorySource"][];
     };
     SourceSummary: {
@@ -1326,6 +1328,35 @@ export interface operations {
       cookie?: never;
     };
     requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceRepository"];
+        };
+      };
+    };
+  };
+  updateSourceRepository: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: uri */
+          url: string;
+          /** @description Empty to resolve scripts relative to the subscription URL */
+          cdnBaseUrl: string;
+        };
+      };
+    };
     responses: {
       /** @description OK */
       200: {

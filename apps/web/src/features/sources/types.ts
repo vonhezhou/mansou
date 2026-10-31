@@ -25,6 +25,7 @@ export type SourcesViewProps = {
   onCookieTextChange: (value: string) => void;
   onInstallSource: (source: string) => void;
   onUninstallSource: (source: SourceMetadata) => void;
+  onRepositorySaved: (sources: RepositorySource[]) => void;
   onRefreshRepository: () => void;
   onUpdateSource: (key: string) => void;
   onReloadSources: () => void;

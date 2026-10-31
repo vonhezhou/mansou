@@ -62,10 +62,10 @@ it("按功能展示推测依据，疑似失效不改变启用状态和配置入�
     expect(container.querySelector('[role="switch"]')?.getAttribute("aria-checked")).toBe("true");
     expect(enable).not.toHaveBeenCalled();
     const button = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === "配置",
+      (button) => button.textContent === "源设置",
     )!;
     await act(async () => button.click());
-    expect(configure).toHaveBeenCalledWith("sample");
+    expect(configure).toHaveBeenCalledWith("sample", "settings");
   } finally {
     await act(async () => root.unmount());
     container.remove();

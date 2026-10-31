@@ -9,18 +9,64 @@ import type { AppPaths } from "../storage/paths.js";
 import type { RepositorySource } from "../types/source.js";
 import { ensureDir, readJson, safeFilename, writeJson } from "../utils/fs.js";
 
+type RepositoryState = { url: string; cdnBaseUrl: string; sources: RepositorySource[] };
+
 export class SourceRepositoryService {
+  // 按顺序保存和刷新，避免较早发起的刷新覆盖新订阅。
+  private mutation = Promise.resolve();
+
+  private serialize<T>(task: () => Promise<T>): Promise<T> {
+    const result = this.mutation.then(task);
+    this.mutation = result.then(
+      () => {},
+      () => {},
+    );
+    return result;
+  }
+
   constructor(
     private readonly config: Pick<AppConfig, "sourceListUrl" | "sourceCdnBaseUrl">,
     private readonly paths: AppPaths,
     private readonly fetch: typeof globalThis.fetch,
   ) {}
-  get url() {
-    return this.config.sourceListUrl;
+  async getRepository() {
+    const saved = await readJson<RepositoryState | null>(this.paths.repositoryIndex, null);
+    return saved &&
+      typeof saved.url === "string" &&
+      typeof saved.cdnBaseUrl === "string" &&
+      Array.isArray(saved.sources)
+      ? saved
+      : { url: this.config.sourceListUrl, cdnBaseUrl: this.config.sourceCdnBaseUrl, sources: [] };
+  }
+
+  updateRepository(settings: { url: string; cdnBaseUrl: string }) {
+    return this.serialize(() => this.saveRepository(settings));
+  }
+
+  private async saveRepository(settings: { url: string; cdnBaseUrl: string }) {
+    const sources = await this.fetchSources(settings.url);
+    const state = { url: settings.url, cdnBaseUrl: settings.cdnBaseUrl, sources };
+    await ensureDir(path.dirname(this.paths.repositoryIndex));
+    const staged = `${this.paths.repositoryIndex}.${crypto.randomUUID()}.tmp`;
+    try {
+      await writeJson(staged, state);
+      await rename(staged, this.paths.repositoryIndex);
+    } finally {
+      await rm(staged, { force: true });
+    }
+    return state;
+  }
+
+  private refreshState() {
+    return this.serialize(async () => this.saveRepository(await this.getRepository()));
   }
 
   async refreshRepository() {
-    const response = await this.fetch(this.config.sourceListUrl, {
+    return (await this.refreshState()).sources;
+  }
+
+  private async fetchSources(url: string) {
+    const response = await this.fetch(url, {
       headers: { "user-agent": "mansou", "accept-encoding": "identity" },
     });
     if (!response.ok) {
@@ -39,20 +85,21 @@ export class SourceRepositoryService {
         (item.filename == null || typeof item.filename === "string") &&
         (item.fileName == null || typeof item.fileName === "string"),
     );
-    await writeJson(this.paths.repositoryIndex, list);
+    if (payload.length && !list.length) throw new Error("订阅中没有有效的漫画源条目");
     return list;
   }
 
   async getAvailableSources() {
-    return readJson<RepositorySource[]>(this.paths.repositoryIndex, []);
+    return (await this.getRepository()).sources;
   }
 
   async withAvailableUpdates<
     T extends { key: string; script_url?: string | null; version?: string | null },
   >(installed: T[]) {
-    const list = await this.getAvailableSources();
+    const repository = await this.getRepository();
+    const list = repository.sources;
     return installed.map((source) => {
-      const candidate = this.findSourceByKey(list, source.key, source.script_url);
+      const candidate = this.findSourceByKey(list, source.key, source.script_url, repository);
       let availableVersion: string | undefined;
       try {
         if (candidate && isNewerVersion(candidate.version, source.version ?? "0.0.0")) {
@@ -70,19 +117,20 @@ export class SourceRepositoryService {
     activate?: (filePath: string) => Promise<void>,
     installedScriptUrl?: string | null,
   ) {
-    const list = await this.refreshRepository();
+    const repository = await this.refreshState();
+    const list = repository.sources;
 
     const item =
       list.find(
         (source) => source.filename === sourceKeyOrName || source.fileName === sourceKeyOrName,
       ) ??
-      this.findSourceByKey(list, sourceKeyOrName, installedScriptUrl) ??
+      this.findSourceByKey(list, sourceKeyOrName, installedScriptUrl, repository) ??
       list.find((source) => source.name === sourceKeyOrName);
     if (!item) {
       throw new Error(`Source not found in repository: ${sourceKeyOrName}`);
     }
 
-    const scriptUrl = this.resolveScriptUrl(item);
+    const scriptUrl = this.resolveScriptUrl(item, repository);
     const response = await this.fetch(scriptUrl, {
       headers: { "user-agent": "mansou", "accept-encoding": "identity" },
     });
@@ -146,14 +194,22 @@ export class SourceRepositoryService {
     return readFile(filePath, "utf8");
   }
 
-  private findSourceByKey(list: RepositorySource[], key: string, scriptUrl?: string | null) {
+  private findSourceByKey(
+    list: RepositorySource[],
+    key: string,
+    scriptUrl: string | null | undefined,
+    repository: RepositoryState,
+  ) {
     const candidates = list.filter((item) => item.key === key);
     if (scriptUrl) {
       try {
         const filename = path.posix.basename(new URL(scriptUrl).pathname);
         const variant = candidates.find((item) => {
           try {
-            return path.posix.basename(new URL(this.resolveScriptUrl(item)).pathname) === filename;
+            return (
+              path.posix.basename(new URL(this.resolveScriptUrl(item, repository)).pathname) ===
+              filename
+            );
           } catch {
             return false;
           }
@@ -166,13 +222,13 @@ export class SourceRepositoryService {
     return candidates[0];
   }
 
-  private resolveScriptUrl(item: RepositorySource) {
-    if (item.url) return new URL(item.url, this.config.sourceListUrl).toString();
+  private resolveScriptUrl(item: RepositorySource, repository: RepositoryState) {
+    if (item.url) return new URL(item.url, repository.url).toString();
     const filename = item.filename ?? item.fileName;
     if (!filename) {
       throw new Error(`Source has neither url nor filename: ${item.name}`);
     }
-    return new URL(filename, this.config.sourceCdnBaseUrl || this.config.sourceListUrl).toString();
+    return new URL(filename, repository.cdnBaseUrl || repository.url).toString();
   }
 
   private resolveScriptFileName(item: RepositorySource) {

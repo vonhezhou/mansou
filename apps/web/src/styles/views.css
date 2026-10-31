@@ -1056,3 +1056,134 @@
   background: var(--color-surface);
   color: var(--color-primary);
 }
+
+/* 源配置使用逐行表单，长标题与动态选项保持稳定对齐。 */
+.app-dialog .current-source-panel {
+  margin-top: 0;
+  background: transparent;
+}
+.current-source-panel .current-source-sections {
+  gap: 24px;
+  margin-top: 0;
+}
+.source-config-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--color-border);
+}
+.source-config-key {
+  color: var(--color-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.source-config-heading p {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+.source-config-heading button {
+  flex-shrink: 0;
+}
+.app-dialog .source-settings-panel {
+  background: transparent;
+}
+.source-settings-panel h3 {
+  margin-bottom: 6px;
+  font-size: 15px;
+}
+.source-settings-panel > .muted {
+  margin: 0 0 18px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.source-setting-fields {
+  display: grid;
+}
+.source-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-width: 0;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+}
+.source-setting-row:first-child {
+  padding-top: 0;
+}
+.source-setting-row > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.source-setting-row > input:not([type="checkbox"]),
+.source-setting-row > select {
+  flex: 0 1 55%;
+  width: 55%;
+  min-width: 0;
+}
+.source-setting-row > input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+}
+.source-config-disclosure {
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-soft);
+}
+.source-config-disclosure > summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.source-config-disclosure[open] > summary {
+  margin-bottom: 16px;
+}
+.source-config-disclosure .source-panel {
+  margin: 0;
+  background: transparent;
+}
+.source-settings-advanced {
+  margin-top: 20px;
+}
+.source-settings-advanced label {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.source-settings-advanced textarea {
+  min-height: 160px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.source-settings-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+@media (max-width: 480px) {
+  .source-setting-row:has(> input:not([type="checkbox"])),
+  .source-setting-row:has(> select) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .source-setting-row > input:not([type="checkbox"]),
+  .source-setting-row > select {
+    width: 100%;
+  }
+}
+.current-source-panel .source-operation-status:empty,
+.source-settings-panel .source-operation-status:empty {
+  display: none;
+}

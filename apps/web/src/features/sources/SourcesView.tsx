@@ -1,34 +1,20 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { AppDialog } from "../../app/AppDialog.js";
 import { Icon } from "../../app/Icon.js";
 import { CurrentSourcePanel } from "./CurrentSourcePanel.js";
 import { InstalledSourcesList } from "./InstalledSourcesList.js";
+import { SubscriptionSettings } from "./SubscriptionSettings.js";
 import { SourceRepositoryPanel } from "./SourceRepositoryPanel.js";
 import type { SourcesViewProps } from "./types.js";
 
 export function SourcesView(props: SourcesViewProps) {
+  const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [repositoryOpen, setRepositoryOpen] = useState(false);
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
-  const settingsRef = useRef<HTMLDetailsElement>(null);
-  const sourceSelectRef = useRef<HTMLSelectElement>(null);
-  const focusTarget = useRef<"settings" | null>(null);
-  useLayoutEffect(() => {
-    if (props.busy) return;
-    if (focusTarget.current === "settings") {
-      sourceSelectRef.current?.focus({ preventScroll: true });
-    }
-    focusTarget.current = null;
-  }, [settingsLoaded, props.busy]);
+  const [sourceDialog, setSourceDialog] = useState<"settings" | "cookies" | null>(null);
   const enabledSources = props.sourceMetadata.filter(
     (source) => source.enabled === true || source.enabled === 1,
   ).length;
-
-  function configureSource(key: string) {
-    props.onSourceChange(key);
-    const source = props.sourceMetadata.find((source) => source.key === key);
-    if (source?.enabled === true || source?.enabled === 1) props.onLoadSourceSettings(key);
-  }
 
   return (
     <section className="inner-page source-tools">
@@ -41,16 +27,26 @@ export function SourcesView(props: SourcesViewProps) {
             {enabledSources} 个。
           </p>
         </div>
-        <button className="button-with-icon" onClick={() => setRepositoryOpen(true)}>
-          <Icon name="plus" size={17} />
-          安装漫画源
-        </button>
+        <div className="actions">
+          <button className="secondary-button" onClick={() => setSubscriptionOpen(true)}>
+            管理订阅
+          </button>
+          <button className="button-with-icon" onClick={() => setRepositoryOpen(true)}>
+            <Icon name="plus" size={17} />
+            安装漫画源
+          </button>
+        </div>
       </header>
       <div className="source-operation-status">
         {props.operation && !props.operation.sourceKey && (
           <LoadingStatus label={props.operation.label} />
         )}
       </div>
+      {subscriptionOpen && (
+        <AppDialog title="管理漫画源订阅" onClose={() => setSubscriptionOpen(false)}>
+          <SubscriptionSettings busy={props.busy} onSaved={props.onRepositorySaved} />
+        </AppDialog>
+      )}
       {repositoryOpen && (
         <AppDialog title="安装漫画源" wide onClose={() => setRepositoryOpen(false)}>
           {props.error && (
@@ -81,35 +77,27 @@ export function SourcesView(props: SourcesViewProps) {
         onSetSourceEnabled={props.onSetSourceEnabled}
         onUpdateSource={props.onUpdateSource}
         onUninstallSource={props.onUninstallSource}
-        onConfigureSource={(key) => {
-          configureSource(key);
-          if (settingsRef.current) {
-            focusTarget.current = settingsLoaded ? null : "settings";
-            setSettingsLoaded(true);
-            settingsRef.current.open = true;
-            sourceSelectRef.current?.focus({ preventScroll: true });
-            settingsRef.current.scrollIntoView({ block: "start" });
+        onConfigureSource={(key, mode) => {
+          if (key !== props.sourceKey) props.onSourceChange(key);
+          const source = props.sourceMetadata.find((source) => source.key === key);
+          if (mode === "settings" && (source?.enabled === true || source?.enabled === 1)) {
+            props.onLoadSourceSettings(key);
           }
+          setSourceDialog(mode);
         }}
       />
-      <details
-        className="disclosure"
-        ref={settingsRef}
-        onToggle={(event) => {
-          if (event.currentTarget.open) setSettingsLoaded(true);
-        }}
-      >
-        <summary>
-          <span className="summary-icon" aria-hidden="true">
-            <Icon name="settings" />
-          </span>
-          <span>
-            源设置与 Cookie<small>管理单个源的连接和访问配置</small>
-          </span>
-        </summary>
-        {settingsLoaded && (
+      {sourceDialog && (
+        <AppDialog
+          title={`${props.sourceMetadata.find((source) => source.key === props.sourceKey)?.name ?? props.sourceKey} · ${sourceDialog === "settings" ? "源设置与账号" : "Cookie"}`}
+          onClose={() => setSourceDialog(null)}
+        >
+          {props.error && (
+            <p className="alert" role="alert">
+              {props.error}
+            </p>
+          )}
           <CurrentSourcePanel
-            selectRef={sourceSelectRef}
+            mode={sourceDialog}
             busy={props.busy}
             sourceKey={props.sourceKey}
             sourceMetadata={props.sourceMetadata}
@@ -118,7 +106,6 @@ export function SourcesView(props: SourcesViewProps) {
             settingsJson={props.settingsJson}
             cookieUrl={props.cookieUrl}
             cookieText={props.cookieText}
-            onSourceChange={configureSource}
             onSettingsJsonChange={props.onSettingsJsonChange}
             onCookieUrlChange={props.onCookieUrlChange}
             onCookieTextChange={props.onCookieTextChange}
@@ -129,8 +116,8 @@ export function SourcesView(props: SourcesViewProps) {
             onImportCookies={props.onImportCookies}
             onClearCookies={props.onClearCookies}
           />
-        )}
-      </details>
+        </AppDialog>
+      )}
     </section>
   );
 }

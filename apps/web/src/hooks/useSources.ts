@@ -215,6 +215,7 @@ export function useSources(
     managedSourceKey,
     changeManagedSource,
     availableSources,
+    setAvailableSources,
     cookieText,
     cookieUrl,
     managingSources,

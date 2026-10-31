@@ -1,3 +1,4 @@
+import type { components } from "@mansou/contracts";
 import { api, apiBase } from "./client.js";
 import type {
   AggregatedSearchItem,
@@ -52,6 +53,12 @@ export const mansouApi = {
   listAvailableSources: () => api<RepositorySource[]>("/sources/available"),
   installSource: (source: string) =>
     api("/sources/install", { method: "POST", body: JSON.stringify({ source }) }),
+  getSourceRepository: () => api<components["schemas"]["SourceRepository"]>("/source-repository"),
+  updateSourceRepository: (settings: { url: string; cdnBaseUrl: string }) =>
+    api<components["schemas"]["SourceRepository"]>("/source-repository", {
+      method: "PUT",
+      body: JSON.stringify(settings),
+    }),
   refreshRepository: () =>
     api<{ sources: RepositorySource[] }>("/source-repository/refresh", { method: "POST" }),
   uninstallSource: (key: string) =>

@@ -61,6 +61,20 @@ async function click(selector: string) {
 }
 beforeEach(async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  Object.defineProperties(HTMLDialogElement.prototype, {
+    showModal: {
+      configurable: true,
+      value: function (this: HTMLDialogElement) {
+        this.open = true;
+      },
+    },
+    close: {
+      configurable: true,
+      value: function (this: HTMLDialogElement) {
+        this.open = false;
+      },
+    },
+  });
   vi.stubGlobal("EventSource", TestEventSource);
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   window.history.replaceState(null, "", "/#search");
@@ -123,31 +137,25 @@ it("keeps source management independent of progress without losing its input sta
   expect(container.querySelector(".current-source-panel")).toBeNull();
   expect(container.querySelector(".repository-panel")).toBeNull();
   expect(mansouApi.getSourceAuth).not.toHaveBeenCalled();
-  const settings = [...container.querySelectorAll<HTMLDetailsElement>(".disclosure")].find(
-    (element) => element.querySelector("summary")?.textContent?.includes("源设置与 Cookie"),
-  )!;
+  await click(".installed-source-grid .source-actions button:nth-child(2)");
+  const cookieUrl = container.querySelector<HTMLInputElement>(".current-source-panel input")!;
   await act(async () => {
-    settings.open = true;
-    settings.dispatchEvent(new Event("toggle"));
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+      cookieUrl,
+      "https://example.com",
+    );
+    cookieUrl.dispatchEvent(new Event("input", { bubbles: true }));
   });
-  expect(mansouApi.getSourceAuth).toHaveBeenCalledOnce();
-  // 收起后保留已挂载内容，再展开不重复加载账号或丢失输入。
-  await act(async () => {
-    settings.open = false;
-    settings.dispatchEvent(new Event("toggle"));
-  });
-  await act(async () => {
-    settings.open = true;
-    settings.dispatchEvent(new Event("toggle"));
-  });
-  expect(mansouApi.getSourceAuth).toHaveBeenCalledOnce();
   renders.sources.mockClear();
-  const select = container.querySelector(".current-source-panel select");
   await snapshot("running", 30);
   await snapshot("paused", 30);
   expect(renders.sources).not.toHaveBeenCalled();
-  expect(container.querySelector(".current-source-panel select")).toBe(select);
-  expect(container.querySelector<HTMLSelectElement>(".current-source-panel select")?.value).toBe(
-    "mock",
+  expect(container.querySelector(".current-source-panel input")).toBe(cookieUrl);
+  expect(cookieUrl.value).toBe("https://example.com");
+  await click('[aria-label="关闭Mock · Cookie"]');
+  await click(".installed-source-grid .source-actions button:nth-child(2)");
+  expect(container.querySelector<HTMLInputElement>(".current-source-panel input")?.value).toBe(
+    "https://example.com",
   );
+  expect(mansouApi.getSourceAuth).not.toHaveBeenCalled();
 });

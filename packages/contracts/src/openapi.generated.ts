@@ -67,6 +67,38 @@ export const openApiDocument = {
           },
         },
       },
+      put: {
+        operationId: "updateSourceRepository",
+        tags: ["sourceRepository"],
+        summary: "Save subscription settings and refresh sources",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["url", "cdnBaseUrl"],
+                properties: {
+                  url: { type: "string", format: "uri", pattern: "^https?://" },
+                  cdnBaseUrl: {
+                    type: "string",
+                    description: "Empty to resolve scripts relative to the subscription URL",
+                    pattern: "^https?://|^$",
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/SourceRepository" } },
+            },
+          },
+        },
+      },
     },
     "/api/v1/source-repository/refresh": {
       post: {
@@ -1325,6 +1357,7 @@ export const openApiDocument = {
         required: ["error"],
       },
       RepositorySource: {
+        required: ["name", "version"],
         type: "object",
         additionalProperties: true,
         properties: {
@@ -1340,9 +1373,10 @@ export const openApiDocument = {
         type: "object",
         properties: {
           url: { type: "string" },
+          cdnBaseUrl: { type: "string" },
           sources: { type: "array", items: { $ref: "#/components/schemas/RepositorySource" } },
         },
-        required: ["url", "sources"],
+        required: ["url", "cdnBaseUrl", "sources"],
       },
       SourceSummary: {
         type: "object",

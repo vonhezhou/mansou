@@ -159,7 +159,7 @@ it("discards a late dialog response after switching away without changing anothe
 });
 
 it("preserves unsaved settings through refresh and cancellation and restores the initiating button's focus", async () => {
-  const field = container.querySelector<HTMLInputElement>(".settings-grid input")!;
+  const field = container.querySelector<HTMLInputElement>(".source-setting-fields input")!;
   await act(async () => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
       field,

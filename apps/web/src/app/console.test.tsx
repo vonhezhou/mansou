@@ -1,6 +1,7 @@
 import { act, useState, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { mansouApi } from "../api/mansou.js";
 import { AppShell } from "./AppShell.js";
 import type { TabKey } from "./navigation.js";
 import { SearchResults } from "../features/search/SearchResults.js";
@@ -211,9 +212,16 @@ it.each(["flat", "grouped"] as const)(
 );
 
 it("opens the selected source configuration without mixing it with repository installation", async () => {
+  vi.spyOn(mansouApi, "getSourceRepository").mockResolvedValue({
+    url: "https://example.com/index.json",
+    cdnBaseUrl: "",
+    sources: [],
+  });
   const changeSource = vi.fn();
   const install = vi.fn();
   const enabled = vi.fn();
+  const importCookies = vi.fn();
+  const loadSettings = vi.fn();
   const metadata = [
     { key: "a", name: "源 A", enabled: true },
     { key: "b", name: "源 B", enabled: false },
@@ -240,13 +248,14 @@ it("opens the selected source configuration without mixing it with repository in
       onCookieTextChange: vi.fn(),
       onInstallSource: install,
       onUninstallSource: vi.fn(),
+      onRepositorySaved: vi.fn(),
       onRefreshRepository: vi.fn(),
       onUpdateSource: vi.fn(),
       onReloadSources: vi.fn(),
-      onLoadSourceSettings: vi.fn(),
+      onLoadSourceSettings: loadSettings,
       onSaveSourceSettings: vi.fn(),
       onResetSourceSettings: vi.fn(),
-      onImportCookies: vi.fn(),
+      onImportCookies: importCookies,
       onClearCookies: vi.fn(),
     };
     return <SourcesView {...props} />;
@@ -255,15 +264,23 @@ it("opens the selected source configuration without mixing it with repository in
   const cards = container.querySelectorAll(".installed-source-grid article");
   await click(cards[1]?.querySelector(".source-actions button"));
   expect(changeSource).toHaveBeenCalledWith("b");
-  expect(container.querySelector<HTMLSelectElement>(".current-source-panel select")?.value).toBe(
-    "b",
-  );
-  expect(container.querySelector(".current-source-panel")?.closest("details")?.open).toBe(true);
+  expect(container.querySelector(".current-source-panel select")).toBeNull();
+  expect(container.querySelector(".current-source-panel")?.closest("dialog")?.open).toBe(true);
   expect(container.querySelector(".repository-panel")).toBeNull();
   expect(container.querySelector(".current-source-panel")?.textContent).toContain("此源已禁用");
   expect(container.querySelector(".current-source-panel")?.textContent).not.toContain("Cookie：b");
   await click(cards[1]?.querySelector('[role="switch"]'));
   expect(enabled).toHaveBeenCalledWith(metadata[1], true);
+  await click(container.querySelector('[aria-label="关闭源 B · 源设置与账号"]'));
+  await click(cards[0]?.querySelectorAll(".source-actions button")[1]);
+  expect(changeSource).toHaveBeenLastCalledWith("a");
+  expect(loadSettings).not.toHaveBeenCalled();
+  expect(container.querySelector("dialog")?.textContent).toContain("Cookie：a");
+  expect(container.querySelector("dialog form")).toBeNull();
+  await click(container.querySelector('[aria-label="关闭源 A · Cookie"]'));
+  await click(button("管理订阅"));
+  expect(container.querySelector("dialog")?.textContent).toContain("订阅地址");
+  await click(container.querySelector('[aria-label="关闭管理漫画源订阅"]'));
   await click(button("安装漫画源"));
   expect(container.querySelector<HTMLDialogElement>("dialog")?.open).toBe(true);
   expect(container.querySelector(".repository-panel")?.closest("dialog")).not.toBeNull();

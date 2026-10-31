@@ -27,12 +27,12 @@ export function SourceSettingsPanel(props: SourceSettingsPanelProps) {
     );
     savedValues.current = result.values;
   });
-  const title = `源设置：${props.sourceKey || "未选择"}`;
+  const title = "源提供的设置";
   if (!props.sourceSettings || props.sourceSettingsKey !== props.sourceKey)
     return (
-      <section className="source-panel">
+      <section className="source-panel source-settings-panel">
         <h3>{title}</h3>
-        <p className="muted">选择当前操作源后点击“加载设置”。</p>
+        <p className="muted">设置尚未加载，请点击“加载设置”重试。</p>
       </section>
     );
   let values: Record<string, unknown> = {};
@@ -49,8 +49,9 @@ export function SourceSettingsPanel(props: SourceSettingsPanelProps) {
     props.onSettingsJsonChange(JSON.stringify({ ...values, [key]: value }, null, 2));
   }
   return (
-    <section className="source-panel">
+    <section className="source-panel source-settings-panel">
       <h3>{title}</h3>
+      <p className="muted">以下选项由漫画源提供，不同源的可配置内容可能不同。</p>
       <div className="source-operation-status">
         {actions.busy && <LoadingStatus label="正在执行源设置操作…" />}
       </div>
@@ -72,12 +73,12 @@ export function SourceSettingsPanel(props: SourceSettingsPanelProps) {
           props.onSaveSourceSettings();
         }}
       >
-        <div className="settings-grid">
+        <div className="source-setting-fields">
           {Object.entries(props.sourceSettings.schema).map(([key, field]) => {
             const value = values[key] ?? field.default;
             if (field.type === "callback")
               return (
-                <div key={key}>
+                <div className="source-setting-row" key={key}>
                   <span>{field.title ?? key}</span>
                   <button
                     type="button"
@@ -90,14 +91,14 @@ export function SourceSettingsPanel(props: SourceSettingsPanelProps) {
               );
             if (field.type === "switch")
               return (
-                <label key={key}>
+                <label className="source-setting-row" key={key}>
+                  <span>{field.title ?? key}</span>
                   <input
                     type="checkbox"
                     disabled={busy || invalidJson}
                     checked={Boolean(value)}
                     onChange={(event) => update(key, event.target.checked)}
                   />
-                  {field.title ?? key}
                 </label>
               );
             if (field.type === "select") {
@@ -105,8 +106,8 @@ export function SourceSettingsPanel(props: SourceSettingsPanelProps) {
                 typeof option === "string" ? { value: option, text: option } : option,
               );
               return (
-                <label key={key}>
-                  {field.title ?? key}
+                <label className="source-setting-row" key={key}>
+                  <span>{field.title ?? key}</span>
                   <select
                     disabled={busy || invalidJson}
                     value={JSON.stringify(value) ?? ""}
@@ -125,8 +126,8 @@ export function SourceSettingsPanel(props: SourceSettingsPanelProps) {
               );
             }
             return (
-              <label key={key}>
-                {field.title ?? key}
+              <label className="source-setting-row" key={key}>
+                <span>{field.title ?? key}</span>
                 <input
                   disabled={busy || invalidJson}
                   value={String(value ?? "")}
@@ -139,11 +140,12 @@ export function SourceSettingsPanel(props: SourceSettingsPanelProps) {
         {!Object.keys(props.sourceSettings.schema).length && (
           <p className="muted">此源没有可配置项。</p>
         )}
-        <details>
+        <details className="source-config-disclosure source-settings-advanced">
           <summary>高级：编辑设置 JSON</summary>
           <label>
             源设置 JSON
             <textarea
+              spellCheck={false}
               value={props.settingsJson}
               disabled={busy}
               onChange={(event) => props.onSettingsJsonChange(event.target.value)}
@@ -151,16 +153,16 @@ export function SourceSettingsPanel(props: SourceSettingsPanelProps) {
           </label>
         </details>
         {invalidJson && <p role="alert">设置必须是有效的 JSON 对象。</p>}
-        <div className="actions">
-          <button disabled={busy || invalidJson}>保存设置</button>
+        <div className="source-settings-footer">
           <button
             type="button"
-            className="danger"
+            className="secondary-button danger-subtle"
             onClick={props.onResetSourceSettings}
             disabled={busy}
           >
             恢复默认
           </button>
+          <button disabled={busy || invalidJson}>保存设置</button>
         </div>
       </form>
     </section>

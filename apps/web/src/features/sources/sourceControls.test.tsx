@@ -1,6 +1,7 @@
 import { act, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
+import { SubscriptionSettings } from "./SubscriptionSettings.js";
 import { CurrentSourcePanel } from "./CurrentSourcePanel.js";
 import { SourceAccountPanel } from "./SourceAccountPanel.js";
 import { SourceSettingsPanel } from "./SourceSettingsPanel.js";
@@ -220,21 +221,67 @@ it("blocks disabled-source settings and account requests until the source is ena
     onImportCookies: vi.fn(),
     onClearCookies: vi.fn(),
   };
-  await render(<CurrentSourcePanel {...props} />);
+  await render(<CurrentSourcePanel mode="cookies" {...props} />);
   expect(auth).not.toHaveBeenCalled();
   expect(container.textContent).toContain("此源已禁用");
-  const loadButton = [...container.querySelectorAll("button")].find(
-    (button) => button.textContent === "加载设置",
-  )!;
-  expect(loadButton.disabled).toBe(true);
   await act(async () =>
     [...container.querySelectorAll("button")]
       .find((button) => button.textContent === "启用此源")!
       .click(),
   );
   expect(enable).toHaveBeenCalledWith(source);
-  await render(<CurrentSourcePanel {...props} sourceMetadata={[{ ...source, enabled: true }]} />);
-  expect(auth).toHaveBeenCalledWith("one");
+  await render(
+    <CurrentSourcePanel
+      mode="cookies"
+      {...props}
+      sourceMetadata={[{ ...source, enabled: true }]}
+    />,
+  );
+  expect(auth).not.toHaveBeenCalled();
   expect(container.textContent).not.toContain("此源已禁用");
   expect(container.textContent).toContain("Cookie：one");
+  await render(
+    <CurrentSourcePanel
+      {...props}
+      mode="settings"
+      sourceMetadata={[{ ...source, enabled: true }]}
+    />,
+  );
+  expect(auth).toHaveBeenCalledWith("one");
+  expect(container.textContent).not.toContain("Cookie：one");
+});
+
+it("loads and saves the subscription, updates the list and preserves the draft on failure", async () => {
+  const original = { url: "https://old.example/index.json", cdnBaseUrl: "", sources: [] };
+  vi.spyOn(mansouApi, "getSourceRepository").mockResolvedValue(original);
+  const response = deferred<typeof original>();
+  const save = vi
+    .spyOn(mansouApi, "updateSourceRepository")
+    .mockReturnValueOnce(response.promise)
+    .mockResolvedValueOnce({ ...original, url: "https://new.example/index.json" });
+  const saved = vi.fn();
+  await render(<SubscriptionSettings busy={false} onSaved={saved} />);
+  const url = container.querySelector<HTMLInputElement>('input[type="url"]')!;
+  expect(url.value).toBe(original.url);
+  await input(url, "https://new.example/index.json");
+  const submit = () =>
+    container
+      .querySelector("form")!
+      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  await act(async () => {
+    submit();
+    submit();
+  });
+  expect(save).toHaveBeenCalledOnce();
+  expect(save).toHaveBeenCalledWith({ url: "https://new.example/index.json", cdnBaseUrl: "" });
+  expect(container.querySelector("button")!.disabled).toBe(true);
+  await act(async () => response.reject(new Error("订阅不可用")));
+  expect(container.textContent).toContain("订阅不可用");
+  expect(url.value).toBe("https://new.example/index.json");
+  expect(saved).not.toHaveBeenCalled();
+  await act(async () => {
+    submit();
+  });
+  expect(saved).toHaveBeenCalledWith([]);
+  expect(container.textContent).toContain("订阅已保存");
 });
