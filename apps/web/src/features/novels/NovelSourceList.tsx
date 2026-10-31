@@ -10,6 +10,7 @@ type Props = {
 };
 const pageSize = 50;
 export function NovelSourceList({ state, busy, run, onChange, onEdit }: Props) {
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [query, setQuery] = useState("");
   const [capability, setCapability] = useState("all");
   const [enabled, setEnabled] = useState("all");
@@ -27,24 +28,27 @@ export function NovelSourceList({ state, busy, run, onChange, onEdit }: Props) {
     setPage(1);
     setSelected(new Set());
     setNotice("");
-  }, [query, capability, enabled, group]);
+  }, [query, capability, enabled, group, favoritesOnly]);
   const groups = useMemo(
     () => new Map(state.subscriptions.map((item) => [item.id, item.name])),
     [state.subscriptions],
   );
   const filtered = useMemo(
     () =>
-      state.sources.filter(
-        (source) =>
-          `${source.name} ${source.url}`.toLowerCase().includes(query.trim().toLowerCase()) &&
-          (capability === "all" ||
-            (capability === "supported"
-              ? source.searchSupported && source.downloadSupported
-              : !source.downloadSupported)) &&
-          (enabled === "all" || source.enabled === (enabled === "enabled")) &&
-          (group === "all" || source.groupId === group),
-      ),
-    [state.sources, query, capability, enabled, group],
+      state.sources
+        .filter(
+          (source) =>
+            `${source.name} ${source.url}`.toLowerCase().includes(query.trim().toLowerCase()) &&
+            (capability === "all" ||
+              (capability === "supported"
+                ? source.searchSupported && source.downloadSupported
+                : !source.downloadSupported)) &&
+            (enabled === "all" || source.enabled === (enabled === "enabled")) &&
+            (group === "all" || source.groupId === group) &&
+            (!favoritesOnly || source.favorite),
+        )
+        .sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite)),
+    [state.sources, query, capability, enabled, group, favoritesOnly],
   );
   const ids = useMemo(() => new Set(filtered.map((source) => source.id)), [filtered]);
   const selection = [...selected].filter((id) => ids.has(id));
@@ -164,6 +168,18 @@ export function NovelSourceList({ state, busy, run, onChange, onEdit }: Props) {
           </select>
         </label>
       </div>
+      <label className="novel-checkbox source-favorite-filter">
+        <input
+          type="checkbox"
+          checked={favoritesOnly}
+          disabled={busy}
+          onChange={(event) => setFavoritesOnly(event.target.checked)}
+        />
+        仅看收藏（{state.sources.filter((source) => source.favorite).length}）
+      </label>
+      <p className="muted">
+        收藏优先显示；订阅更新会保留收藏，收藏源从订阅消失时保留最后一次规则。
+      </p>
       <p className="muted">
         “支持”表示规则在当前实现范围内，不代表站点实时可用。订阅源编辑后另存为自定义源。
       </p>
@@ -248,6 +264,9 @@ export function NovelSourceList({ state, busy, run, onChange, onEdit }: Props) {
               <strong>{source.name}</strong>
               <span className="muted">{groups.get(source.groupId)}</span>
               <span className="novel-url">{source.url}</span>
+              {source.missingFromSubscription && (
+                <span className="muted">已从订阅移除，保留收藏规则（可能已失效）</span>
+              )}
             </div>
             <button
               className="source-switch"
@@ -270,6 +289,19 @@ export function NovelSourceList({ state, busy, run, onChange, onEdit }: Props) {
               </span>
             </div>
             <div className="source-actions">
+              <button
+                className="secondary-button"
+                aria-label={`${source.favorite ? "取消收藏" : "收藏"} ${source.name}`}
+                aria-pressed={!!source.favorite}
+                disabled={busy}
+                onClick={() =>
+                  void run(async () =>
+                    onChange(await novelApi.favorite(source.id, !source.favorite)),
+                  )
+                }
+              >
+                {source.favorite ? "★ 已收藏" : "☆ 收藏"}
+              </button>
               <button
                 className="secondary-button"
                 disabled={busy}

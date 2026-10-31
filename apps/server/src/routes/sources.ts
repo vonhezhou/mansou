@@ -28,6 +28,12 @@ export async function registerSourceRoutes(
     return context.sources.uninstall(params.sourceKey);
   });
 
+  app.put("/sources/:sourceKey/favorite", async (request) => {
+    const { sourceKey } = z.object({ sourceKey: z.string().min(1) }).parse(request.params);
+    const { favorite } = z.object({ favorite: z.boolean() }).parse(request.body);
+    return context.sources.setFavorite(sourceKey, favorite);
+  });
+
   app.put("/sources/:sourceKey/enabled", async (request, reply) => {
     const params = z.object({ sourceKey: z.string() }).parse(request.params);
     const body = z.object({ enabled: z.boolean() }).parse(request.body);

@@ -49,6 +49,11 @@ export function downloadsEventUrl() {
 export const mansouApi = {
   health: () => api<Health>("/health"),
   listInstalledSources: () => api<Source[]>("/sources/installed"),
+  setSourceFavorite: (key: string, favorite: boolean) =>
+    api<SourceMetadata>(`/sources/${encodeURIComponent(key)}/favorite`, {
+      method: "PUT",
+      body: JSON.stringify({ favorite }),
+    }),
   listSourceMetadata: () => api<SourceMetadata[]>("/sources/metadata"),
   listAvailableSources: () => api<RepositorySource[]>("/sources/available"),
   installSource: (source: string) =>

@@ -108,6 +108,11 @@ class AppStorage {
     return this.getSource(key);
   }
 
+  setSourceFavorite(key: string, favorite: boolean) {
+    this.db.prepare("update sources set favorite = ? where key = ?").run(favorite ? 1 : 0, key);
+    return this.getSource(key);
+  }
+
   deleteSource(key: string) {
     this.db.transaction(() => {
       this.db.prepare("delete from source_settings where source_key = ?").run(key);
@@ -443,6 +448,14 @@ function migrate(db: Database.Database) {
           primary key(kind, id)
         );
         insert into schema_migrations(version, applied_at) values (7, datetime('now'));
+      `);
+    })();
+  }
+  if (version < 8) {
+    db.transaction(() => {
+      db.exec(`
+        alter table sources add column favorite integer not null default 0;
+        insert into schema_migrations(version, applied_at) values (8, datetime('now'));
       `);
     })();
   }

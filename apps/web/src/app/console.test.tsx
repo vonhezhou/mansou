@@ -243,6 +243,7 @@ it("opens the selected source configuration without mixing it with repository in
         changeSource(value);
         setKey(value);
       },
+      onSetSourceFavorite: vi.fn(),
       onSetSourceEnabled: enabled,
       onSettingsJsonChange: vi.fn(),
       onCookieUrlChange: vi.fn(),
@@ -263,7 +264,11 @@ it("opens the selected source configuration without mixing it with repository in
   }
   await render(<Harness />);
   const cards = container.querySelectorAll(".installed-source-grid article");
-  await click(cards[1]?.querySelector(".source-actions button"));
+  await click(
+    [...cards[1]!.querySelectorAll(".source-actions button")].find(
+      (button) => button.textContent === "源设置",
+    ),
+  );
   expect(changeSource).toHaveBeenCalledWith("b");
   expect(container.querySelector(".current-source-panel select")).toBeNull();
   expect(container.querySelector(".current-source-panel")?.closest("dialog")?.open).toBe(true);
@@ -273,7 +278,11 @@ it("opens the selected source configuration without mixing it with repository in
   await click(cards[1]?.querySelector('[role="switch"]'));
   expect(enabled).toHaveBeenCalledWith(metadata[1], true);
   await click(container.querySelector('[aria-label="关闭源 B · 源设置与账号"]'));
-  await click(cards[0]?.querySelectorAll(".source-actions button")[1]);
+  await click(
+    [...cards[0]!.querySelectorAll(".source-actions button")].find(
+      (button) => button.textContent === "Cookie",
+    ),
+  );
   expect(changeSource).toHaveBeenLastCalledWith("a");
   expect(loadSettings).not.toHaveBeenCalled();
   expect(container.querySelector("dialog")?.textContent).toContain("Cookie：a");

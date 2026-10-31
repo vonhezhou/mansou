@@ -44,6 +44,7 @@ export type DownloadItem = {
   updated_at: string;
 };
 export type SourceRecord = {
+  favorite: number;
   key: string;
   name: string;
   version: string | null;

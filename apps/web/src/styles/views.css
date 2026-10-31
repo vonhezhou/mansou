@@ -433,6 +433,17 @@
   padding-block: 10px;
   border-bottom: 1px solid var(--color-border);
 }
+.source-tools .source-favorite-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.source-favorite-filter input {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
 .source-actions {
   grid-column: 1 / -1;
   display: flex;

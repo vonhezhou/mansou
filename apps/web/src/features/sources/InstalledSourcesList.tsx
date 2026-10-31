@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { SourceMetadata } from "../../types.js";
 
 import type { SourceOperation } from "./types.js";
@@ -10,19 +11,33 @@ type InstalledSourcesListProps = {
   onConfigureSource: (key: string, mode: "settings" | "cookies") => void;
   onUninstallSource: (source: SourceMetadata) => void;
   onUpdateSource: (key: string) => void;
+  onSetSourceFavorite: (source: SourceMetadata, favorite: boolean) => void;
   onSetSourceEnabled: (source: SourceMetadata, enabled: boolean) => void;
 };
 
 export function InstalledSourcesList(props: InstalledSourcesListProps) {
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const sources = props.sourceMetadata
+    .filter((source) => !favoritesOnly || source.favorite)
+    .sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite));
   return (
     <section className="installed-sources">
       <div className="section-heading">
         <h3>已安装源</h3>
         <span className="count-badge">{props.sourceMetadata.length}</span>
       </div>
-      {props.sourceMetadata.length > 0 ? (
+      <label className="source-favorite-filter">
+        <input
+          type="checkbox"
+          checked={favoritesOnly}
+          onChange={(event) => setFavoritesOnly(event.target.checked)}
+        />
+        仅看收藏（{props.sourceMetadata.filter((source) => source.favorite).length}）
+      </label>
+      <p className="muted">收藏优先显示，更新和重载会保留收藏。</p>
+      {sources.length > 0 ? (
         <div className="source-list installed-source-grid">
-          {props.sourceMetadata.map((source) => {
+          {sources.map((source) => {
             const enabled = source.enabled === true || source.enabled === 1;
             const pending = props.operation?.sourceKey === source.key ? props.operation : null;
             const switching = pending?.kind === "enable" || pending?.kind === "disable";
@@ -99,13 +114,22 @@ export function InstalledSourcesList(props: InstalledSourcesListProps) {
                       {pending?.kind === "uninstall" ? "卸载中…" : "卸载"}
                     </button>
                   )}
+                  <button
+                    className="secondary-button"
+                    aria-label={`${source.favorite ? "取消收藏" : "收藏"} ${source.name}`}
+                    aria-pressed={!!source.favorite}
+                    disabled={props.busy}
+                    onClick={() => props.onSetSourceFavorite(source, !source.favorite)}
+                  >
+                    {source.favorite ? "★ 已收藏" : "☆ 收藏"}
+                  </button>
                 </div>
               </article>
             );
           })}
         </div>
       ) : (
-        <p className="muted">暂无已安装源。</p>
+        <p className="muted">{favoritesOnly ? "暂无收藏的漫画源。" : "暂无已安装源。"}</p>
       )}
     </section>
   );

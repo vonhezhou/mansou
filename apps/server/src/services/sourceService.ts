@@ -128,7 +128,14 @@ export class SourceService implements SourceRegistry {
           );
         }
       } else await this.manager.unload(key);
-      return this.storage.setSourceEnabled(key, enabled);
+      return { ...this.storage.setSourceEnabled(key, enabled)!, favorite: source.favorite === 1 };
+    });
+  }
+  setFavorite(key: string, favorite: boolean) {
+    return this.mutate(async () => {
+      if (!this.storage.getSource(key)) throw new AppError("SOURCE_NOT_FOUND", "漫画源不存在");
+      this.storage.setSourceFavorite(key, favorite);
+      return (await this.metadata()).find((source) => source.key === key)!;
     });
   }
   uninstall(key: string) {
@@ -154,6 +161,7 @@ export class SourceService implements SourceRegistry {
     return this.repository.withAvailableUpdates(
       this.storage.listSources().map((source) => ({
         ...source,
+        favorite: source.favorite === 1,
         canUninstall: this.repository.canUninstall(source.script_path),
         health: this.manager.health(source.key),
       })),

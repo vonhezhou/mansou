@@ -317,6 +317,34 @@ export const openApiDocument = {
         },
       },
     },
+    "/api/v1/sources/{sourceKey}/favorite": {
+      put: {
+        operationId: "setSourceFavorite",
+        tags: ["sources"],
+        parameters: [{ name: "sourceKey", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: { favorite: { type: "boolean" } },
+                required: ["favorite"],
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/SourceMetadata" } },
+            },
+          },
+          "404": { $ref: "#/components/responses/Error" },
+        },
+      },
+    },
     "/api/v1/sources/{sourceKey}/enabled": {
       put: {
         operationId: "setSourceEnabled",
@@ -1488,6 +1516,34 @@ export const openApiDocument = {
         parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
       },
     },
+    "/api/v1/novels/sources/{id}/favorite": {
+      put: {
+        operationId: "setNovelSourceFavorite",
+        tags: ["novels"],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["favorite"],
+                properties: { favorite: { type: "boolean" } },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/NovelState" } },
+            },
+          },
+          "404": { $ref: "#/components/responses/Error" },
+        },
+      },
+    },
     "/api/v1/novels/sources/{id}/rule": {
       get: {
         operationId: "getNovelSourceRule",
@@ -1967,6 +2023,7 @@ export const openApiDocument = {
       SourceMetadata: {
         type: "object",
         properties: {
+          favorite: { type: "boolean" },
           subscriptionId: { type: "string" },
           subscriptionName: { type: "string" },
           originalKey: { type: "string" },
@@ -2429,6 +2486,11 @@ export const openApiDocument = {
       NovelSource: {
         type: "object",
         properties: {
+          favorite: { type: "boolean" },
+          missingFromSubscription: {
+            type: "boolean",
+            description: "收藏源已从订阅消失，保留最后一次规则。",
+          },
           id: { type: "string" },
           groupId: { type: "string" },
           name: { type: "string" },

@@ -151,7 +151,7 @@ export function NovelSources({ state, busy, error, run, onChange }: Props) {
           <h2>书源订阅</h2>
           <p className="muted">
             支持书源 JSON 合集及静态 RSS
-            管理页订阅，仅保留支持下载的书源。刷新会更新规则并保留启停设置；部分合集失败时保留未更新的旧规则，不执行网页脚本或
+            管理页订阅，仅保留支持下载的书源。刷新会更新规则并保留启停与收藏设置，收藏源从订阅消失时保留最后一次规则；部分合集失败时保留未更新的旧规则，不执行网页脚本或
             WebView。
           </p>
           <button

@@ -612,3 +612,54 @@ it.each([
   expect(result.error.message).not.toContain("secret");
   expect(result.error.message).not.toContain("proxy.invalid");
 });
+
+it("收藏书源更新与重启后保留，订阅移除时保留规则并在重新出现后恢复标记", async () => {
+  const env = await setup();
+  const other = { ...raw, bookSourceUrl: "https://other.test" };
+  env.setCollection([raw, other]);
+  const state = await env.sources.saveSubscription({
+    name: "合集",
+    url: "https://novels.test/subscription",
+  });
+  const id = state.sources[0].id,
+    groupId = state.subscriptions[1].id;
+  env.sources.setFavorite(id, true);
+  env.sources.setEnabled(id, false);
+  env.setCollection([{ ...raw, bookSourceName: "新名称" }, other]);
+  expect((await env.sources.refresh(groupId)).sources[0]).toMatchObject({
+    id,
+    favorite: true,
+    enabled: false,
+    name: "新名称",
+  });
+  await env.restart();
+  expect(env.sources.state().sources[0].favorite).toBe(true);
+  env.setCollection([{ ...other, bookSourceUrl: "https://new.test" }]);
+  const missing = await env.sources.refresh(groupId);
+  expect(missing.sources.find((source) => source.id === id)).toMatchObject({
+    favorite: true,
+    missingFromSubscription: true,
+  });
+  expect(missing.sources.some((source) => source.url === other.bookSourceUrl)).toBe(false);
+  env.setCollection([raw]);
+  const restored = (await env.sources.refresh(groupId)).sources[0];
+  expect(restored).toMatchObject({ id, favorite: true });
+  expect(restored.missingFromSubscription).toBeUndefined();
+  // 收藏不能绕过明确不支持下载的规则过滤。
+  env.setCollection([{ ...raw, ruleContent: {} }]);
+  expect((await env.sources.refresh(groupId)).sources).toHaveLength(0);
+});
+
+it("自定义书源重新导入保留收藏，按地址区分同名源", async () => {
+  const env = await setup();
+  const state = env.sources.import([raw, { ...raw, bookSourceUrl: "https://other.test" }]);
+  const id = state.sources[0].id;
+  env.sources.setFavorite(id, true);
+  const updated = env.sources.import({ ...raw, bookSourceName: "改名" });
+  expect(updated.sources[0]).toMatchObject({ id, name: "改名", favorite: true });
+  expect(updated.sources[1].favorite).toBe(false);
+  expect(() => env.sources.setFavorite("missing", true)).toThrow("书源不存在");
+  env.sources.setFavorite(id, false);
+  await env.restart();
+  expect(env.sources.state().sources[0].favorite).toBe(false);
+});

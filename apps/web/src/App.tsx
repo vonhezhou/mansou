@@ -261,6 +261,9 @@ function Workspace({
           onRefreshRepository={() => void sourcesState.refreshRepository()}
           onReloadSources={() => void sourcesState.reloadSources(refreshSources)}
           onLoadSourceSettings={(key) => void sourcesState.loadSourceSettings(key)}
+          onSetSourceFavorite={(source, favorite) =>
+            void sourcesState.setSourceFavorite(source, favorite)
+          }
           onSetSourceEnabled={(source, enabled) =>
             void sourcesState.setSourceEnabled(source, enabled, refreshSources)
           }

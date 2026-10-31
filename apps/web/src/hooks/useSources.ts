@@ -217,6 +217,15 @@ export function useSources(
     });
   }
 
+  async function setSourceFavorite(source: SourceMetadata, favorite: boolean) {
+    await runWith(setManagingSources, async () => {
+      const updated = await mansouApi.setSourceFavorite(source.key, favorite);
+      setSourceMetadata((current) =>
+        current.map((item) => (item.key === source.key ? updated : item)),
+      );
+    });
+  }
+
   async function setSourceEnabled(
     metadata: SourceMetadata,
     enabled: boolean,
@@ -267,5 +276,6 @@ export function useSources(
     updateSource,
     reloadSources,
     setSourceEnabled,
+    setSourceFavorite,
   };
 }

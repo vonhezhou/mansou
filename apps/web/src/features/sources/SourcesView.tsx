@@ -98,6 +98,7 @@ export function SourcesView(props: SourcesViewProps) {
             busy={props.busy}
             operation={props.operation}
             sourceMetadata={props.sourceMetadata}
+            onSetSourceFavorite={props.onSetSourceFavorite}
             onSetSourceEnabled={props.onSetSourceEnabled}
             onUpdateSource={props.onUpdateSource}
             onUninstallSource={props.onUninstallSource}

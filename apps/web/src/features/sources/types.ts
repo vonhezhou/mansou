@@ -30,6 +30,7 @@ export type SourcesViewProps = {
   onUpdateSource: (key: string) => void;
   onReloadSources: () => void;
   onLoadSourceSettings: (key?: string) => void;
+  onSetSourceFavorite: (source: SourceMetadata, favorite: boolean) => void;
   onSetSourceEnabled: (source: SourceMetadata, enabled: boolean) => void;
   onSaveSourceSettings: () => void;
   onResetSourceSettings: () => void;

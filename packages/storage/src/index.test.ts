@@ -24,7 +24,7 @@ describe("storage migrations", () => {
     }
   });
 
-  it.each([1, 3, 4, 5, 6, 7])(
+  it.each([1, 3, 4, 5, 6, 7, 8])(
     "opens a version %i database without changing existing history",
     async (version) => {
       const dir = await mkdtemp(path.join(os.tmpdir(), "mansou-storage-test-"));
@@ -36,6 +36,7 @@ describe("storage migrations", () => {
           db.prepare("delete from schema_migrations where version > ?").run(version);
           if (version < 6) db.exec("drop index idx_download_items_task_order");
           if (version < 7) db.exec("drop table novel_records");
+          if (version < 8) db.exec("alter table sources drop column favorite");
           db.exec(
             "create table history (id text primary key, page integer); insert into history values ('mock:comic-1', 3)",
           );
@@ -56,7 +57,7 @@ describe("storage migrations", () => {
           ]);
           expect(
             reopened.prepare("select max(version) as version from schema_migrations").get(),
-          ).toEqual({ version: 7 });
+          ).toEqual({ version: 8 });
           expect(
             reopened.prepare("select name from sqlite_master where name = 'novel_records'").get(),
           ).toEqual({ name: "novel_records" });
@@ -85,7 +86,7 @@ it("upgrades an existing version 5 database without changing image records and a
     initial.close();
     const legacy = new Database(path.join(dir, "mansou.sqlite"));
     legacy.exec(
-      "drop index idx_download_items_task_order; drop table novel_records; delete from schema_migrations where version >= 6",
+      "drop index idx_download_items_task_order; drop table novel_records; alter table sources drop column favorite; delete from schema_migrations where version >= 6",
     );
     legacy.close();
     const upgraded = createStorage(dir);
@@ -217,6 +218,26 @@ it("lists only queued task ids in creation order and observes state transitions"
     expect(storage.listQueuedDownloadIds()).toEqual([]);
     storage.saveDownload({ ...earlier, status: "queued" });
     expect(storage.listQueuedDownloadIds()).toEqual(["earlier"]);
+  } finally {
+    storage.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+it("漫画收藏按源身份隔离，更新及重启后保留", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "mansou-favorites-"));
+  let storage = createStorage(dir);
+  try {
+    storage.upsertSource({ key: "first", name: "同名源" });
+    storage.upsertSource({ key: "second", name: "同名源" });
+    storage.setSourceFavorite("first", true);
+    storage.upsertSource({ key: "first", name: "改名源", version: "2.0.0" });
+    storage.close();
+    storage = createStorage(dir);
+    expect(storage.getSource("first")).toMatchObject({ favorite: 1, version: "2.0.0" });
+    expect(storage.getSource("second")?.favorite).toBe(0);
+    storage.setSourceFavorite("first", false);
+    expect(storage.getSource("first")?.favorite).toBe(0);
   } finally {
     storage.close();
     await rm(dir, { recursive: true, force: true });

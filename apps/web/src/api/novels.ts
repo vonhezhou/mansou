@@ -22,6 +22,8 @@ export const novelApi = {
     call<NovelState>("/sources/batch", { ids, action }),
   rule: (id: string) =>
     api<Record<string, unknown>>(`/novels/sources/${encodeURIComponent(id)}/rule`),
+  favorite: (id: string, favorite: boolean) =>
+    call<NovelState>(`/sources/${encodeURIComponent(id)}/favorite`, { favorite }, "PUT"),
   enabled: (id: string, enabled: boolean) =>
     call<NovelState>(`/sources/${encodeURIComponent(id)}`, { enabled }, "PUT"),
   removeSource: (id: string) =>

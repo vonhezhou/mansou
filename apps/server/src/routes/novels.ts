@@ -62,6 +62,12 @@ export async function registerNovelRoutes(
         "/sources/:id/rule",
         async (request) => context.novelSources.source(id(request.params), false).raw,
       );
+      api.put("/sources/:id/favorite", async (request) =>
+        context.novelSources.setFavorite(
+          id(request.params),
+          z.object({ favorite: z.boolean() }).parse(request.body).favorite,
+        ),
+      );
       api.put("/sources/:id", async (request) =>
         context.novelSources.setEnabled(
           id(request.params),

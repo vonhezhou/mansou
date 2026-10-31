@@ -241,6 +241,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/sources/{sourceKey}/favorite": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: operations["setSourceFavorite"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/sources/{sourceKey}/enabled": {
     parameters: {
       query?: never;
@@ -1016,6 +1032,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/novels/sources/{id}/favorite": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: operations["setNovelSourceFavorite"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/novels/sources/{id}/rule": {
     parameters: {
       query?: never;
@@ -1318,6 +1350,7 @@ export interface components {
       }[];
     };
     SourceMetadata: {
+      favorite?: boolean;
       subscriptionId?: string;
       subscriptionName?: string;
       originalKey?: string;
@@ -1600,6 +1633,9 @@ export interface components {
       entry: components["schemas"]["ApiToken"];
     };
     NovelSource: {
+      favorite?: boolean;
+      /** @description 收藏源已从订阅消失，保留最后一次规则。 */
+      missingFromSubscription?: boolean;
       id: string;
       groupId: string;
       name: string;
@@ -2148,6 +2184,35 @@ export interface operations {
       };
       404: components["responses"]["Error"];
       409: components["responses"]["Error"];
+    };
+  };
+  setSourceFavorite: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          favorite: boolean;
+        };
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceMetadata"];
+        };
+      };
+      404: components["responses"]["Error"];
     };
   };
   setSourceEnabled: {
@@ -3754,6 +3819,35 @@ export interface operations {
         };
         content?: never;
       };
+    };
+  };
+  setNovelSourceFavorite: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          favorite: boolean;
+        };
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelState"];
+        };
+      };
+      404: components["responses"]["Error"];
     };
   };
   getNovelSourceRule: {

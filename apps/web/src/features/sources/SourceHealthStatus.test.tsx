@@ -48,6 +48,7 @@ it("按功能展示推测依据，疑似失效不改变启用状态和配置入�
           busy={false}
           sourceMetadata={[source]}
           onConfigureSource={configure}
+          onSetSourceFavorite={vi.fn()}
           onSetSourceEnabled={enable}
           onUninstallSource={vi.fn()}
           onUpdateSource={vi.fn()}

@@ -79,6 +79,7 @@ export class NovelSourceService {
         url: raw.bookSourceUrl,
         hash: hash(JSON.stringify(raw)),
         enabled: old?.summary.enabled ?? raw.enabled !== false,
+        favorite: old?.summary.favorite ?? false,
         searchSupported: !searchError,
         downloadSupported: !downloadError,
         searchError,
@@ -126,6 +127,12 @@ export class NovelSourceService {
     this.db.save("source", id, row);
     return this.state();
   }
+  setFavorite(id: string, favorite: boolean) {
+    const row = this.source(id, false);
+    row.summary.favorite = favorite;
+    this.db.save("source", id, row);
+    return this.state();
+  }
   deleteSource(id: string) {
     this.source(id, false);
     this.db.delete("source", id);
@@ -148,8 +155,14 @@ export class NovelSourceService {
         if (!row.summary.downloadSupported) this.db.delete("source", row.summary.id);
       const ids = new Set(records.map((row) => row.summary.id));
       for (const old of this.db.list<SourceRecord>("source"))
-        if (!warning && old.summary.groupId === group.id && !ids.has(old.summary.id))
-          this.db.delete("source", old.summary.id);
+        if (!warning && old.summary.groupId === group.id && !ids.has(old.summary.id)) {
+          if (old.summary.favorite)
+            this.db.save("source", old.summary.id, {
+              ...old,
+              summary: { ...old.summary, missingFromSubscription: true },
+            });
+          else this.db.delete("source", old.summary.id);
+        }
       for (const row of records) this.db.save("source", row.summary.id, row);
       this.db.save("subscription", group.id, {
         ...group,

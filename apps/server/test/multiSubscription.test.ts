@@ -158,3 +158,22 @@ it("rejects an update with a mismatched script key without replacing either live
   ).toEqual([a, b].sort());
   expect((await service.get(b).search({ keyword: "x" })).comics[0].sourceKey).toBe(b);
 });
+
+it("漫画收藏在订阅刷新、脚本更新、重载及移除订阅后保留且不影响同名源", async () => {
+  await expect(service.setFavorite("missing", true)).rejects.toThrow("漫画源不存在");
+  expect(await service.setFavorite(a, true)).toMatchObject({ key: a, favorite: true });
+  expect(await service.setEnabled(a, false)).toMatchObject({ favorite: true });
+  expect(await service.setEnabled(a, true)).toMatchObject({ favorite: true });
+  versions["a.example"] = "2.0.0";
+  await repository.refreshRepository();
+  await service.install(a);
+  await service.loadInstalled();
+  await repository.deleteRepository("default");
+  const metadata = await service.metadata();
+  expect(metadata.find((source) => source.key === a)).toMatchObject({
+    favorite: true,
+    version: "2.0.0",
+  });
+  expect(metadata.find((source) => source.key === b)?.favorite).toBe(false);
+  expect(await service.setFavorite(a, false)).toMatchObject({ favorite: false });
+});
