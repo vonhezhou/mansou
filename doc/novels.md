@@ -33,6 +33,18 @@
 
 支持静态 RSS 管理页订阅及其链接的 JSON 合集；不执行管理页或 JSON 中的 JS、WebView。订阅会显示拒绝不支持下载规则的数量，刷新完全失败仍保留旧快照。
 
+### 书源订阅地址
+
+以下地址于 2026-10-31 核对，供在“小说源 → 订阅管理”中手动添加，不会自动安装。
+
+| 名称 | 订阅地址 | 类型与更新说明 |
+| --- | --- | --- |
+| 喵公子总订阅 | [miaogongziDY.json](http://yuedu.miaogongzi.net/shuyuan/miaogongziDY.json) | RSS 管理页配置，指向[阅读书源管理页](http://yuedu.miaogongzi.net/gx.html)，解析时会获取页面中的多个合集；不是单个书源或单个合集。 |
+| XIU2精品书源 | [合集 JSON](https://gh.ns114.cc/github.com/XIU2/Yuedu/raw/refs/heads/master/shuyuan) | 管理页标注“2026年8月更新”；核对时地址可返回书源 JSON。 |
+| 稳定书源合集 | [合集 JSON](https://shuyuan-api.yiove.com/import/book-source-collection/eaedccd4-1252-4962-a565-c7a342f95f90) | 管理页标注“2026年8更新”；核对时地址可返回书源 JSON。 |
+
+若只希望订阅近期更新的合集，优先分别添加 XIU2精品书源和稳定书源合集，无需添加喵公子总订阅。总订阅包含这些合集，重复添加会按不同订阅保留重复书源。页面更新标签不代表持续维护或全部规则可用，地址可访问也不等于搜索、目录和下载已通过验证；具体能力以本项目的规则检查及实际使用结果为准。
+
 ## 支持范围与限制
 
 - 支持 HTML/CSS、常用 Jsoup 风格链式选择、索引、常用正则替换、GET/POST、静态 JSON/JSON5 请求选项及 GBK 等编码。
