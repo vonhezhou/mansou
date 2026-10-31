@@ -26,43 +26,9 @@ export function SettingsView(props: SettingsViewProps) {
         </button>
       </header>
       <section className="settings-panel">
-        <h2>漫搜服务器</h2>
-        <ServerPicker />
-      </section>
-      <section className="settings-panel">
-        <h2>服务器与存储</h2>
-        <div className="setting-row">
-          <span className="setting-icon">
-            <Icon name="server" />
-          </span>
-          <div>
-            <strong>服务器连接</strong>
-            <span>当前 Web 控制台地址</span>
-          </div>
-          <code>{window.location.origin}</code>
-        </div>
-        <div className="setting-row">
-          <span className="setting-icon">
-            <Icon name="check" />
-          </span>
-          <div>
-            <strong>运行状态</strong>
-            <span>服务器健康检查</span>
-          </div>
-          <span className={`health ${props.health?.ok ? "online" : "offline"}`}>
-            {props.health?.ok ? "服务在线" : "服务未连接"}
-          </span>
-        </div>
-        <div className="setting-row">
-          <span className="setting-icon">
-            <Icon name="folder" />
-          </span>
-          <div>
-            <strong>数据目录</strong>
-            <span>服务器的数据存储位置</span>
-          </div>
-          <code>{props.health?.dataDir ?? "暂不可用"}</code>
-        </div>
+        <ServerPicker
+          connectionStatus={props.busy ? "checking" : props.health?.ok ? "online" : "offline"}
+        />
       </section>
       <section className="settings-panel">
         <h2>界面外观</h2>

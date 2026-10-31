@@ -10,7 +10,13 @@ import {
   switchServer,
 } from "../lib/servers.js";
 
-export function ServerPicker() {
+const connectionLabels = { online: "在线", offline: "未连接", checking: "检查中…" };
+
+export function ServerPicker({
+  connectionStatus,
+}: {
+  connectionStatus?: keyof typeof connectionLabels;
+}) {
   const [preferences, setPreferences] = useState(readServerPreferences);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -70,8 +76,19 @@ export function ServerPicker() {
           {error}
         </p>
       )}
-      <div className="repository-heading">
-        <p className="muted">保存常用服务器，在卡片中切换当前使用的服务器。</p>
+      <div className="server-picker-heading">
+        <div>
+          <h2>
+            漫搜服务器{" "}
+            <span
+              className="count-badge"
+              aria-label={`已保存 ${preferences.servers.length} 台服务器`}
+            >
+              {preferences.servers.length}
+            </span>
+          </h2>
+          <p>管理常用连接，选择要使用的服务器。</p>
+        </div>
         <button
           type="button"
           className="button-with-icon"
@@ -96,15 +113,20 @@ export function ServerPicker() {
               <Icon name="server" />
             </span>
             <div className="source-info">
-              <strong>{server.name}</strong>
+              <div className="saved-server-title">
+                <strong>{server.name}</strong>
+                {server.origin === window.location.origin && (
+                  <span
+                    role="status"
+                    className={`saved-server-status${connectionStatus ? ` saved-server-status-${connectionStatus}` : ""}`}
+                  >
+                    <Icon name="check" size={14} />
+                    当前使用{connectionStatus ? ` · ${connectionLabels[connectionStatus]}` : ""}
+                  </span>
+                )}
+              </div>
               <span className="muted">{server.origin}</span>
             </div>
-            {server.origin === window.location.origin && (
-              <span className="saved-server-status">
-                <Icon name="check" size={14} />
-                当前使用
-              </span>
-            )}
             <div className="source-actions">
               {server.origin !== window.location.origin && (
                 <button
