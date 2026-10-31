@@ -2,6 +2,7 @@ import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { useEffect, useState, type ReactNode, type FormEvent } from "react";
 import { authApi, type AuthSession } from "../../api/auth.js";
 import { setCsrfToken } from "../../api/client.js";
+import { ServerPicker } from "../../app/ServerPicker.js";
 
 export function AuthGate({
   children,
@@ -108,6 +109,10 @@ export function AuthGate({
             </button>
           </form>
         )}
+        <details className="auth-servers">
+          <summary>管理与切换服务器</summary>
+          <ServerPicker manage />
+        </details>
       </section>
     </main>
   );

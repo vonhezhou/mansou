@@ -4,6 +4,7 @@ import type { Health } from "../types.js";
 import { navigationItems, type TabKey } from "./navigation.js";
 import { Icon } from "./Icon.js";
 import { SettingsView } from "./SettingsView.js";
+import { ServerPicker } from "./ServerPicker.js";
 import type { DownloadSnapshotStore } from "../lib/downloadSnapshot.js";
 
 type AppShellProps = {
@@ -111,6 +112,7 @@ export function AppShell(props: AppShellProps) {
             {themeButton}
           </div>
           <div className="server-card">
+            <ServerPicker />
             <span
               className={`health ${props.health?.ok ? "online" : props.busy ? "connecting" : "offline"}`}
               role="status"

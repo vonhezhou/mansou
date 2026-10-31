@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Health } from "../types.js";
 import { Icon } from "./Icon.js";
+import { ServerPicker } from "./ServerPicker.js";
 
 type SettingsViewProps = {
   health: Health | null;
@@ -24,6 +25,10 @@ export function SettingsView(props: SettingsViewProps) {
           {props.busy ? "刷新中…" : "刷新状态"}
         </button>
       </header>
+      <section className="settings-panel">
+        <h2>漫搜服务器</h2>
+        <ServerPicker manage />
+      </section>
       <section className="settings-panel">
         <h2>服务器与存储</h2>
         <div className="setting-row">
