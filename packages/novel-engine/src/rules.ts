@@ -40,6 +40,20 @@ export function splitRule(rule: string, separator: string): string[] {
 
 type Selection = Cheerio<AnyNode>;
 const validator = load("<div></div>");
+const blockTags =
+  "address,article,aside,blockquote,br,caption,dd,details,div,dl,dt,fieldset,figcaption,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hr,li,main,nav,ol,p,pre,section,summary,table,tbody,td,tfoot,th,thead,tr,ul";
+
+function textValue($: CheerioAPI, item: Selection, own = false): string {
+  const clone = item.clone();
+  clone.find("script,style").remove();
+  if (own)
+    clone.children().each((_, child) => {
+      if ($(child).is(blockTags)) $(child).replaceWith(" ");
+      else $(child).remove();
+    });
+  else clone.find(blockTags).before(" ").after(" ");
+  return clone.text().replace(/\s+/g, " ").trim();
+}
 
 function ruleParts(rule: string): {
   base: string;
@@ -80,6 +94,7 @@ function selectorSegment(segment: string): {
   exclude: boolean;
   bracket: boolean;
   ownText?: string;
+  children?: boolean;
 } {
   let css = segment.trim();
   let indexes: string | undefined;
@@ -100,7 +115,10 @@ function selectorSegment(segment: string): {
   if (css.startsWith("class.")) css = `.${css.slice(6).trim().split(/\s+/).join(".")}`;
   else if (css.startsWith("id.")) css = `#${css.slice(3)}`;
   else if (css.startsWith("tag.")) css = css.slice(4);
+  if (!css && indexes) css = "children";
   if (!css) unsupported(segment);
+  const children = css === "children";
+  if (children) css = "*";
   const ownText = css.startsWith("text.") ? css.slice(5) : undefined;
   if (ownText !== undefined) css = "*";
   if (indexes && bracket)
@@ -108,7 +126,7 @@ function selectorSegment(segment: string): {
       if (!/^\s*-?\d+\s*$|^\s*-?\d*\s*:\s*-?\d*\s*(?::\s*[1-9]\d*\s*)?$/.test(token))
         unsupported(segment);
     }
-  return { css, indexes, exclude, bracket, ownText };
+  return { css, indexes, exclude, bracket, ownText, children };
 }
 
 function indexedSelection(
@@ -151,7 +169,7 @@ export function validateRule(rule: string, mode: "elements" | "string" = "elemen
         if (terminal && !/^[\w:-]+$/.test(terminal)) unsupported(rule);
       }
       for (const segment of segments) {
-        const { css } = selectorSegment(segment);
+        const css = /^\s*@css:/i.test(parsed.base) ? segment : selectorSegment(segment).css;
         try {
           validator.root().find(css);
         } catch {
@@ -161,14 +179,25 @@ export function validateRule(rule: string, mode: "elements" | "string" = "elemen
     }
 }
 
-function select($: CheerioAPI, root: Selection, segments: string[]): Selection {
+function select($: CheerioAPI, root: Selection, segments: string[], literalCss = false): Selection {
   let current = root;
   for (const segment of segments) {
-    const { css, indexes, exclude, bracket, ownText } = selectorSegment(segment);
+    const { css, indexes, exclude, bracket, ownText, children } = literalCss
+      ? {
+          css: segment,
+          indexes: undefined,
+          exclude: false,
+          bracket: false,
+          ownText: undefined,
+          children: false,
+        }
+      : selectorSegment(segment);
     const next: AnyNode[] = [];
     current.each((_, node) => {
       // Jsoup 允许当前节点本身匹配；保留显式索引顺序，不通过 add() 重排。
-      let found: AnyNode[] = [...$(node).filter(css).toArray(), ...$(node).find(css).toArray()];
+      let found: AnyNode[] = children
+        ? $(node).children().toArray()
+        : [...$(node).filter(css).toArray(), ...$(node).find(css).toArray()];
       if (ownText !== undefined)
         found = found.filter((n) =>
           $(n)
@@ -188,7 +217,7 @@ function select($: CheerioAPI, root: Selection, segments: string[]): Selection {
 }
 
 function paths(rule: string): string[] {
-  return splitRule(rule.startsWith("@css:") ? rule.slice(5) : rule, "@").filter(Boolean);
+  return splitRule(rule.replace(/^\s*@css:/i, ""), "@").filter(Boolean);
 }
 
 export class HtmlRules {
@@ -205,7 +234,7 @@ export class HtmlRules {
         if (branch.trim())
           elements = this.$([
             ...elements.toArray(),
-            ...select(this.$, root, paths(branch)).toArray(),
+            ...select(this.$, root, paths(branch), /^\s*@css:/i.test(rule)).toArray(),
           ]);
       if (elements.length) return elements;
     }
@@ -237,11 +266,12 @@ export class HtmlRules {
         if (!branch.trim()) continue;
         const segments = paths(branch);
         const terminal = segments.pop() ?? "text";
-        const selection = select(this.$, this.$(node), segments);
+        const selection = select(this.$, this.$(node), segments, /^\s*@css:/i.test(parsed.base));
         selection.each((_, element) => {
           const item = this.$(element);
           let value: string;
-          if (terminal === "text") value = item.prop("innerText") ?? item.text();
+          if (terminal === "text") value = textValue(this.$, item);
+          else if (terminal === "all") value = this.$.html(item);
           else if (terminal === "html") {
             const clone = item.clone();
             clone.find("script,style").remove();
@@ -258,7 +288,7 @@ export class HtmlRules {
                     .map((t) => t.trim())
                     .filter(Boolean)
                     .join("\n")
-                : texts.join("").replace(/\s+/g, " ");
+                : textValue(this.$, item, true);
           } else {
             if (!/^[\w:-]+$/.test(terminal)) unsupported(rule);
             value = item.attr(terminal) ?? "";
