@@ -115,7 +115,7 @@ export function NovelsView() {
   useEffect(() => {
     if (origin) {
       catalogPanel.current?.focus({ preventScroll: true });
-      catalogPanel.current?.scrollIntoView?.({ block: "nearest" });
+      catalogPanel.current?.scrollIntoView?.({ block: "start" });
     }
   }, [origin]);
   function closeCatalog() {

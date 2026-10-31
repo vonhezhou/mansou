@@ -113,6 +113,7 @@
   text-decoration: underline;
 }
 .novel-selected-catalog {
+  scroll-margin-top: 80px;
   margin-top: 16px;
   border-top: 1px solid var(--color-border);
 }
