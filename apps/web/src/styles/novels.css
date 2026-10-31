@@ -99,3 +99,20 @@
     min-height: 40px;
   }
 }
+
+.novel-book-title {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.novel-book-title:hover {
+  text-decoration: underline;
+}
+.novel-selected-catalog {
+  margin-top: 16px;
+  border-top: 1px solid var(--color-border);
+}

@@ -125,12 +125,13 @@ it("网页从搜索结果加载有序目录、提交范围下载，并仅为完�
     "下载 TXT",
   );
 });
-it.each(["关闭目录", "切换页面", "卸载页面"])(
+it.each(["关闭目录", "切换页面", "卸载页面", "加载失败"])(
   "加载目录时%s 会取消请求并忽略迟到响应",
   async (action) => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     let catalogSignal: AbortSignal | undefined;
     let completeCatalog!: (response: Response) => void;
+    let failCatalog!: (error: Error) => void;
     const json = (value: unknown) =>
       new Response(JSON.stringify(value), { headers: { "content-type": "application/json" } });
     vi.stubGlobal(
@@ -162,8 +163,9 @@ it.each(["关闭目录", "切换页面", "卸载页面"])(
           });
         if (url.endsWith("/catalog")) {
           catalogSignal = options?.signal ?? undefined;
-          return new Promise<Response>((resolve) => {
+          return new Promise<Response>((resolve, reject) => {
             completeCatalog = resolve;
+            failCatalog = reject;
           });
         }
         throw new Error(`Unexpected path ${url}`);
@@ -190,8 +192,19 @@ it.each(["关闭目录", "切换页面", "卸载页面"])(
         .querySelector("form")!
         .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })),
     );
-    await act(async () => button("测试书源 · 目录与下载").click());
+    await act(async () => button(origin.name).click());
     expect(catalogSignal).toBeDefined();
+    const card = container.querySelector("article")!;
+    const panel = card.querySelector('[aria-label="小说目录"]')!;
+    expect(panel).not.toBeNull();
+    expect(document.activeElement).toBe(panel);
+    expect(panel.textContent).toContain("正在加载所选书源目录");
+    if (action === "加载失败") {
+      await act(async () => failCatalog(new Error("测试连接被重置")));
+      expect(panel.querySelector('[role="alert"]')?.textContent).toBe("测试连接被重置");
+      expect(panel.textContent).toContain("重新加载目录");
+      return;
+    }
     if (action === "卸载页面") {
       await act(async () => root!.unmount());
       root = undefined;

@@ -148,7 +148,28 @@ export class NovelEngineExecutor {
           signal.aborted ? "CANCELLED" : "TIMEOUT",
           signal.aborted ? "书源请求已取消" : "书源请求超时",
         );
-      throw error;
+      // fetch 的 message 常只有“fetch failed”；只透传已知原因，不暴露底层 URL 或代理凭据。
+      const cause = error instanceof Error ? error.cause : undefined;
+      const code = cause && typeof cause === "object" && "code" in cause ? cause.code : undefined;
+      const reasons: Record<string, string> = {
+        UND_ERR_SOCKET: "对端关闭了连接",
+        ECONNRESET: "连接被重置，可能在 TLS 握手阶段中断",
+        ECONNREFUSED: "连接被拒绝",
+        ENOTFOUND: "域名解析失败",
+        EAI_AGAIN: "域名解析暂时失败",
+        ENETUNREACH: "目标网络不可达",
+        ETIMEDOUT: "连接超时",
+        UND_ERR_CONNECT_TIMEOUT: "连接超时",
+        CERT_HAS_EXPIRED: "站点证书已过期",
+        UNABLE_TO_VERIFY_LEAF_SIGNATURE: "无法验证站点证书",
+        DEPTH_ZERO_SELF_SIGNED_CERT: "站点使用自签名证书",
+      };
+      const reason =
+        typeof code === "string" && Object.hasOwn(reasons, code) ? reasons[code] : undefined;
+      throw new SourceError(
+        "SOURCE_ERROR",
+        `书源网络请求失败${reason ? `：${reason}（${code}）` : ""}，请检查站点可达性及服务器代理设置`,
+      );
     }
   }
 

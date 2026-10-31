@@ -24,6 +24,8 @@ export function NovelsView() {
   const [searchError, setSearchError] = useState<string>();
   const [origin, setOrigin] = useState<NovelOrigin>();
   const [catalog, setCatalog] = useState<NovelCatalog>();
+  const [catalogError, setCatalogError] = useState<string>();
+  const catalogPanel = useRef<HTMLElement>(null);
   const [start, setStart] = useState(1);
   const [limit, setLimit] = useState(3);
   const searchController = useRef<AbortController | null>(null);
@@ -110,6 +112,12 @@ export function NovelsView() {
       if (active.current && searchController.current === controller) setSearching(false);
     }
   }
+  useEffect(() => {
+    if (origin) {
+      catalogPanel.current?.focus({ preventScroll: true });
+      catalogPanel.current?.scrollIntoView?.({ block: "nearest" });
+    }
+  }, [origin]);
   function closeCatalog() {
     catalogController.current?.abort();
     setOrigin(undefined);
@@ -121,6 +129,7 @@ export function NovelsView() {
     catalogController.current = controller;
     setOrigin(value);
     setCatalog(undefined);
+    setCatalogError(undefined);
     setStart(1);
     setLimit(3);
     await run(async () => {
@@ -128,7 +137,8 @@ export function NovelsView() {
         const details = await novelApi.catalog(value, controller.signal);
         if (active.current && !controller.signal.aborted) setCatalog(details);
       } catch (error) {
-        if (!controller.signal.aborted) throw error;
+        if (active.current && !controller.signal.aborted)
+          setCatalogError(error instanceof Error ? error.message : String(error));
       }
     });
   }
@@ -280,31 +290,156 @@ export function NovelsView() {
               {!result.results.length && (
                 <p className="muted">本页没有小说结果；请同时检查上方书源错误。</p>
               )}
-              {result.results.map((book, index) => (
-                <article key={index} className="novel-panel">
-                  <h2>{book.name}</h2>
-                  <p className="muted">
-                    {book.author || "作者未知"} · {book.origins.length} 个来源
-                  </p>
-                  <div className="novel-actions">
-                    {book.origins.map((value) => {
-                      const source = state.sources.find((source) => source.id === value.sourceId);
-                      return (
+              {result.results.map((book, index) => {
+                const primary = book.origins.find((value) =>
+                  state.sources.some(
+                    (source) => source.id === value.sourceId && source.downloadSupported,
+                  ),
+                );
+                return (
+                  <article key={index} className="novel-panel">
+                    <h2>
+                      {primary ? (
                         <button
-                          className="secondary-button"
-                          key={`${value.sourceId}:${value.bookUrl}`}
-                          disabled={busy || !source?.downloadSupported}
-                          title={source?.downloadError}
-                          onClick={() => void select(value)}
+                          className="novel-book-title"
+                          disabled={busy}
+                          onClick={() => void select(primary)}
                         >
-                          {value.sourceName}
-                          {source?.downloadSupported ? " · 目录与下载" : " · 暂不支持下载"}
+                          {book.name}
                         </button>
-                      );
-                    })}
-                  </div>
-                </article>
-              ))}
+                      ) : (
+                        book.name
+                      )}
+                    </h2>
+                    <p className="muted">
+                      {book.author || "作者未知"} · {book.origins.length} 个来源
+                    </p>
+                    <div className="novel-actions">
+                      {book.origins.map((value) => {
+                        const source = state.sources.find((source) => source.id === value.sourceId);
+                        return (
+                          <button
+                            className="secondary-button"
+                            key={`${value.sourceId}:${value.bookUrl}`}
+                            disabled={busy || !source?.downloadSupported}
+                            title={source?.downloadError}
+                            onClick={() => void select(value)}
+                          >
+                            {value.sourceName}
+                            {source?.downloadSupported ? " · 目录与下载" : " · 暂不支持下载"}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {origin &&
+                      book.origins.some(
+                        (value) =>
+                          value.sourceId === origin.sourceId && value.bookUrl === origin.bookUrl,
+                      ) && (
+                        <section
+                          className="novel-selected-catalog"
+                          aria-label="小说目录"
+                          ref={catalogPanel}
+                          tabIndex={-1}
+                          aria-busy={busy}
+                        >
+                          <div className="novel-row">
+                            <h2>
+                              {origin.name} · {origin.sourceName}
+                            </h2>
+                            <button className="secondary-button" onClick={closeCatalog}>
+                              关闭目录
+                            </button>
+                          </div>
+                          {busy && !catalog && <LoadingStatus label="正在加载所选书源目录…" />}
+                          {catalogError && (
+                            <p className="alert" role="alert">
+                              {catalogError}
+                            </p>
+                          )}
+                          {!catalog && !busy && (
+                            <button onClick={() => void select(origin)}>重新加载目录</button>
+                          )}
+                          {catalog && (
+                            <>
+                              <p>
+                                共 {catalog.chapters.length} 项 · 已解析 {catalog.tocPages} 页 ·{" "}
+                                {catalog.tocComplete
+                                  ? "目录遍历完成"
+                                  : "目录尚未遍历完，暂不能下载"}
+                              </p>
+                              <p className="muted">
+                                章节保留站点原始顺序，可能含公告。请先检查顺序和范围；这里不判断作品是否完结。
+                              </p>
+                              <div className="novel-inline">
+                                <label>
+                                  起始目录项
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={catalog.chapters.length}
+                                    value={start}
+                                    onChange={(event) => setStart(Number(event.target.value))}
+                                  />
+                                </label>
+                                <label>
+                                  下载项数
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={50000}
+                                    value={limit}
+                                    onChange={(event) => setLimit(Number(event.target.value))}
+                                  />
+                                </label>
+                                <button
+                                  disabled={
+                                    busy ||
+                                    !catalog.tocComplete ||
+                                    !Number.isInteger(start) ||
+                                    start < 1 ||
+                                    start > catalog.chapters.length ||
+                                    !Number.isInteger(limit) ||
+                                    limit < 1 ||
+                                    limit > 50000
+                                  }
+                                  onClick={() => download(false)}
+                                >
+                                  下载所选范围
+                                </button>
+                                <button
+                                  disabled={busy || !catalog.tocComplete}
+                                  onClick={() => {
+                                    setStart(1);
+                                    void run(async () => {
+                                      await novelApi.download(origin, true, 1, 3);
+                                      await reloadTasks();
+                                      setTab("downloads");
+                                    });
+                                  }}
+                                >
+                                  下载目录全部章节
+                                </button>
+                              </div>
+                              <ol className="novel-catalog">
+                                {catalog.chapters.slice(0, 200).map((chapter, index) => (
+                                  <li key={chapter.url}>
+                                    {index + 1}. {chapter.title}
+                                  </li>
+                                ))}
+                              </ol>
+                              {catalog.chapters.length > 200 && (
+                                <p className="muted">
+                                  仅展示前 200 项，下载包含所选范围内全部章节。
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </section>
+                      )}
+                  </article>
+                );
+              })}
               <div className="novel-actions">
                 <button
                   className="secondary-button"
@@ -334,92 +469,6 @@ export function NovelsView() {
                 </button>
               </div>
             </>
-          )}
-          {origin && (
-            <section className="novel-panel" aria-label="小说目录">
-              <div className="novel-row">
-                <h2>
-                  {origin.name} · {origin.sourceName}
-                </h2>
-                <button className="secondary-button" onClick={closeCatalog}>
-                  关闭目录
-                </button>
-              </div>
-              {!catalog && !busy && (
-                <button onClick={() => void select(origin)}>重新加载目录</button>
-              )}
-              {catalog && (
-                <>
-                  <p>
-                    共 {catalog.chapters.length} 项 · 已解析 {catalog.tocPages} 页 ·{" "}
-                    {catalog.tocComplete ? "目录遍历完成" : "目录尚未遍历完，暂不能下载"}
-                  </p>
-                  <p className="muted">
-                    章节保留站点原始顺序，可能含公告。请先检查顺序和范围；这里不判断作品是否完结。
-                  </p>
-                  <div className="novel-inline">
-                    <label>
-                      起始目录项
-                      <input
-                        type="number"
-                        min={1}
-                        max={catalog.chapters.length}
-                        value={start}
-                        onChange={(event) => setStart(Number(event.target.value))}
-                      />
-                    </label>
-                    <label>
-                      下载项数
-                      <input
-                        type="number"
-                        min={1}
-                        max={50000}
-                        value={limit}
-                        onChange={(event) => setLimit(Number(event.target.value))}
-                      />
-                    </label>
-                    <button
-                      disabled={
-                        busy ||
-                        !catalog.tocComplete ||
-                        !Number.isInteger(start) ||
-                        start < 1 ||
-                        start > catalog.chapters.length ||
-                        !Number.isInteger(limit) ||
-                        limit < 1 ||
-                        limit > 50000
-                      }
-                      onClick={() => download(false)}
-                    >
-                      下载所选范围
-                    </button>
-                    <button
-                      disabled={busy || !catalog.tocComplete}
-                      onClick={() => {
-                        setStart(1);
-                        void run(async () => {
-                          await novelApi.download(origin, true, 1, 3);
-                          await reloadTasks();
-                          setTab("downloads");
-                        });
-                      }}
-                    >
-                      下载目录全部章节
-                    </button>
-                  </div>
-                  <ol className="novel-catalog">
-                    {catalog.chapters.slice(0, 200).map((chapter, index) => (
-                      <li key={chapter.url}>
-                        {index + 1}. {chapter.title}
-                      </li>
-                    ))}
-                  </ol>
-                  {catalog.chapters.length > 200 && (
-                    <p className="muted">仅展示前 200 项，下载包含所选范围内全部章节。</p>
-                  )}
-                </>
-              )}
-            </section>
           )}
         </div>
       )}

@@ -442,3 +442,28 @@ it("表格的纯空白补列项不误报缺章，但不能掩盖目录选择器�
     code: "PARSE_MISMATCH",
   });
 });
+
+it.each([
+  { code: "UND_ERR_SOCKET", reason: "对端关闭了连接" },
+  { code: "ECONNRESET", reason: "连接被重置" },
+  { code: "ENOTFOUND", reason: "域名解析失败" },
+  { code: "UNRECOGNIZED", reason: "检查站点可达性" },
+])("网络失败跨 Worker 提供可操作的原因且不泄露底层凭据：$code", async ({ code, reason }) => {
+  const engine = new NovelEngineExecutor(async () => {
+    throw new TypeError("fetch failed", {
+      cause: Object.assign(new Error("https://user:secret@proxy.invalid/private"), { code }),
+    });
+  }, 1000);
+  cleanups.push(() => engine.close());
+  const result = await engine.execute<{ error: { code: string; message: string } }>("search", [
+    { id: "network", source: raw, supported: true },
+    "大乘期",
+    1,
+  ]);
+  expect(result.error).toMatchObject({
+    code: "SOURCE_ERROR",
+    message: expect.stringContaining(reason),
+  });
+  expect(result.error.message).not.toContain("secret");
+  expect(result.error.message).not.toContain("proxy.invalid");
+});
