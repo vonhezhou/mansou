@@ -72,6 +72,40 @@ API 错误统一返回：
 
 前端或外部客户端应优先根据 `error.code` 判断错误类型，`message` 仅用于展示或调试。
 
+## 源推荐词
+
+```text
+GET /api/v1/sources/{sourceKey}/search-recommendations
+```
+
+已加载源列表中的 `hasSearchRecommendations` 表示该源声明了普通搜索词或动态词条分组。读取源列表不会执行动态词条 loader；动态分组可能只有分类入口，因此该标志为 true 时仍可能没有可用推荐词。
+
+接口按源返回分组数组，例如：
+
+```json
+[
+  {
+    "id": "0",
+    "title": "推荐标签",
+    "random": false,
+    "limit": 12,
+    "items": [
+      {
+        "label": "冒险",
+        "keyword": "冒险",
+        "target": { "page": "search", "attributes": { "keyword": "冒险" } }
+      }
+    ]
+  }
+]
+```
+
+Venera 适配器读取 `category.parts` 的 fixed、random、dynamic 分组，兼容字符串词条和带跳转目标的词条。动态 loader 在请求时执行，支持返回 Promise；普通搜索词在组内按去除首尾空白后的 keyword 去重，保留源分组顺序。分组标题和显示标签使用源翻译，搜索 keyword 保持原文。
+
+首期只返回搜索目标，跳过分类、其他跳转、包含英文或中文冒号的词条（避免传播命名空间语法），以及携带额外搜索参数的目标。`target` 保留已接入词条的目标类型和属性；客户端点击词条使用 keyword 填入输入框，不直接执行 target。推荐词不代表站点实时热度排名。
+
+`random: true` 表示客户端可从完整 items 中随机换一批，`limit` 是建议展示数量，范围为 1–12；固定与动态分组的 limit 为 12。接口本身不随机截断词池，也不持久化或定时刷新词条。不支持或没有普通搜索词时返回空数组；动态加载失败返回标准插件错误，源未加载返回 `SOURCE_NOT_LOADED`，不能当作空词条处理。
+
 ## 下载 API
 
 创建下载任务：

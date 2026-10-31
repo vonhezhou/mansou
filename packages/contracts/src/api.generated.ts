@@ -238,6 +238,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/sources/{sourceKey}/search-recommendations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description 按源返回可填写到搜索框的推荐词；不支持或无普通搜索词时返回空数组。保留源分组顺序，不代表全站热度排名。 */
+    get: operations["getSourceSearchRecommendations"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/sources/{sourceKey}/settings": {
     parameters: {
       query?: never;
@@ -937,6 +954,8 @@ export interface components {
       filePath?: string;
       hasSearch?: boolean;
       hasComic?: boolean;
+      /** @description 源声明了搜索词或动态词条分组；动态分组可能不含可用搜索词。 */
+      hasSearchRecommendations?: boolean;
       capabilities?: {
         search: boolean;
         details: boolean;
@@ -949,6 +968,23 @@ export interface components {
         type?: string;
         options: string[];
         default?: unknown;
+      }[];
+    };
+    SearchRecommendationGroup: {
+      id: string;
+      title: string;
+      /** @description 是否支持从已取得的词条中随机换一批，不重新请求源。 */
+      random: boolean;
+      limit: number;
+      items: {
+        label: string;
+        keyword: string;
+        target: {
+          page: string;
+          attributes: {
+            [key: string]: unknown;
+          };
+        };
       }[];
     };
     SourceMetadata: {
@@ -1621,6 +1657,29 @@ export interface operations {
           }[];
         };
       };
+    };
+  };
+  getSourceSearchRecommendations: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sourceKey: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SearchRecommendationGroup"][];
+        };
+      };
+      default: components["responses"]["Error"];
     };
   };
   getSourceSettings: {

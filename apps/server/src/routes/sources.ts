@@ -50,6 +50,11 @@ export async function registerSourceRoutes(
     return context.sources.searchOptions(params.sourceKey);
   });
 
+  app.get("/sources/:sourceKey/search-recommendations", async (request) => {
+    const params = z.object({ sourceKey: z.string().min(1) }).parse(request.params);
+    return context.sources.searchRecommendations(params.sourceKey);
+  });
+
   app.get("/sources/:sourceKey/cookies", async (request) => {
     const params = z.object({ sourceKey: z.string() }).parse(request.params);
     return context.sources.cookies(params.sourceKey);

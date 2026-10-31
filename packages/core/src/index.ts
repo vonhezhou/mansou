@@ -46,6 +46,17 @@ export type SearchInput = {
   cursor?: string | null;
   options?: string[];
 };
+export type SearchRecommendationGroup = {
+  id: string;
+  title: string;
+  random: boolean;
+  limit: number;
+  items: Array<{
+    label: string;
+    keyword: string;
+    target: { page: string; attributes: Record<string, unknown> };
+  }>;
+};
 export type ImageInput = {
   imageKey: string;
   comicId?: string;
@@ -91,11 +102,13 @@ export type SourceMetadata = {
     authentication: boolean;
   };
   searchOptions: SearchOptions;
+  hasSearchRecommendations?: boolean;
 };
-/** The stable per-source protocol. Unsupported capabilities reject with SOURCE_CAPABILITY_UNSUPPORTED. */
+/** 稳定的单源协议；不支持的能力拒绝调用，推荐词发现接口则返回空数组。 */
 export interface SourceProvider {
   metadata(): Promise<SourceMetadata>;
   search(input: SearchInput): Promise<SearchResult>;
+  searchRecommendations(): Promise<SearchRecommendationGroup[]>;
   comicDetails(comicId: string): Promise<ComicDetails>;
   comicPages(comicId: string, episodeId?: string | null): Promise<{ images: string[] }>;
   loadImageBytes(input: ImageInput): Promise<{ data: Uint8Array; contentType: string }>;

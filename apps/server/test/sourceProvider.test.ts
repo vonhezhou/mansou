@@ -27,6 +27,10 @@ describe("source protocol (worker)", () => {
         refresh: { type: "callback", callback: async () => { this.saveData("settings", {label: "updated"}); } }
       };
       search = { optionList: [{ label: "Order", options: ["new-New", "old-Old"], default: "old" }], load: async (keyword, options) => ({ comics: [{id: keyword, subTitle: "alias", title: JSON.stringify({ options, logged: this.isLogged, label: this.loadSetting("label"), cookies: (await Network.getCookies("https://example.test")).map(c => c.value) }), cover: ""}] }) };
+      category = { parts: [
+        { name: "推荐标签", type: "fixed", itemType: "search", categories: ["冒险", "artist:someone"] },
+        { name: "动态推荐", type: "dynamic", loader: async () => [{ label: "新词", target: { page: "search", attributes: { text: "新词" } } }] }
+      ] };
       account = {
         login: async (user, password) => { if (password !== "correct") throw new Error("secret:" + password); this.saveData("token", "ok"); await Network.setCookies("https://example.test", ["token=ok; Path=/"]); },
         logout: () => { this.deleteData("token"); }
@@ -100,6 +104,45 @@ describe("source protocol (worker)", () => {
       JSON.parse((await built.context.search.search("protocol", "x")).comics[0].title).label,
     ).toBe("original");
   });
+  it("transports recommendation groups through the worker and HTTP contract", async () => {
+    const response = await request("search-recommendations");
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual([
+      {
+        id: "0",
+        title: "推荐标签",
+        random: false,
+        limit: 12,
+        items: [
+          {
+            label: "冒险",
+            keyword: "冒险",
+            target: { page: "search", attributes: { keyword: "冒险" } },
+          },
+        ],
+      },
+      {
+        id: "1",
+        title: "动态推荐",
+        random: false,
+        limit: 12,
+        items: [
+          {
+            label: "新词",
+            keyword: "新词",
+            target: { page: "search", attributes: { text: "新词" } },
+          },
+        ],
+      },
+    ]);
+    const list = await built.app.inject({ method: "GET", url: "/api/v1/sources" });
+    expect(list.json()[0].hasSearchRecommendations).toBe(true);
+    const missing = await built.app.inject({
+      method: "GET",
+      url: "/api/v1/sources/missing/search-recommendations",
+    });
+    expect(missing.json().error.code).toBe("SOURCE_NOT_LOADED");
+  });
   it("executes login/logout, persists state and never returns password or plugin login errors", async () => {
     expect((await request("auth")).json()).toMatchObject({
       loggedIn: false,
@@ -156,6 +199,7 @@ describe("source protocol (worker)", () => {
     );
     await built.context.sources.loadScript(cookieFile);
     const provider = built.context.sources.get("cookie_auth");
+    expect(await provider.searchRecommendations()).toEqual([]);
     expect(await provider.auth()).toMatchObject({
       methods: ["cookies"],
       cookieFields: ["token"],

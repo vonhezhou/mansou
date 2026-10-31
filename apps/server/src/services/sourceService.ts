@@ -148,6 +148,9 @@ export class SourceService implements SourceRegistry {
     this.get(key);
     return this.list().find((source) => source.key === key)!.searchOptions;
   }
+  searchRecommendations(key: string) {
+    return this.get(key).searchRecommendations();
+  }
   comicDetails(key: string, id: string) {
     return this.get(key).comicDetails(id);
   }

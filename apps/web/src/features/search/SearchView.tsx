@@ -5,9 +5,11 @@ import { ChapterPreview } from "./ChapterPreview.js";
 import { ComicDetailsPanel } from "./ComicDetailsPanel.js";
 import { SearchControls } from "./SearchControls.js";
 import { SearchResults } from "./SearchResults.js";
+import { SearchRecommendations } from "./SearchRecommendations.js";
 import type { SearchViewProps } from "./types.js";
 
 export function SearchView(props: SearchViewProps) {
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const resultSourceKey = props.searchQuery?.sourceKey ?? props.sourceKey;
@@ -36,6 +38,7 @@ export function SearchView(props: SearchViewProps) {
     <>
       <section className="search-hero">
         <SearchControls
+          inputRef={searchInputRef}
           busy={props.busy}
           searching={props.searching}
           onCancelSearch={props.onCancelSearch}
@@ -60,6 +63,16 @@ export function SearchView(props: SearchViewProps) {
           onSourceChange={props.onSourceChange}
           onToggleAggregateSource={props.onToggleAggregateSource}
           onSelectAggregateSources={props.onSelectAggregateSources}
+        />
+        <SearchRecommendations
+          sources={props.sources}
+          sourceKey={props.sourceKey}
+          searchMode={props.searchMode}
+          aggregateSourceKeys={props.aggregateSourceKeys}
+          onSelect={(keyword) => {
+            props.onKeywordChange(keyword);
+            searchInputRef.current?.focus();
+          }}
         />
       </section>
       <SearchResults

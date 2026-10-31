@@ -7,6 +7,16 @@ export type VeneraComicSource = {
   url?: string;
   minAppVersion?: string;
   settings?: Record<string, unknown>;
+  category?: {
+    parts?: Array<{
+      name: string;
+      type: string;
+      randomNumber?: number;
+      itemType?: string;
+      categories?: unknown[];
+      loader?: () => unknown | Promise<unknown>;
+    }>;
+  };
   account?: {
     login?: (username: string, password: string) => unknown | Promise<unknown>;
     logout?: () => unknown | Promise<unknown>;

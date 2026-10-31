@@ -6,6 +6,7 @@ export type Source = {
   version?: string;
   hasSearch?: boolean;
   hasComic?: boolean;
+  hasSearchRecommendations?: boolean;
 };
 export type RepositorySource = {
   key?: string;

@@ -5,6 +5,7 @@ export type Result<K extends Operation> = Awaited<ReturnType<SourceProvider[K]>>
 const operationManifest = {
   metadata: true,
   search: true,
+  searchRecommendations: true,
   comicDetails: true,
   comicPages: true,
   loadImageBytes: true,

@@ -19,6 +19,7 @@ import { sourceSettingsSchema, settingAction } from "./comicSourceBase.js";
 import { normalizeComic, normalizeValue, normalizeChapters } from "./normalize.js";
 import { loadSourceImage } from "./sourceImage.js";
 import { loadBaoziPages, loadComickPages, thumbnailToImageUrl } from "./sourcePatches.js";
+import { hasSearchRecommendations, loadSearchRecommendations } from "./searchRecommendations.js";
 
 /** All Venera interpretation happens here, inside the chosen executor. */
 export class VeneraAdapter implements SourceProvider {
@@ -53,6 +54,7 @@ export class VeneraAdapter implements SourceProvider {
         authentication: Boolean(source.account),
       },
       searchOptions: JSON.parse(JSON.stringify(source.search?.optionList ?? [])),
+      hasSearchRecommendations: hasSearchRecommendations(source),
     };
   }
 
@@ -75,6 +77,10 @@ export class VeneraAdapter implements SourceProvider {
       ),
       ...(search!.load ? { maxPage: result.maxPage } : { next: result.next ?? null }),
     };
+  }
+
+  searchRecommendations() {
+    return loadSearchRecommendations(this.source);
   }
 
   async comicDetails(comicId: string): Promise<ComicDetails> {

@@ -324,6 +324,29 @@ export const openApiDocument = {
         },
       },
     },
+    "/api/v1/sources/{sourceKey}/search-recommendations": {
+      get: {
+        operationId: "getSourceSearchRecommendations",
+        tags: ["sources"],
+        description:
+          "按源返回可填写到搜索框的推荐词；不支持或无普通搜索词时返回空数组。保留源分组顺序，不代表全站热度排名。",
+        parameters: [{ name: "sourceKey", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "array",
+                  items: { $ref: "#/components/schemas/SearchRecommendationGroup" },
+                },
+              },
+            },
+          },
+          default: { $ref: "#/components/responses/Error" },
+        },
+      },
+    },
     "/api/v1/sources/{sourceKey}/settings": {
       get: {
         operationId: "getSourceSettings",
@@ -1388,6 +1411,10 @@ export const openApiDocument = {
           filePath: { type: "string" },
           hasSearch: { type: "boolean" },
           hasComic: { type: "boolean" },
+          hasSearchRecommendations: {
+            type: "boolean",
+            description: "源声明了搜索词或动态词条分组；动态分组可能不含可用搜索词。",
+          },
           capabilities: {
             type: "object",
             required: ["search", "details", "pages", "settings", "authentication"],
@@ -1414,6 +1441,38 @@ export const openApiDocument = {
           },
         },
         required: ["key", "name"],
+      },
+      SearchRecommendationGroup: {
+        type: "object",
+        required: ["id", "title", "random", "limit", "items"],
+        properties: {
+          id: { type: "string" },
+          title: { type: "string" },
+          random: {
+            type: "boolean",
+            description: "是否支持从已取得的词条中随机换一批，不重新请求源。",
+          },
+          limit: { type: "integer", minimum: 1, maximum: 12 },
+          items: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["label", "keyword", "target"],
+              properties: {
+                label: { type: "string" },
+                keyword: { type: "string" },
+                target: {
+                  type: "object",
+                  required: ["page", "attributes"],
+                  properties: {
+                    page: { type: "string" },
+                    attributes: { type: "object", additionalProperties: true },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
       SourceMetadata: {
         type: "object",

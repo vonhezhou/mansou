@@ -1,9 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { Icon } from "../../app/Icon.js";
 import type { Source } from "../../types.js";
 
 type SearchControlsProps = {
+  inputRef?: RefObject<HTMLInputElement | null>;
   busy: boolean;
   searching?: boolean;
   onCancelSearch?: () => void;
@@ -21,7 +22,8 @@ type SearchControlsProps = {
 };
 
 export function SearchControls(props: SearchControlsProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const localInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = props.inputRef ?? localInputRef;
   const canSearch =
     props.searchMode === "aggregate"
       ? props.aggregateSourceKeys.length > 0
@@ -39,7 +41,7 @@ export function SearchControls(props: SearchControlsProps) {
     };
     window.addEventListener("keydown", focusSearch);
     return () => window.removeEventListener("keydown", focusSearch);
-  }, []);
+  }, [inputRef]);
 
   return (
     <>

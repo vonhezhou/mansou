@@ -108,6 +108,11 @@ export const mansouApi = {
     }),
   clearCookies: (sourceKey: string) =>
     api(`/sources/${encodeURIComponent(sourceKey)}/cookies`, { method: "DELETE" }),
+  searchRecommendations: (sourceKey: string, signal?: AbortSignal) =>
+    api<components["schemas"]["SearchRecommendationGroup"][]>(
+      `/sources/${encodeURIComponent(sourceKey)}/search-recommendations`,
+      { signal },
+    ),
   search: (
     sourceKey: string,
     keyword: string,
