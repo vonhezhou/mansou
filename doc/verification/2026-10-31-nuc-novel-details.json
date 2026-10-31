@@ -1,0 +1,57 @@
+{
+  "origin": "http://192.168.30.147:3210",
+  "sourceCommit": "68088d1",
+  "errors": [],
+  "fixture": {
+    "chapters": 50000,
+    "mountedRows": 50,
+    "automationLoadMs": 79,
+    "switchDuringLoad": true,
+    "searchAndLocate": true,
+    "desktopFooter": {
+      "top": 809.8125,
+      "bottom": 975,
+      "viewport": 1000,
+      "visible": true
+    },
+    "cachedChapters": 778,
+    "warmOpenAutomationMs": 27,
+    "requestsBeforeReopen": 2,
+    "requestsAfterReopen": 2,
+    "forceRefresh": true,
+    "mobileFooter": {
+      "top": 649.5,
+      "bottom": 835,
+      "viewport": 844,
+      "visible": true
+    },
+    "mobile": {
+      "width": 372,
+      "scrollWidth": 372
+    }
+  },
+  "live": {
+    "searchBooks": 7,
+    "mountedRows": 50,
+    "desktopFooter": {
+      "top": 809.8125,
+      "bottom": 975,
+      "viewport": 1000,
+      "visible": true
+    },
+    "reopenCatalogRequests": 1,
+    "mobileFooter": {
+      "top": 649.5,
+      "bottom": 835,
+      "viewport": 844,
+      "visible": true
+    },
+    "mobile": {
+      "width": 372,
+      "scrollWidth": 372
+    },
+    "task": "a8caff5b-901e-42c9-a138-3341aa59c9ba",
+    "txtBytes": 17595
+  },
+  "passed": true
+}

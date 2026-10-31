@@ -15,11 +15,11 @@
 
 ## 当前 NUC 发布
 
-- 应用提交 `60c632c`，镜像 `mansou:novel-60c632c`，镜像 ID `sha256:ad1ee67d0c01e199b6f263f0f027c94baedff6554202d8bdfc028fe9f3096251`，容器 `venera_web-mansou-1` 为 healthy。
+- 应用提交 `68088d1`，镜像 `mansou:novel-68088d1`，镜像 ID `sha256:b8eef43ccf89c1fe0b986485f8444a66db9ba5803dc4d9be8cc84e6f41ba8e98`，容器 `venera_web-mansou-1` 为 healthy。
 - 小说搜索：`http://192.168.30.147:3210/#novels`；独立小说源：`/#novel-sources`；统一下载任务：`/#downloads`，含全部/漫画/小说切换与合计活动计数。
 - 发布入口 `/home/von/codes/venera/mansou-novel/current`；统一操作脚本 `/home/von/codes/venera/mansou-novel/compose.sh`。不要在原源码目录重新构建覆盖当前镜像。
 - 继续使用原 `/home/von/codes/venera/venera_web/.env` 与 `data/`；沿用可信局域网测试环境的免登录配置，未新建正式管理员。
-- 最新完整备份 `/home/von/codes/venera/mansou-novel/backups/20261031T101605Z`。核对 2 个持久化漫画源、1 个漫画任务、5 个小说源与 2 个小说任务保留；旧版未持久化的 mock 不作为数据保留依据。原镜像和历次备份保留。
+- 最新完整备份 `/home/von/codes/venera/mansou-novel/backups/20261031T111041Z`。核对 2 个持久化漫画源、1 个漫画任务、5 个小说源与 2 个小说任务保留；旧版未持久化的 mock 不作为数据保留依据。原镜像和历次备份保留。
 - 五源 JSON 为用户私有配置，通过 API 导入，未打包到仓库或镜像；`legado_book_source` 是用户独立预研，`legado` 为第三方 GPL 参考，不混淆代码归属。
 
 ## 验收证据
@@ -31,7 +31,8 @@
 - `2026-10-31-nuc-regression.json`：Linux Node 22 基线全量 391 项、66 文件通过；后续网页改动另外运行受影响回归。
 - `2026-10-31-macos-soak-hour.json`：macOS 一小时 422 轮、140 次取消、84 次故障重试，RSS 峰值 169.17 MiB。
 - `2026-10-31-nuc-soak-hour.json`：NUC 一小时已结束，`soak.running=false`、`passed=true`，有最终成功日志，原 PID `757879` 已结束；原始报告仍保留在 NUC `evidence/docker-soak-hour.json`。
-- `2026-10-31-nuc-deployment-60c632c.json`：最终发布、备份及数据身份检查；`2026-10-31-nuc-web-60c632c.json`：最终 Node 22 网页回归 25 文件、141 项通过。
+- `2026-10-31-nuc-deployment-68088d1.json`：当前发布、备份及数据身份检查；`2026-10-31-nuc-web-68088d1.json`：当前 Node 22 网页回归 28 文件、152 项通过。
+- `2026-10-31-nuc-novel-details.json`：详情固定下载栏、目录分页搜索与原序号定位；50000 项受控目录挂载 50 行，另用 778 项夹具验证缓存和强制刷新。真实“大乘期”目录 778 项，重复打开仅请求 1 次，前两章 TXT 17595 字节；桌面和 390px 移动端操作栏可见且无横向溢出。
 - `2026-10-31-nuc-workspace.json`：独立小说源加载 5 个源，订阅页及原始规则编辑弹窗通过；统一下载同时显示 1 个漫画任务和 2 个小说任务。搜索“大乘期”单源 7 本，目录 778 项，创建下载跳入统一下载页，TXT 17595 字节；390px 的下载页与含 5 源的管理页无横向溢出。
 - `2026-10-31-nuc-nav-badges.json`：导航补齐全部已导入小说源数量，含停用源；真实导入、跨页和删除验证 5→6→5，原源身份、规则哈希及启停状态保留。小说搜索、小说源、漫画源使用不同图标，移动端显示数量且无横向溢出。
 
