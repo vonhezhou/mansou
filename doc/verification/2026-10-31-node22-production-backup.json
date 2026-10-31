@@ -1,0 +1,261 @@
+{
+  "startedAt": "2026-10-31T07:48:30.950Z",
+  "environment": {
+    "node": "v22.23.4",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "chapters": 120,
+  "milestone": {
+    "pause": 12,
+    "kill": 30,
+    "fail": 54
+  },
+  "events": [
+    {
+      "stage": "started",
+      "elapsedMs": 2567,
+      "taskId": "eec30fbe-41ff-45b8-81ce-d183a579f6c7"
+    },
+    {
+      "stage": "paused",
+      "elapsedMs": 6614,
+      "completed": 12
+    },
+    {
+      "stage": "killed",
+      "elapsedMs": 13291,
+      "cached": 30,
+      "removedChapterCache": 16
+    },
+    {
+      "stage": "failed-as-expected",
+      "elapsedMs": 27719,
+      "completed": 53
+    },
+    {
+      "stage": "completed",
+      "elapsedMs": 51041,
+      "bytes": 233547,
+      "sha256": "192a8c64381219251457bd928e61b08188790cded0b62ca056910338762949d7"
+    },
+    {
+      "stage": "backup-restored",
+      "elapsedMs": 53854
+    }
+  ],
+  "passed": true,
+  "completed": 120,
+  "bytes": 233547,
+  "sha256": "192a8c64381219251457bd928e61b08188790cded0b62ca056910338762949d7",
+  "elapsedMs": 51041,
+  "chapterRequests": 134,
+  "restoredCachedChapters": 29,
+  "lostCacheRefetched": 16,
+  "rssPeakMiB": 121.328125,
+  "health": {
+    "samples": 48,
+    "failures": 0,
+    "p95Ms": 7.184124999999767,
+    "maxMs": 15.484375
+  },
+  "resourceSamples": [
+    {
+      "elapsedMs": 2045.923417,
+      "rssMiB": 104.78125
+    },
+    {
+      "elapsedMs": 3011.954042,
+      "rssMiB": 110.78125
+    },
+    {
+      "elapsedMs": 4028.8215,
+      "rssMiB": 109.765625
+    },
+    {
+      "elapsedMs": 5031.689875,
+      "rssMiB": 108.625
+    },
+    {
+      "elapsedMs": 6042.698708,
+      "rssMiB": 114.78125
+    },
+    {
+      "elapsedMs": 7016.188,
+      "rssMiB": 105.734375
+    },
+    {
+      "elapsedMs": 8051.589417,
+      "rssMiB": 114.234375
+    },
+    {
+      "elapsedMs": 9017.820875,
+      "rssMiB": 118.609375
+    },
+    {
+      "elapsedMs": 10037.125458,
+      "rssMiB": 104.515625
+    },
+    {
+      "elapsedMs": 11045.55275,
+      "rssMiB": 91.90625
+    },
+    {
+      "elapsedMs": 12037.106708,
+      "rssMiB": 99.328125
+    },
+    {
+      "elapsedMs": 13051.69725,
+      "rssMiB": 95.796875
+    },
+    {
+      "elapsedMs": 15045.0595,
+      "rssMiB": 97.125
+    },
+    {
+      "elapsedMs": 16078.227917,
+      "rssMiB": 121.328125
+    },
+    {
+      "elapsedMs": 17057.841667,
+      "rssMiB": 82.234375
+    },
+    {
+      "elapsedMs": 18035.448833,
+      "rssMiB": 100.65625
+    },
+    {
+      "elapsedMs": 19064.578792,
+      "rssMiB": 91.5625
+    },
+    {
+      "elapsedMs": 20093.663167,
+      "rssMiB": 100.03125
+    },
+    {
+      "elapsedMs": 21061.126208,
+      "rssMiB": 101.078125
+    },
+    {
+      "elapsedMs": 22041.846542,
+      "rssMiB": 108.421875
+    },
+    {
+      "elapsedMs": 23099.0445,
+      "rssMiB": 106.984375
+    },
+    {
+      "elapsedMs": 24047.801625,
+      "rssMiB": 93.046875
+    },
+    {
+      "elapsedMs": 25047.868333,
+      "rssMiB": 79.953125
+    },
+    {
+      "elapsedMs": 26073.808375,
+      "rssMiB": 83.390625
+    },
+    {
+      "elapsedMs": 27058.17875,
+      "rssMiB": 86.65625
+    },
+    {
+      "elapsedMs": 28050.113,
+      "rssMiB": 89.078125
+    },
+    {
+      "elapsedMs": 29043.250167,
+      "rssMiB": 69.578125
+    },
+    {
+      "elapsedMs": 30055.606333,
+      "rssMiB": 104.703125
+    },
+    {
+      "elapsedMs": 31063.164917,
+      "rssMiB": 80.9375
+    },
+    {
+      "elapsedMs": 32044.3365,
+      "rssMiB": 72.03125
+    },
+    {
+      "elapsedMs": 33052.227417,
+      "rssMiB": 69.046875
+    },
+    {
+      "elapsedMs": 34049.609375,
+      "rssMiB": 95.5625
+    },
+    {
+      "elapsedMs": 35047.843833,
+      "rssMiB": 87.671875
+    },
+    {
+      "elapsedMs": 36115.7935,
+      "rssMiB": 86.234375
+    },
+    {
+      "elapsedMs": 37102.881125,
+      "rssMiB": 86.578125
+    },
+    {
+      "elapsedMs": 38103.497333,
+      "rssMiB": 92.203125
+    },
+    {
+      "elapsedMs": 39113.57975,
+      "rssMiB": 95.484375
+    },
+    {
+      "elapsedMs": 40117.792042,
+      "rssMiB": 89.859375
+    },
+    {
+      "elapsedMs": 41103.185917,
+      "rssMiB": 92.265625
+    },
+    {
+      "elapsedMs": 42106.51075,
+      "rssMiB": 101.078125
+    },
+    {
+      "elapsedMs": 43147.473208,
+      "rssMiB": 95.5625
+    },
+    {
+      "elapsedMs": 44119.802333,
+      "rssMiB": 101.59375
+    },
+    {
+      "elapsedMs": 45106.599,
+      "rssMiB": 83.78125
+    },
+    {
+      "elapsedMs": 46120.520917,
+      "rssMiB": 101.203125
+    },
+    {
+      "elapsedMs": 47107.317208,
+      "rssMiB": 98.375
+    },
+    {
+      "elapsedMs": 48263.782042,
+      "rssMiB": 95.640625
+    },
+    {
+      "elapsedMs": 49120.851667,
+      "rssMiB": 99.0625
+    },
+    {
+      "elapsedMs": 50111.400042,
+      "rssMiB": 87.90625
+    }
+  ],
+  "backupRestore": {
+    "passed": true,
+    "newDataDirectory": true,
+    "sha256": "192a8c64381219251457bd928e61b08188790cded0b62ca056910338762949d7"
+  }
+}

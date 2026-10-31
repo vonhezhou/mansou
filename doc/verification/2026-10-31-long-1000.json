@@ -1,0 +1,311 @@
+{
+  "startedAt": "2026-10-31T07:38:17.711Z",
+  "environment": {
+    "node": "v26.13.0",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "chapters": 1000,
+  "milestone": {
+    "pause": 100,
+    "kill": 250,
+    "fail": 450
+  },
+  "events": [
+    {
+      "stage": "started",
+      "elapsedMs": 308,
+      "taskId": "03828164-05d2-4b58-bc77-ef3cf1beff36"
+    },
+    {
+      "stage": "paused",
+      "elapsedMs": 6612,
+      "completed": 101
+    },
+    {
+      "stage": "killed",
+      "elapsedMs": 15757,
+      "cached": 250,
+      "removedChapterCache": 126
+    },
+    {
+      "stage": "failed-as-expected",
+      "elapsedMs": 29595,
+      "completed": 449
+    },
+    {
+      "stage": "completed",
+      "elapsedMs": 63299,
+      "bytes": 1947614,
+      "sha256": "0012c31579e3e7c01ccdc036feb6f9167a445f9192a80d1adc430cdde6407049"
+    }
+  ],
+  "passed": true,
+  "completed": 1000,
+  "bytes": 1947614,
+  "sha256": "0012c31579e3e7c01ccdc036feb6f9167a445f9192a80d1adc430cdde6407049",
+  "elapsedMs": 63299,
+  "chapterRequests": 1102,
+  "restoredCachedChapters": 249,
+  "lostCacheRefetched": 126,
+  "rssPeakMiB": 186.296875,
+  "health": {
+    "samples": 63,
+    "p95Ms": 0.7564579999998386,
+    "maxMs": 1.0334579999998823
+  },
+  "resourceSamples": [
+    {
+      "elapsedMs": 1004.3901250000001,
+      "rssMiB": 154.453125
+    },
+    {
+      "elapsedMs": 2004.914166,
+      "rssMiB": 155.4375
+    },
+    {
+      "elapsedMs": 3006.1765,
+      "rssMiB": 157.4375
+    },
+    {
+      "elapsedMs": 4006.652166,
+      "rssMiB": 157.375
+    },
+    {
+      "elapsedMs": 5008.132791,
+      "rssMiB": 158.6875
+    },
+    {
+      "elapsedMs": 6008.265958,
+      "rssMiB": 158.578125
+    },
+    {
+      "elapsedMs": 7008.118125,
+      "rssMiB": 160.0625
+    },
+    {
+      "elapsedMs": 8008.71275,
+      "rssMiB": 159.9375
+    },
+    {
+      "elapsedMs": 9010.08525,
+      "rssMiB": 159.234375
+    },
+    {
+      "elapsedMs": 10010.303291,
+      "rssMiB": 161.46875
+    },
+    {
+      "elapsedMs": 11010.607958,
+      "rssMiB": 160.40625
+    },
+    {
+      "elapsedMs": 12010.367458,
+      "rssMiB": 161.515625
+    },
+    {
+      "elapsedMs": 13011.895916,
+      "rssMiB": 161.875
+    },
+    {
+      "elapsedMs": 14010.669041,
+      "rssMiB": 162.265625
+    },
+    {
+      "elapsedMs": 15012.051208,
+      "rssMiB": 162.71875
+    },
+    {
+      "elapsedMs": 16013.481833,
+      "rssMiB": 121.140625
+    },
+    {
+      "elapsedMs": 17014.744082999998,
+      "rssMiB": 150.34375
+    },
+    {
+      "elapsedMs": 18014.591957999997,
+      "rssMiB": 154.984375
+    },
+    {
+      "elapsedMs": 19015.617583,
+      "rssMiB": 158.140625
+    },
+    {
+      "elapsedMs": 20014.880583,
+      "rssMiB": 158.375
+    },
+    {
+      "elapsedMs": 21015.535624999997,
+      "rssMiB": 158.171875
+    },
+    {
+      "elapsedMs": 22016.571083,
+      "rssMiB": 160.1875
+    },
+    {
+      "elapsedMs": 23018.016708,
+      "rssMiB": 160.40625
+    },
+    {
+      "elapsedMs": 24017.819582999997,
+      "rssMiB": 159.609375
+    },
+    {
+      "elapsedMs": 25017.485707999997,
+      "rssMiB": 159.765625
+    },
+    {
+      "elapsedMs": 26017.708749999998,
+      "rssMiB": 159.59375
+    },
+    {
+      "elapsedMs": 27019.561166,
+      "rssMiB": 161.546875
+    },
+    {
+      "elapsedMs": 28019.697833,
+      "rssMiB": 161.78125
+    },
+    {
+      "elapsedMs": 29019.062707999998,
+      "rssMiB": 162.578125
+    },
+    {
+      "elapsedMs": 30019.062541,
+      "rssMiB": 165.6875
+    },
+    {
+      "elapsedMs": 31018.728207999997,
+      "rssMiB": 166.84375
+    },
+    {
+      "elapsedMs": 32019.138625,
+      "rssMiB": 164.78125
+    },
+    {
+      "elapsedMs": 33020.854791000005,
+      "rssMiB": 165.703125
+    },
+    {
+      "elapsedMs": 34020.942958,
+      "rssMiB": 166.21875
+    },
+    {
+      "elapsedMs": 35019.597666,
+      "rssMiB": 165.828125
+    },
+    {
+      "elapsedMs": 36020.094583,
+      "rssMiB": 167.109375
+    },
+    {
+      "elapsedMs": 37020.649833,
+      "rssMiB": 170.46875
+    },
+    {
+      "elapsedMs": 38020.18325,
+      "rssMiB": 172.890625
+    },
+    {
+      "elapsedMs": 39020.188125,
+      "rssMiB": 174.6875
+    },
+    {
+      "elapsedMs": 40020.677291,
+      "rssMiB": 178.09375
+    },
+    {
+      "elapsedMs": 41021.265166000005,
+      "rssMiB": 179.296875
+    },
+    {
+      "elapsedMs": 42020.612541,
+      "rssMiB": 180.75
+    },
+    {
+      "elapsedMs": 43021.257125000004,
+      "rssMiB": 181.03125
+    },
+    {
+      "elapsedMs": 44020.526833,
+      "rssMiB": 181.671875
+    },
+    {
+      "elapsedMs": 45021.236083,
+      "rssMiB": 182.46875
+    },
+    {
+      "elapsedMs": 46021.221666000005,
+      "rssMiB": 186.296875
+    },
+    {
+      "elapsedMs": 47021.587291,
+      "rssMiB": 142.65625
+    },
+    {
+      "elapsedMs": 48022.386,
+      "rssMiB": 141.953125
+    },
+    {
+      "elapsedMs": 49022.085333,
+      "rssMiB": 143.40625
+    },
+    {
+      "elapsedMs": 50021.58875,
+      "rssMiB": 144.5625
+    },
+    {
+      "elapsedMs": 51021.729083,
+      "rssMiB": 145.75
+    },
+    {
+      "elapsedMs": 52022.448791,
+      "rssMiB": 146.375
+    },
+    {
+      "elapsedMs": 53023.277958,
+      "rssMiB": 149.59375
+    },
+    {
+      "elapsedMs": 54024.377583,
+      "rssMiB": 148.53125
+    },
+    {
+      "elapsedMs": 55025.584666,
+      "rssMiB": 149.03125
+    },
+    {
+      "elapsedMs": 56026.247875,
+      "rssMiB": 149.953125
+    },
+    {
+      "elapsedMs": 57026.479,
+      "rssMiB": 151.9375
+    },
+    {
+      "elapsedMs": 58027.3425,
+      "rssMiB": 152.421875
+    },
+    {
+      "elapsedMs": 59027.757208,
+      "rssMiB": 153.15625
+    },
+    {
+      "elapsedMs": 60027.711708,
+      "rssMiB": 155.84375
+    },
+    {
+      "elapsedMs": 61027.283333,
+      "rssMiB": 156.15625
+    },
+    {
+      "elapsedMs": 62027.458166000004,
+      "rssMiB": 156.65625
+    },
+    {
+      "elapsedMs": 63028.262958,
+      "rssMiB": 155.875
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "startedAt": "2026-10-31T07:43:53.692Z",
+  "environment": {
+    "node": "v22.23.4",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "chapters": 120,
+  "milestone": {
+    "pause": 12,
+    "kill": 30,
+    "fail": 54
+  },
+  "events": [
+    {
+      "stage": "started",
+      "elapsedMs": 278,
+      "taskId": "7ea7ffe9-902f-498f-8668-e31ea565b3c1"
+    },
+    {
+      "stage": "paused",
+      "elapsedMs": 1198,
+      "completed": 12
+    },
+    {
+      "stage": "killed",
+      "elapsedMs": 2525,
+      "cached": 31,
+      "removedChapterCache": 16
+    },
+    {
+      "stage": "failed-as-expected",
+      "elapsedMs": 4423,
+      "completed": 53
+    },
+    {
+      "stage": "completed",
+      "elapsedMs": 9206,
+      "bytes": 233547,
+      "sha256": "192a8c64381219251457bd928e61b08188790cded0b62ca056910338762949d7"
+    }
+  ],
+  "passed": true,
+  "completed": 120,
+  "bytes": 233547,
+  "sha256": "192a8c64381219251457bd928e61b08188790cded0b62ca056910338762949d7",
+  "elapsedMs": 9206,
+  "chapterRequests": 134,
+  "restoredCachedChapters": 30,
+  "lostCacheRefetched": 16,
+  "rssPeakMiB": 152.921875,
+  "health": {
+    "samples": 9,
+    "failures": 0,
+    "p95Ms": 0.6390000000001237,
+    "maxMs": 0.6514579999998205
+  },
+  "resourceSamples": [
+    {
+      "elapsedMs": 1004.462083,
+      "rssMiB": 137.203125
+    },
+    {
+      "elapsedMs": 2005.021166,
+      "rssMiB": 145.09375
+    },
+    {
+      "elapsedMs": 3006.051291,
+      "rssMiB": 136.578125
+    },
+    {
+      "elapsedMs": 4007.208708,
+      "rssMiB": 147.296875
+    },
+    {
+      "elapsedMs": 5007.990957999999,
+      "rssMiB": 131.484375
+    },
+    {
+      "elapsedMs": 6008.490790999999,
+      "rssMiB": 145.5
+    },
+    {
+      "elapsedMs": 7008.562207999999,
+      "rssMiB": 152.921875
+    },
+    {
+      "elapsedMs": 8008.153958,
+      "rssMiB": 141.6875
+    },
+    {
+      "elapsedMs": 9008.777291,
+      "rssMiB": 152.921875
+    }
+  ]
+}

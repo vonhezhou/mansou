@@ -1,0 +1,219 @@
+{
+  "startedAt": "2026-10-31T07:47:00.630Z",
+  "environment": {
+    "node": "v26.13.0",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "snapshot": {
+    "filename": "baseline-sources.json",
+    "sha256": "5b83e4e6b87d0330ac4b181ddab55b44da3416558d33de027d7acf8629088d1b"
+  },
+  "keyword": "凡人",
+  "timeoutMs": 15000,
+  "networkMinIntervalMs": 1000,
+  "sources": [
+    {
+      "name": "就爱文学",
+      "url": "http://www.92xs.info",
+      "ruleHash": "9f9c84e2e3f723a138c9cea7b42faf13f13c63629a9493061f94b4d7120a0ec7",
+      "searchSupported": true,
+      "downloadSupported": true,
+      "stage": "completed",
+      "samples": [
+        {
+          "index": 1,
+          "title": "第1章 梦想成真（1）",
+          "characters": 1065,
+          "sha256": "0b758ef97872e3e4bc8c04eb6adcaa943bf83731cade4894c211e919b3ed45b9"
+        },
+        {
+          "index": 277,
+          "title": "第277章 不紧张女孩（2）",
+          "characters": 1069,
+          "sha256": "59015b7f769d11f8f7eee96b86e3837b8f5effafd06bfd9c19fc1a17bdbd94ca"
+        },
+        {
+          "index": 552,
+          "title": "第552章 小结局（3）",
+          "characters": 1085,
+          "sha256": "4c6cf670ce489bdcb8d155d157efaed0efd2fb2e7236bbf0a045dfedbfb61b09"
+        }
+      ],
+      "search": {
+        "status": "ok",
+        "books": 50
+      },
+      "book": {
+        "name": "凡人馆",
+        "author": "八殊",
+        "url": "http://www.92xs.info/book/57134.html"
+      },
+      "catalog": {
+        "complete": true,
+        "pages": 1,
+        "chapters": 552
+      },
+      "passed": true
+    },
+    {
+      "name": "新笔趣阁",
+      "url": "https://www.biquges123.com",
+      "ruleHash": "2e00e171cb30d136dd420edd6f77cfce881ed1a5fe99bf1c1dbaf9a258bc1999",
+      "searchSupported": true,
+      "downloadSupported": true,
+      "stage": "completed",
+      "samples": [
+        {
+          "index": 1,
+          "title": "第一章 山边小村",
+          "characters": 2455,
+          "sha256": "e91ae8986422ab184e26dd0daa5237d5e1d475249dd038bf00d94e30b324cd08"
+        },
+        {
+          "index": 1234,
+          "title": "第一千二百三十章 图谋阴罗",
+          "characters": 3154,
+          "sha256": "ef37a994332897ee6d0183f3ece811e135042ea4c6e7b234d6d63ccd45575614"
+        },
+        {
+          "index": 2467,
+          "title": "忘语新书《玄界之门》",
+          "characters": 54,
+          "sha256": "5ef0831ae988c28c714186ae95406181f53fa802583680269107712e43ff213d"
+        }
+      ],
+      "search": {
+        "status": "ok",
+        "books": 30
+      },
+      "book": {
+        "name": "凡人修仙传",
+        "author": "忘语",
+        "url": "https://www.biquges123.com/34811"
+      },
+      "catalog": {
+        "complete": true,
+        "pages": 1,
+        "chapters": 2467
+      },
+      "passed": true
+    },
+    {
+      "name": "精华书阁手机版",
+      "url": "https://m.jhssd.com/",
+      "ruleHash": "295b37cd9dff26bb15e589034c1f48ebc6dda2c338b156d8fdfcc08c832fb899",
+      "searchSupported": true,
+      "downloadSupported": true,
+      "stage": "catalog",
+      "samples": [],
+      "search": {
+        "status": "ok",
+        "books": 20
+      },
+      "book": {
+        "name": "凡人：我一剑斩魂，修三千大道",
+        "author": "西瓜败火",
+        "url": "https://m.jhsssd.com/127558/"
+      },
+      "catalog": {
+        "complete": false,
+        "pages": 100,
+        "chapters": 2000
+      },
+      "passed": false,
+      "error": {
+        "code": "ERR_ASSERTION",
+        "message": "目录未遍历完，中后章节尚未验证"
+      }
+    },
+    {
+      "name": "笔趣阁[biqusa]",
+      "url": "https://www.biqusa.com/",
+      "ruleHash": "c7b041b84f6d43a48710fe95a26561bcb79073245511dffe3596c94c39eba3da",
+      "searchSupported": true,
+      "downloadSupported": true,
+      "stage": "completed",
+      "samples": [
+        {
+          "index": 1,
+          "title": "楔子",
+          "characters": 1167,
+          "sha256": "7bfba20801d9df4985fcd78bfce9f89a34a5b169ea0b9226301d06ae815ce73e"
+        },
+        {
+          "index": 629,
+          "title": "第六百二十章 引仑采出来",
+          "characters": 3149,
+          "sha256": "06434b90d5f93f2dc0f2af95925f23a558ebe42629c4f2d29bebab9070995d51"
+        },
+        {
+          "index": 1257,
+          "title": "不朽凡人前传",
+          "characters": 165,
+          "sha256": "53868d3dd702a7f1f50a04c9dd709a59205f2ccf99869bdea80d1e23b72058c0"
+        }
+      ],
+      "search": {
+        "status": "ok",
+        "books": 50
+      },
+      "book": {
+        "name": "不朽凡人",
+        "author": "鹅是老五",
+        "url": "https://www.biqusa.com/76_76587/"
+      },
+      "catalog": {
+        "complete": true,
+        "pages": 1,
+        "chapters": 1257
+      },
+      "passed": true
+    },
+    {
+      "name": "错层小说网",
+      "url": "https://m.cuoceng.org/",
+      "ruleHash": "5b5dd8afeaa6f65ad4414de3b5d630bf7749e7181e5a86fa378127a92ca76f98",
+      "searchSupported": true,
+      "downloadSupported": true,
+      "stage": "completed",
+      "samples": [
+        {
+          "index": 1,
+          "title": "呵呵！终于上架了！",
+          "characters": 82,
+          "sha256": "1b9ebf8c10437877b0a3d0874e883446e452c6ea5e0044e4c9b925d9298fd2f2"
+        },
+        {
+          "index": 1301,
+          "title": "第七卷 纵横人界 第一千二百一十四章 星宫之战（十四）",
+          "characters": 3154,
+          "sha256": "c41dd6ae06d0ef501d59c3c490aee2d399fae8fc1379d4efa7f2234f8bc2ecb5"
+        },
+        {
+          "index": 2601,
+          "title": "忘语新书《玄界之门》",
+          "characters": 43,
+          "sha256": "fbe158eb8780172fdc02ba182f6c5147e476512db599ed5d060eb1b084bdec39"
+        }
+      ],
+      "search": {
+        "status": "ok",
+        "books": 12
+      },
+      "book": {
+        "name": "凡人修仙传",
+        "author": "忘语",
+        "url": "https://m.cuoceng.org/book/1d16561c-8158-4656-8401-f5392bbcc04a.html"
+      },
+      "catalog": {
+        "complete": true,
+        "pages": 6,
+        "chapters": 2601
+      },
+      "passed": true
+    }
+  ],
+  "passed": false,
+  "finishedAt": "2026-10-31T07:49:55.950Z"
+}

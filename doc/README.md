@@ -12,6 +12,7 @@
 
 ## 开发与贡献
 
+- [小说验收](novel-acceptance.md)：长篇恢复、独立生产包、持续运行和真实书源复核工具。
 - [贡献指南](../CONTRIBUTING.md)：问题反馈、开发验证与 PR 约定。
 - [服务端架构](server_architecture.md)：当前业务服务、源接口、插件适配与执行容器边界。
 - [前端架构](web_architecture.md)：网页结构、请求约定与测试。

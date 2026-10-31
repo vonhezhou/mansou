@@ -20,4 +20,5 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+      - run: pnpm verify:novels --chapters 120 --output /tmp/novels-acceptance.json
       - run: docker build .
