@@ -1,6 +1,6 @@
 import path from "node:path";
 
-export function createPaths(dataDir: string, rootDir = process.cwd()) {
+export function createPaths(dataDir: string) {
   return {
     data: dataDir,
     repositoryIndex: path.join(dataDir, "sources", "index.json"),
@@ -10,7 +10,6 @@ export function createPaths(dataDir: string, rootDir = process.cwd()) {
     imageCache: path.join(dataDir, "cache", "images"),
     downloads: path.join(dataDir, "downloads"),
     downloadTasks: path.join(dataDir, "downloads", "tasks.json"),
-    bundledMockSource: path.join(rootDir, "fixtures", "sources", "mock.js"),
   };
 }
 export type AppPaths = ReturnType<typeof createPaths>;

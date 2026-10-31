@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useSearch } from "./useSearch.js";
 import { mansouApi } from "../api/mansou.js";
+import type { Source } from "../types.js";
 
 let state: ReturnType<typeof useSearch>;
 let root: Root;
@@ -18,10 +19,17 @@ const runWith: Parameters<typeof useSearch>[0]["runWith"] = async (setLoading, t
     setLoading(false);
   }
 };
-function Harness({ sourceKey = "search-source" }: { sourceKey?: string }) {
+function Harness({
+  sourceKey = "search-source",
+  sources,
+}: {
+  sourceKey?: string;
+  sources?: Source[];
+}) {
   state = useSearch({
     runWith,
     sourceKey,
+    sources,
     detailSourceKey: "detail-source",
     setSourceKey: changeSource,
     setDetailSourceKey: changeDetailSource,
@@ -32,6 +40,11 @@ function Harness({ sourceKey = "search-source" }: { sourceKey?: string }) {
 }
 beforeEach(async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const stored = new Map<string, string>();
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: (key: string, value: string) => stored.set(key, value),
+  });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -528,4 +541,76 @@ it("keeps creating requested downloads in the background without redirecting aft
   });
   expect(navigate).not.toHaveBeenCalled();
   expect(state.detailsBusy).toBe(false);
+});
+
+it("remembers submitted terms on failure, keeps pagination out of history, and persists deletion", async () => {
+  const search = vi.spyOn(mansouApi, "search").mockRejectedValueOnce(new Error("源不可达"));
+  await act(async () => state.setKeyword("  第一部  "));
+  await act(async () => state.submitSearch());
+  expect(state.searchHistory).toEqual(["第一部"]);
+  search.mockResolvedValue({ comics: [], maxPage: 2 });
+  await act(async () => state.setKeyword("第二部"));
+  await act(async () => state.submitSearch());
+  await act(async () => state.setKeyword("第一部"));
+  await act(async () => state.submitSearch());
+  await act(async () => state.loadMoreResults());
+  expect(state.searchHistory).toEqual(["第一部", "第二部"]);
+  await act(async () => state.removeSearchHistory("第一部"));
+  await act(async () => root.render(<Harness key="reload-history" />));
+  expect(state.searchHistory).toEqual(["第二部"]);
+  await act(async () => state.clearSearchHistory());
+  await act(async () => root.render(<Harness key="reload-cleared-history" />));
+  expect(state.searchHistory).toEqual([]);
+});
+
+it("restores mode and multiple sources, prunes unavailable sources, and remembers an empty selection", async () => {
+  localStorage.setItem(
+    "mansou:search-preferences",
+    JSON.stringify({
+      sourceKey: "a",
+      searchMode: "aggregate",
+      aggregateSourceKeys: ["a", "removed", "no-search", "b"],
+    }),
+  );
+  await act(async () => root.render(<Harness key="restore-preferences" />));
+  expect(state.searchMode).toBe("aggregate");
+  const sources = [
+    { key: "b", name: "B", hasSearch: true },
+    { key: "a", name: "A", hasSearch: true },
+    { key: "no-search", name: "No search", hasSearch: false },
+  ];
+  await act(async () => state.syncAggregateSources(sources));
+  expect(state.aggregateSourceKeys).toEqual(["a", "b"]);
+  await act(async () => {
+    state.toggleAggregateSource("a");
+    state.toggleAggregateSource("b");
+  });
+  await act(async () => state.syncAggregateSources(sources));
+  expect(state.aggregateSourceKeys).toEqual([]);
+  await act(async () => root.render(<Harness key="restore-empty" />));
+  await act(async () => state.syncAggregateSources(sources));
+  expect(state.aggregateSourceKeys).toEqual([]);
+});
+
+it("selects or inverts only searchable sources and persists the resulting selection", async () => {
+  const sources = [
+    { key: "a", name: "A", hasSearch: true },
+    { key: "b", name: "B", hasSearch: true },
+    { key: "no-search", name: "No search", hasSearch: false },
+  ];
+  await act(async () => root.render(<Harness key="bulk" sources={sources} />));
+  await act(async () => state.toggleAggregateSource("removed"));
+  await act(async () => state.selectAggregateSources("all"));
+  expect(state.aggregateSourceKeys).toEqual(["a", "b"]);
+  await act(async () => state.toggleAggregateSource("a"));
+  await act(async () => state.selectAggregateSources("invert"));
+  expect(state.aggregateSourceKeys).toEqual(["a"]);
+  await act(async () => root.render(<Harness key="restore-bulk" sources={sources} />));
+  expect(state.aggregateSourceKeys).toEqual(["a"]);
+  await act(async () => state.selectAggregateSources("all"));
+  await act(async () => state.selectAggregateSources("invert"));
+  expect(state.aggregateSourceKeys).toEqual([]);
+  await act(async () => root.render(<Harness key="restore-bulk-empty" sources={sources} />));
+  await act(async () => state.syncAggregateSources(sources));
+  expect(state.aggregateSourceKeys).toEqual([]);
 });

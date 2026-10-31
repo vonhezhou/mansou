@@ -1,3 +1,4 @@
+import { installMockSource, mockSourceFile } from "./helpers/mockSource.js";
 import { access, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -13,14 +14,23 @@ afterEach(async () => {
     directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
   );
 });
-async function build() {
+async function build(withMock = true) {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), "mansou-app-lifecycle-"));
   directories.push(dataDir);
   const built = await buildApp(undefined, { ...readConfig(), dataDir });
   apps.push(built);
+  if (withMock) await installMockSource(built.context);
   return built;
 }
 describe("application lifecycle", () => {
+  it("starts without test sources and does not inject them on reload", async () => {
+    const built = await build(false);
+    await initializeApp(built.context);
+    expect(built.context.sources.all()).toEqual([]);
+    expect(await built.context.sources.metadata()).toEqual([]);
+    await built.context.sources.loadInstalled();
+    expect(built.context.sources.all()).toEqual([]);
+  });
   it("isolates paths and storage across application instances", async () => {
     const first = await build();
     const second = await build();
@@ -34,7 +44,7 @@ describe("application lifecycle", () => {
     ).toBeGreaterThan(0);
   });
   it("releases resources when initialization fails", async () => {
-    const built = await build();
+    const built = await build(false);
     const close = vi.spyOn(built.context.storage, "close");
     await writeFile(built.context.paths.scripts, "not a directory").catch(async () => {
       await mkdir(path.dirname(built.context.paths.scripts), { recursive: true });
@@ -61,7 +71,7 @@ describe("application lifecycle", () => {
     built.context.storage.upsertSource({
       key: "mock",
       name: "Mock",
-      scriptPath: built.context.paths.bundledMockSource,
+      scriptPath: mockSourceFile,
     });
     await built.context.sources.setEnabled("mock", false);
     expect(built.context.sources.get("other")).toBe(provider);
@@ -113,7 +123,7 @@ describe("application lifecycle", () => {
     const built = await build();
     await initializeApp(built.context);
     const { sources, storage, paths } = built.context;
-    storage.upsertSource({ key: "mock", name: "Mock", scriptPath: paths.bundledMockSource });
+    storage.upsertSource({ key: "mock", name: "Mock", scriptPath: mockSourceFile });
     const builtin = await built.app.inject({ method: "DELETE", url: "/api/v1/sources/mock" });
     expect(builtin.statusCode).toBe(409);
     expect(builtin.json().error.code).toBe("SOURCE_BUILTIN");

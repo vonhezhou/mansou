@@ -70,7 +70,9 @@ export function useSources(
     ]);
     setSources(loaded);
     setSourceMetadata(metadata);
-    if (!loaded.some((source) => source.key === sourceKey)) changeSourceKey(loaded[0]?.key ?? "");
+    const searchable = loaded.filter((source) => source.hasSearch);
+    if (!searchable.some((source) => source.key === sourceKey))
+      changeSourceKey(searchable[0]?.key ?? "");
     let repository = await mansouApi.listAvailableSources();
     if (repository.length === 0) {
       repository = (await mansouApi.refreshRepository()).sources;

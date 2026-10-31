@@ -130,12 +130,6 @@ export class SourceRepositoryService {
     const installed = files
       .filter((file) => file.endsWith(".js"))
       .map((file) => path.join(this.paths.scripts, file));
-    if (
-      !installed.some((file) => path.basename(file) === "mock.js") &&
-      existsSync(this.paths.bundledMockSource)
-    ) {
-      installed.push(this.paths.bundledMockSource);
-    }
     return installed;
   }
 

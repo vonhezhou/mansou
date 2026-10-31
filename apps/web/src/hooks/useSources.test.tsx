@@ -8,12 +8,12 @@ let state: ReturnType<typeof useSources>;
 let root: Root;
 let container: HTMLDivElement;
 const changeSource = vi.fn();
-const installed = [{ key: "mock", name: "Mock" }];
+const installed = [{ key: "mock", name: "Mock", hasSearch: true }];
 const metadata = [{ key: "mock", name: "Mock", enabled: true }];
 const repository = [{ key: "example", name: "示例源", fileName: "example.js" }];
 
-function Harness({ active = false }: { active?: boolean }) {
-  state = useSources(async (_, task) => task(), "", changeSource, active);
+function Harness({ active = false, sourceKey = "" }: { active?: boolean; sourceKey?: string }) {
+  state = useSources(async (_, task) => task(), sourceKey, changeSource, active);
   return null;
 }
 
@@ -183,4 +183,20 @@ it("keeps the configuration source separate from the search source and loads its
   await act(async () => state.loadSourceSettings());
   expect(settings).toHaveBeenCalledWith("disabled");
   expect(state.sourceSettingsKey).toBe("disabled");
+});
+
+it("falls back to a searchable source and preserves a still-available saved selection", async () => {
+  const sources = [
+    { key: "details-only", name: "Details", hasSearch: false },
+    { key: "first", name: "First", hasSearch: true },
+    { key: "saved", name: "Saved", hasSearch: true },
+  ];
+  vi.mocked(mansouApi.listInstalledSources).mockResolvedValue(sources);
+  vi.mocked(mansouApi.listAvailableSources).mockResolvedValue(repository);
+  await act(async () => state.loadSources());
+  expect(changeSource).toHaveBeenLastCalledWith("first");
+  changeSource.mockClear();
+  await act(async () => root.render(<Harness sourceKey="saved" />));
+  await act(async () => state.loadSources());
+  expect(changeSource).not.toHaveBeenCalled();
 });

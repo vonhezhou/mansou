@@ -12,6 +12,7 @@ import { SourcesView } from "./features/sources/SourcesView.js";
 import { useDownloads } from "./hooks/useDownloads.js";
 import { useSearch } from "./hooks/useSearch.js";
 import { useSources } from "./hooks/useSources.js";
+import { readSearchPreferences } from "./lib/searchPreferences.js";
 
 function readInitialTab(): TabKey {
   const hash = window.location.hash.slice(1);
@@ -33,7 +34,7 @@ function Workspace({
   session: AuthSession;
   reloadSession: () => Promise<void>;
 }) {
-  const [sourceKey, setSourceKey] = useState("mock");
+  const [sourceKey, setSourceKey] = useState(() => readSearchPreferences().sourceKey);
   const [detailSourceKey, setDetailSourceKey] = useState(sourceKey);
   const [activeTab, setActiveTab] = useState<TabKey>(readInitialTab);
   const [health, setHealth] = useState<Health | null>(null);
@@ -178,6 +179,9 @@ function Workspace({
           detailSourceKey={detailSourceKey}
           sources={sourcesState.sources}
           keyword={searchState.keyword}
+          searchHistory={searchState.searchHistory}
+          onRemoveSearchHistory={searchState.removeSearchHistory}
+          onClearSearchHistory={searchState.clearSearchHistory}
           searchMode={searchState.searchMode}
           searchQuery={searchState.searchQuery}
           aggregateSourceKeys={searchState.aggregateSourceKeys}
@@ -198,6 +202,7 @@ function Workspace({
           onKeywordChange={searchState.setKeyword}
           onSearchModeChange={searchState.setSearchMode}
           onToggleAggregateSource={searchState.toggleAggregateSource}
+          onSelectAggregateSources={searchState.selectAggregateSources}
           onAggregateResultLayoutChange={searchState.setAggregateResultLayout}
           onSearch={() => void searchState.submitSearch()}
           onLoadMore={() => void searchState.loadMoreResults()}

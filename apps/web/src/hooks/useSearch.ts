@@ -3,6 +3,14 @@ import type { Comic } from "@mansou/contracts";
 import { mansouApi } from "../api/mansou.js";
 import type { AggregatedSearchItem, Details, Source } from "../types.js";
 
+import {
+  addSearchHistory,
+  readSearchHistory,
+  readSearchPreferences,
+  saveSearchHistory,
+  saveSearchPreferences,
+} from "../lib/searchPreferences.js";
+
 type RunWith = (setLoading: (value: boolean) => void, task: () => Promise<void>) => Promise<void>;
 
 type UseSearchOptions = {
@@ -18,9 +26,18 @@ type UseSearchOptions = {
 
 export function useSearch(options: UseSearchOptions) {
   const { sourceKey, setDetailSourceKey, runWith } = options;
+  const [initialPreferences] = useState(readSearchPreferences);
+  const [searchHistory, setSearchHistory] = useState(readSearchHistory);
+  const aggregateSelectionInitialized = useRef(
+    initialPreferences.aggregateSourceKeys !== undefined,
+  );
   const [keyword, setKeyword] = useState("");
-  const [searchMode, setSearchMode] = useState<"single" | "aggregate">("single");
-  const [aggregateSourceKeys, setAggregateSourceKeys] = useState<string[]>([]);
+  const [searchMode, setSearchMode] = useState<"single" | "aggregate">(
+    initialPreferences.searchMode,
+  );
+  const [aggregateSourceKeys, setAggregateSourceKeys] = useState<string[]>(
+    initialPreferences.aggregateSourceKeys ?? [],
+  );
   const [aggregateResultLayout, setAggregateResultLayout] = useState<"grouped" | "flat">("flat");
   const [results, setResults] = useState<Comic[]>([]);
   const [aggregatedResults, setAggregatedResults] = useState<AggregatedSearchItem[]>([]);
@@ -43,6 +60,25 @@ export function useSearch(options: UseSearchOptions) {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searchCancelled, setSearchCancelled] = useState(false);
   const [aggregatePendingKeys, setAggregatePendingKeys] = useState<string[]>([]);
+  useEffect(() => {
+    saveSearchPreferences({
+      sourceKey,
+      searchMode,
+      aggregateSourceKeys: aggregateSelectionInitialized.current ? aggregateSourceKeys : undefined,
+    });
+  }, [sourceKey, searchMode, aggregateSourceKeys]);
+  useEffect(() => saveSearchHistory(searchHistory), [searchHistory]);
+
+  function rememberSearch(term: string) {
+    setSearchHistory((current) => addSearchHistory(current, term));
+  }
+  function removeSearchHistory(term: string) {
+    setSearchHistory((current) => current.filter((item) => item !== term));
+  }
+  function clearSearchHistory() {
+    setSearchHistory([]);
+  }
+
   const searchController = useRef<AbortController | null>(null);
   const searchRequest = useRef(0);
   useEffect(
@@ -136,13 +172,13 @@ export function useSearch(options: UseSearchOptions) {
   }
 
   function syncAggregateSources(sources: Source[]) {
+    const searchable = sources.filter((source) => source.hasSearch);
+    const useDefault = !aggregateSelectionInitialized.current;
+    if (searchable.length > 0) aggregateSelectionInitialized.current = true;
     setAggregateSourceKeys((current) =>
-      current.length
-        ? current.filter((key) => sources.some((source) => source.key === key))
-        : sources
-            .filter((source) => source.hasSearch)
-            .slice(0, 1)
-            .map((source) => source.key),
+      useDefault
+        ? searchable.slice(0, 1).map((source) => source.key)
+        : current.filter((key) => searchable.some((source) => source.key === key)),
     );
   }
 
@@ -153,6 +189,7 @@ export function useSearch(options: UseSearchOptions) {
       mode: "single" as const,
     };
     if (!query.keyword) return;
+    rememberSearch(query.keyword);
     await runSearch(async (signal, request) => {
       // 提交时即切换结果上下文，避免慢请求期间把旧结果误认为新结果。
       setSearchQuery(query);
@@ -181,6 +218,7 @@ export function useSearch(options: UseSearchOptions) {
       mode: "aggregate" as const,
     };
     if (!query.keyword || aggregateSourceKeys.length === 0) return;
+    rememberSearch(query.keyword);
     const keys = [...new Set(aggregateSourceKeys)];
     await runSearch(async (signal, request) => {
       setSearchQuery(query);
@@ -450,9 +488,23 @@ export function useSearch(options: UseSearchOptions) {
   }
 
   function toggleAggregateSource(source: string) {
+    aggregateSelectionInitialized.current = true;
     setAggregateSourceKeys((current) =>
       current.includes(source) ? current.filter((key) => key !== source) : [...current, source],
     );
+  }
+
+  function selectAggregateSources(action: "all" | "invert") {
+    aggregateSelectionInitialized.current = true;
+    const keys = [
+      ...new Set(
+        options.sources?.filter((source) => source.hasSearch).map((source) => source.key) ?? [],
+      ),
+    ];
+    setAggregateSourceKeys((current) => {
+      const selected = new Set(current);
+      return action === "all" ? keys : keys.filter((key) => !selected.has(key));
+    });
   }
 
   function toggleSelectedEpisode(id: string) {
@@ -475,6 +527,9 @@ export function useSearch(options: UseSearchOptions) {
   const searchBusy = searching || detailsBusy;
 
   return {
+    searchHistory,
+    removeSearchHistory,
+    clearSearchHistory,
     aggregateResultLayout,
     aggregatePendingKeys,
     aggregateSourceKeys,
@@ -530,6 +585,7 @@ export function useSearch(options: UseSearchOptions) {
     countAllPages,
     closeDetails,
     toggleAggregateSource,
+    selectAggregateSources,
     toggleSelectedEpisode,
     selectEpisodes,
   };

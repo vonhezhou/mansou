@@ -21,17 +21,17 @@ export const ComicCard = memo(function ComicCard(props: ComicCardProps) {
       onClick={() => props.onOpenComic(props.comic, props.sourceKey)}
       aria-label={`查看 ${props.comic.title} 的详情`}
     >
-      <AsyncImage
-        src={imageUrl(
-          props.sourceKey,
-          props.comic.cover ?? "mock://cover/0",
-          props.comic.id,
-          undefined,
-          true,
-        )}
-        alt=""
-        loading="lazy"
-      />
+      {props.comic.cover ? (
+        <AsyncImage
+          src={imageUrl(props.sourceKey, props.comic.cover, props.comic.id, undefined, true)}
+          alt=""
+          loading="lazy"
+        />
+      ) : (
+        <span className="async-image" aria-hidden="true">
+          <span className="image-placeholder">暂无封面</span>
+        </span>
+      )}
       <span className="comic-card-info">
         <span className="source-label">{props.sourceName ?? props.sourceKey}</span>
         <strong>{props.comic.title}</strong>

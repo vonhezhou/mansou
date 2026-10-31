@@ -10,6 +10,9 @@ type SearchControlsProps = {
   sourceKey: string;
   sources: Source[];
   keyword: string;
+  searchHistory: string[];
+  onRemoveSearchHistory: (term: string) => void;
+  onClearSearchHistory: () => void;
   searchMode: "single" | "aggregate";
   aggregateSourceKeys: string[];
   onKeywordChange: (value: string) => void;
@@ -65,6 +68,37 @@ export function SearchControls(props: SearchControlsProps) {
           {props.busy ? <LoadingStatus label="处理中…" /> : "搜索"}
         </button>
       </form>
+      {props.searchHistory.length > 0 && (
+        <section className="search-history" aria-label="搜索历史">
+          <div className="search-history-heading">
+            <span>搜索历史</span>
+            <button className="quiet-button" onClick={props.onClearSearchHistory}>
+              清空历史
+            </button>
+          </div>
+          <div className="search-history-terms">
+            {props.searchHistory.map((term) => (
+              <span className="search-history-term" key={term}>
+                <button
+                  title={term}
+                  onClick={() => {
+                    props.onKeywordChange(term);
+                    inputRef.current?.focus();
+                  }}
+                >
+                  {term}
+                </button>
+                <button
+                  aria-label={`删除搜索历史：${term}`}
+                  onClick={() => props.onRemoveSearchHistory(term)}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
       {props.searching && props.onCancelSearch && (
         <button className="secondary-button stop-search" onClick={props.onCancelSearch}>
           停止搜索，保留已有结果

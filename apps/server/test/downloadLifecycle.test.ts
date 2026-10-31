@@ -1,3 +1,4 @@
+import { installMockSource } from "./helpers/mockSource.js";
 import { access, mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -23,6 +24,7 @@ beforeEach(async () => {
   config.downloadConcurrency = 1;
   config.downloadTaskConcurrency = 1;
   built = await buildApp(undefined, config);
+  await installMockSource(built.context);
   await initializeApp(built.context);
 });
 afterEach(async () => {
@@ -130,6 +132,7 @@ describe("download lifecycle", () => {
     expect(persisted.getDownload(task.id)).toMatchObject({ status: "queued", completed: 1 });
     persisted.close();
     built = await buildApp(undefined, config);
+    await installMockSource(built.context);
     const restoredImages = vi.spyOn(built.context.imageProxy, "loadBytes");
     await initializeApp(built.context);
     await vi.waitFor(() =>

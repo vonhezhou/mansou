@@ -42,6 +42,9 @@ export function SearchView(props: SearchViewProps) {
           sourceKey={props.sourceKey}
           sources={props.sources}
           keyword={props.keyword}
+          searchHistory={props.searchHistory}
+          onRemoveSearchHistory={props.onRemoveSearchHistory}
+          onClearSearchHistory={props.onClearSearchHistory}
           searchMode={props.searchMode}
           aggregateSourceKeys={props.aggregateSourceKeys}
           onKeywordChange={props.onKeywordChange}
@@ -56,6 +59,7 @@ export function SearchView(props: SearchViewProps) {
           busy={props.busy || Boolean(props.sourcesLoading)}
           onSourceChange={props.onSourceChange}
           onToggleAggregateSource={props.onToggleAggregateSource}
+          onSelectAggregateSources={props.onSelectAggregateSources}
         />
       </section>
       <SearchResults

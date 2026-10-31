@@ -28,11 +28,6 @@ export class ImageProxyService {
   }
 
   async loadBytes(input: ImageProxyInput, useCache: CachePolicy = true) {
-    if (input.imageKey.startsWith("mock://")) {
-      const data = Buffer.from(mockSvg(input.imageKey));
-      return { data, contentType: "image/svg+xml; charset=utf-8", cached: false };
-    }
-
     if (!useCache) return this.fetchBytes(input, false);
     // 固定字段顺序，使预览与下载共享进行中的请求及磁盘缓存。
     const cacheInput: ImageProxyInput = {
@@ -95,23 +90,4 @@ export class ImageProxyService {
       return "image/webp";
     return "application/octet-stream";
   }
-}
-
-function mockSvg(label: string) {
-  const safeLabel = label.replace(
-    /[<>&]/g,
-    (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[char]!,
-  );
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200">
-  <defs>
-    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0%" stop-color="#334155"/>
-      <stop offset="100%" stop-color="#111827"/>
-    </linearGradient>
-  </defs>
-  <rect width="900" height="1200" fill="url(#bg)"/>
-  <circle cx="740" cy="180" r="90" fill="#64748b" opacity="0.35"/>
-  <text x="450" y="560" text-anchor="middle" font-family="Arial, sans-serif" font-size="54" fill="#f8fafc">Mansou</text>
-  <text x="450" y="640" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" fill="#cbd5e1">${safeLabel}</text>
-</svg>`;
 }

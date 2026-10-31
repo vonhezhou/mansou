@@ -1,3 +1,4 @@
+import { installMockSource } from "./helpers/mockSource.js";
 import { readConfig, type AppConfig } from "../src/config/config.js";
 import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
@@ -24,6 +25,7 @@ beforeAll(async () => {
   const built = await buildApp(undefined, config);
   app = built.app;
   context = built.context;
+  await installMockSource(context);
   await initializeApp(context);
 });
 
@@ -142,6 +144,7 @@ describe("api v1 mock source", () => {
     const built = await buildApp(undefined, config);
     app = built.app;
     context = built.context;
+    await installMockSource(context);
     await initializeApp(context);
 
     const settings = await app.inject({ method: "GET", url: "/api/v1/sources/mock/settings" });

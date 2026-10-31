@@ -23,6 +23,9 @@ export type SearchViewProps = {
   detailSourceKey: string;
   sources: Source[];
   keyword: string;
+  searchHistory: string[];
+  onRemoveSearchHistory: (term: string) => void;
+  onClearSearchHistory: () => void;
   searchMode: "single" | "aggregate";
   searchQuery?: { sourceKey: string; keyword: string; mode: "single" | "aggregate" } | null;
   aggregateSourceKeys: string[];
@@ -43,6 +46,7 @@ export type SearchViewProps = {
   onKeywordChange: (value: string) => void;
   onSearchModeChange: (value: "single" | "aggregate") => void;
   onToggleAggregateSource: (value: string) => void;
+  onSelectAggregateSources: (action: "all" | "invert") => void;
   onAggregateResultLayoutChange: (value: "grouped" | "flat") => void;
   onSearch: () => void;
   onLoadMore: () => void;

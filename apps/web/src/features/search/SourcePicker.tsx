@@ -9,6 +9,7 @@ type SourcePickerProps = {
   busy: boolean;
   onSourceChange: (value: string) => void;
   onToggleAggregateSource: (value: string) => void;
+  onSelectAggregateSources: (action: "all" | "invert") => void;
 };
 
 export function SourcePicker(props: SourcePickerProps) {
@@ -19,6 +20,24 @@ export function SourcePicker(props: SourcePickerProps) {
       <legend>
         漫画源 <span className="muted">{aggregate ? "可多选" : "单选"}</span>
       </legend>
+      {aggregate && sources.length > 0 && (
+        <div className="source-selection-actions" role="group" aria-label="快速选择漫画源">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => props.onSelectAggregateSources("all")}
+          >
+            全选
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => props.onSelectAggregateSources("invert")}
+          >
+            反选
+          </button>
+        </div>
+      )}
       <div className="source-pills">
         {sources.map((source) => {
           const selected = aggregate

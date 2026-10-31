@@ -1,3 +1,4 @@
+import { installMockSource } from "./helpers/mockSource.js";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { AddressInfo } from "node:net";
@@ -47,6 +48,7 @@ beforeAll(async () => {
   const built = await module.buildApp(undefined, config);
   app = built.app;
   context = built.context;
+  await installMockSource(context);
   await module.initializeApp(context);
 });
 
