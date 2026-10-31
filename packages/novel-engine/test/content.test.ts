@@ -195,6 +195,66 @@ it("取消多分页下载后不启动后续分页", async () => {
   expect(env.calls).toEqual(["/1"]);
 });
 
+it("正文替换作用于格式化、合并后的全文，可以跨页匹配", async () => {
+  const env = fixture({ "/1": body("甲", "/1b"), "/1b": body("乙") });
+  await expect(
+    loadChapter(
+      {
+        ...source,
+        ruleContent: { ...(source.ruleContent as object), replaceRegex: "##甲\\s+乙##合并" },
+      },
+      catalog.chapters[0]!,
+      catalog,
+      env,
+    ),
+  ).resolves.toBe("合并");
+});
+
+it("正文替换看到的是文本换行，不是原始 HTML 标签", async () => {
+  const env = fixture({ "/1": body("<p>广告</p><p>正文</p>") });
+  await expect(
+    loadChapter(
+      {
+        ...source,
+        ruleContent: { content: ".body@html", replaceRegex: "##^广告\\n" },
+      },
+      catalog.chapters[0]!,
+      catalog,
+      env,
+    ),
+  ).resolves.toBe("正文");
+});
+
+it("全文替换清空正文时不能导出空章节", async () => {
+  const env = fixture({ "/1": body("甲", "/1b"), "/1b": body("乙") });
+  await expect(
+    loadChapter(
+      {
+        ...source,
+        ruleContent: { ...(source.ruleContent as object), replaceRegex: "##甲\\s+乙" },
+      },
+      catalog.chapters[0]!,
+      catalog,
+      env,
+    ),
+  ).rejects.toMatchObject({ code: "PARSE_MISMATCH" });
+});
+
+it("全文替换扩张后仍受单章大小限制", async () => {
+  const env = fixture({ "/1": body("a".repeat(500000)) });
+  await expect(
+    loadChapter(
+      {
+        ...source,
+        ruleContent: { content: ".body@text", replaceRegex: "##a##aaaaaaaaaa" },
+      },
+      catalog.chapters[0]!,
+      catalog,
+      env,
+    ),
+  ).rejects.toMatchObject({ code: "RESPONSE_TOO_LARGE" });
+});
+
 it("逆序目录跨页合并，去除重复 URL 和锚点", async () => {
   const env = fixture({
     "/book": detail,

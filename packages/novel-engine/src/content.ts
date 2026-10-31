@@ -226,9 +226,7 @@ export async function loadChapter(
     if (bodies.length && boundaries.has(page.url)) continue;
     seenPages.add(current);
     seenPages.add(page.url);
-    let body = page.parser.string(content.content, page.parser.$.root()[0]!);
-    if (content.replaceRegex) body = page.parser.replace(content.replaceRegex, body);
-    body = plainText(body);
+    const body = plainText(page.parser.string(content.content, page.parser.$.root()[0]!));
     if (!body || (body.length < 200 && /章节加载失败|请开启JavaScript|正在加载正文/.test(body)))
       throw new SourceError("PARSE_MISMATCH", `正文为空或未加载：${current}`);
     bytes += Buffer.byteLength(body) + (bodies.length ? 1 : 0);
@@ -250,5 +248,16 @@ export async function loadChapter(
       if (!boundaries.has(url)) queue.push({ url, follow: !listed });
     }
   }
-  return bodies.join("\n");
+  let result = bodies.join("\n");
+  // replaceRegex 是全文替换，必须等所有分页格式化、合并后执行。
+  if (content.replaceRegex) result = new HtmlRules("").replace(content.replaceRegex, result);
+  result = result
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("\n");
+  if (!result) throw new SourceError("PARSE_MISMATCH", "全文替换后正文为空");
+  if (Buffer.byteLength(result) > 4 * 1024 * 1024)
+    throw new SourceError("RESPONSE_TOO_LARGE", "单章正文超过 4 MiB");
+  return result;
 }

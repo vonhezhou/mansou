@@ -82,11 +82,26 @@ export function buildRequest(source: BookSource, key: string, page: number): Sea
   let body: Uint8Array | undefined;
   if (options.body !== undefined) {
     if (method === "GET") throw new SourceError("UNSUPPORTED_RULE", "GET 请求不支持 body");
-    const isJson = typeof options.body === "object" && options.body !== null;
-    if (!isJson && typeof options.body !== "string")
+    const objectBody = typeof options.body === "object" && options.body !== null;
+    if (!objectBody && typeof options.body !== "string")
       throw new SourceError("UNSUPPORTED_RULE", "body 必须是字符串或对象");
+    const contentType =
+      Object.entries(headers).find(([name]) => name.toLowerCase() === "content-type")?.[1] ?? "";
+    const isJson =
+      objectBody ||
+      /\b(?:application\/json|[\w.+-]+\/[\w.+-]+\+json)\b/i.test(contentType) ||
+      (typeof options.body === "string" &&
+        (options.body.trimStart().startsWith("{") || options.body.trimStart().startsWith("[")));
     let bodyText: string;
-    if (isJson) {
+    if (isJson && !objectBody) {
+      // JSON 字符串不能做表单编码；先转义关键词，再校验插值后的 JSON，兼容未加引号的页码。
+      bodyText = interpolate(String(options.body), JSON.stringify(key).slice(1, -1), page);
+      try {
+        JSON.parse(bodyText);
+      } catch {
+        throw new SourceError("UNSUPPORTED_RULE", "JSON body 格式无效");
+      }
+    } else if (objectBody) {
       const replace = (value: unknown): unknown =>
         typeof value === "string"
           ? interpolate(value, key, page)
