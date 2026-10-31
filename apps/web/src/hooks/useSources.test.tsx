@@ -212,6 +212,7 @@ it("shows subscription names for identical source names and refreshes them after
     installedSources.map((source, index) => ({
       ...source,
       enabled: true,
+      subscriptionId: `repo-${index + 1}`,
       subscriptionName: `Repo ${index + 1}`,
     })),
   );
@@ -221,8 +222,44 @@ it("shows subscription names for identical source names and refreshes them after
   });
   expect(state.sources.map((source) => source.name)).toEqual(["Same · Repo 1", "Same · Repo 2"]);
   vi.mocked(mansouApi.listSourceMetadata).mockResolvedValue(
-    installedSources.map((source) => ({ ...source, enabled: true, subscriptionName: "Renamed" })),
+    installedSources.map((source, index) => ({
+      ...source,
+      enabled: true,
+      subscriptionId: `repo-${index + 1}`,
+      subscriptionName: "Renamed",
+    })),
   );
   await act(async () => state.repositorySaved(repository));
   expect(state.sources.map((source) => source.name)).toEqual(["Same · Renamed", "Same · Renamed"]);
+});
+
+it("keeps distinct source names free of import or subscription labels", async () => {
+  const sources = [
+    { key: "local", name: "包子漫画", hasSearch: true },
+    { key: "repo:remote", name: "MangaDex", hasSearch: true },
+  ];
+  vi.mocked(mansouApi.listInstalledSources).mockResolvedValue(sources);
+  vi.mocked(mansouApi.listSourceMetadata).mockResolvedValue([
+    { ...sources[0], enabled: true, subscriptionName: "本地导入" },
+    { ...sources[1], enabled: true, subscriptionId: "repo", subscriptionName: "默认订阅" },
+  ]);
+  vi.mocked(mansouApi.listAvailableSources).mockResolvedValue(repository);
+  await act(async () => {
+    await state.loadSources();
+  });
+  expect(state.sources.map(({ name }) => name)).toEqual(["包子漫画", "MangaDex"]);
+  expect(state.sources.map(({ key }) => key)).toEqual(["local", "repo:remote"]);
+});
+
+it("distinguishes same-name unassociated scripts by key rather than calling them local comics", async () => {
+  const sources = ["one", "two"].map((key) => ({ key, name: "同名源", hasSearch: true }));
+  vi.mocked(mansouApi.listInstalledSources).mockResolvedValue(sources);
+  vi.mocked(mansouApi.listSourceMetadata).mockResolvedValue(
+    sources.map((source) => ({ ...source, enabled: true, subscriptionName: "本地导入" })),
+  );
+  vi.mocked(mansouApi.listAvailableSources).mockResolvedValue(repository);
+  await act(async () => {
+    await state.loadSources();
+  });
+  expect(state.sources.map(({ name }) => name)).toEqual(["同名源 · one", "同名源 · two"]);
 });

@@ -68,11 +68,22 @@ export function useSources(
       mansouApi.listInstalledSources(),
       mansouApi.listSourceMetadata(),
     ]);
+    const nameCounts = new Map<string, number>();
+    for (const source of installed)
+      nameCounts.set(source.name, (nameCounts.get(source.name) ?? 0) + 1);
     const loaded = installed.map((source) => {
-      const subscriptionName = metadata.find((item) => item.key === source.key)?.subscriptionName;
-      return subscriptionName
-        ? { ...source, subscriptionName, name: `${source.name} · ${subscriptionName}` }
-        : source;
+      const info = metadata.find((item) => item.key === source.key);
+      // 仅同名源需要标注归属；未关联订阅不代表本地漫画。
+      const qualifier = info?.subscriptionId ? info.subscriptionName : source.key;
+      return {
+        ...source,
+        subscriptionId: info?.subscriptionId,
+        subscriptionName: info?.subscriptionName,
+        name:
+          (nameCounts.get(source.name) ?? 0) > 1
+            ? `${source.name} · ${qualifier ?? source.key}`
+            : source.name,
+      };
     });
     setSources(loaded);
     setSourceMetadata(metadata);
