@@ -644,39 +644,33 @@ button.danger-subtle:hover:not(:disabled) {
   border: 0;
 }
 
-.subscription-list {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-.subscription-list article {
-  padding: 16px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-}
-.subscription-summary {
+.subscription-heading {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: start;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 16px;
 }
-.subscription-summary > span {
-  flex-shrink: 0;
+.subscription-heading > .section-heading {
+  margin: 0;
+}
+.subscription-heading > .actions {
+  margin: 0;
+  flex-direction: row;
+}
+.subscription-description {
+  margin: 10px 0 18px;
   font-size: 12px;
 }
-.subscription-list article > p {
+.subscription-list .subscription-updated,
+.subscription-list .subscription-error {
+  grid-column: 1 / -1;
+  margin: 0;
   font-size: 12px;
-}
-.subscription-list article > .actions {
-  margin-top: 12px;
-  justify-content: flex-end;
 }
 .subscription-form {
   display: grid;
   gap: 16px;
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid var(--color-border);
 }
 .subscription-form label {
   display: grid;

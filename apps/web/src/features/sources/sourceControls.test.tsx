@@ -12,6 +12,20 @@ let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  Object.defineProperties(HTMLDialogElement.prototype, {
+    showModal: {
+      configurable: true,
+      value: function (this: HTMLDialogElement) {
+        this.open = true;
+      },
+    },
+    close: {
+      configurable: true,
+      value: function (this: HTMLDialogElement) {
+        this.open = false;
+      },
+    },
+  });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -19,6 +33,8 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+  Reflect.deleteProperty(HTMLDialogElement.prototype, "showModal");
+  Reflect.deleteProperty(HTMLDialogElement.prototype, "close");
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -309,7 +325,7 @@ it("edits a stable subscription ID, prevents duplicate saves and preserves the d
   expect(container.querySelector("form")).toBeNull();
 });
 
-it("resets defaults despite an invalid draft, keeps other subscriptions and preserves state on failure", async () => {
+it("resets defaults after cancelling a draft, keeps other subscriptions and preserves state on failure", async () => {
   vi.spyOn(mansouApi, "getSourceRepository").mockResolvedValue(originalRepository);
   const restored = {
     subscriptions: [
@@ -328,6 +344,8 @@ it("resets defaults despite an invalid draft, keeps other subscriptions and pres
   await clickLabel("编辑Default");
   const url = container.querySelector<HTMLInputElement>('input[type="url"]')!;
   await input(url, "invalid draft");
+  await clickLabel("取消");
+  expect(container.querySelector("dialog")).toBeNull();
   const button = [...container.querySelectorAll("button")].find(
     (item) => item.textContent === "恢复默认订阅",
   )!;
@@ -338,7 +356,7 @@ it("resets defaults despite an invalid draft, keeps other subscriptions and pres
   expect(reset).toHaveBeenCalledOnce();
   expect(button.disabled).toBe(true);
   await act(async () => pending.reject(new Error("default offline")));
-  expect(url.value).toBe("invalid draft");
+  expect(container.textContent).toContain(subscription.url);
   expect(saved).not.toHaveBeenCalled();
   await act(async () => button.click());
   expect(container.textContent).toContain("Second");
@@ -413,4 +431,36 @@ it("filters subscriptions and installs the exact entry when original keys and fi
   expect(cards[0].textContent).not.toContain("已安装");
   await act(async () => cards[0].querySelector<HTMLButtonElement>("button")!.click());
   expect(install).toHaveBeenCalledWith("b:same#same.js");
+});
+
+it("toggles a subscription directly from its card, blocks duplicate requests and retains the previous state on failure", async () => {
+  vi.spyOn(mansouApi, "getSourceRepository").mockResolvedValue(originalRepository);
+  const pending = deferred<typeof originalRepository>();
+  const update = vi
+    .spyOn(mansouApi, "updateSourceRepository")
+    .mockReturnValueOnce(pending.promise)
+    .mockResolvedValueOnce({
+      ...originalRepository,
+      subscriptions: [{ ...subscription, enabled: false }],
+    });
+  await render(<SubscriptionSettings busy={false} onSaved={vi.fn()} />);
+  const toggle = container.querySelector<HTMLButtonElement>('button[role="switch"]')!;
+  await act(async () => {
+    toggle.click();
+    toggle.click();
+  });
+  expect(update).toHaveBeenCalledOnce();
+  expect(update).toHaveBeenCalledWith(subscription.id, {
+    name: subscription.name,
+    url: subscription.url,
+    cdnBaseUrl: subscription.cdnBaseUrl,
+    enabled: false,
+  });
+  expect(toggle.getAttribute("aria-busy")).toBe("true");
+  await act(async () => pending.reject(new Error("停用失败")));
+  expect(toggle.getAttribute("aria-checked")).toBe("true");
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain("停用失败");
+  await act(async () => toggle.click());
+  expect(toggle.getAttribute("aria-checked")).toBe("false");
+  expect(container.querySelector("dialog")).toBeNull();
 });

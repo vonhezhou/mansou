@@ -76,6 +76,7 @@ beforeEach(async () => {
     },
   });
   vi.stubGlobal("EventSource", TestEventSource);
+  vi.spyOn(mansouApi, "getSourceRepository").mockResolvedValue({ subscriptions: [], sources: [] });
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   window.history.replaceState(null, "", "/#search");
   vi.spyOn(authApi, "session").mockResolvedValue({

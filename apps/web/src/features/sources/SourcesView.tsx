@@ -9,7 +9,6 @@ import { SourceRepositoryPanel } from "./SourceRepositoryPanel.js";
 import type { SourcesViewProps } from "./types.js";
 
 export function SourcesView(props: SourcesViewProps) {
-  const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [repositoryOpen, setRepositoryOpen] = useState(false);
   const [sourceDialog, setSourceDialog] = useState<"settings" | "cookies" | null>(null);
   const enabledSources = props.sourceMetadata.filter(
@@ -27,25 +26,15 @@ export function SourcesView(props: SourcesViewProps) {
             {enabledSources} 个。
           </p>
         </div>
-        <div className="actions">
-          <button className="secondary-button" onClick={() => setSubscriptionOpen(true)}>
-            管理订阅
-          </button>
-          <button className="button-with-icon" onClick={() => setRepositoryOpen(true)}>
-            <Icon name="plus" size={17} />
-            安装漫画源
-          </button>
-        </div>
+        <button className="button-with-icon" onClick={() => setRepositoryOpen(true)}>
+          <Icon name="plus" size={17} />
+          安装漫画源
+        </button>
       </header>
-      <div className="source-operation-status">
-        {props.operation && !props.operation.sourceKey && (
+      {props.operation && !props.operation.sourceKey && (
+        <div className="source-operation-status">
           <LoadingStatus label={props.operation.label} />
-        )}
-      </div>
-      {subscriptionOpen && (
-        <AppDialog title="管理漫画源订阅" onClose={() => setSubscriptionOpen(false)}>
-          <SubscriptionSettings busy={props.busy} onSaved={props.onRepositorySaved} />
-        </AppDialog>
+        </div>
       )}
       {repositoryOpen && (
         <AppDialog title="安装漫画源" wide onClose={() => setRepositoryOpen(false)}>
@@ -70,6 +59,7 @@ export function SourcesView(props: SourcesViewProps) {
           近期状态更新失败，以下为上次获取的记录，稍后将自动重试。
         </p>
       )}
+      <SubscriptionSettings busy={props.busy} onSaved={props.onRepositorySaved} />
       <InstalledSourcesList
         busy={props.busy}
         operation={props.operation}
