@@ -303,6 +303,25 @@ button.accent {
 .account-panel > button {
   margin: 4px 0;
 }
+.source-account-panel h3 {
+  margin: 0 0 8px;
+}
+.source-account-panel > p {
+  margin: 0 0 16px;
+}
+.source-account-panel form {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+.source-account-panel label {
+  display: grid;
+  gap: 8px;
+}
+.source-account-panel form > button {
+  justify-self: start;
+  margin-top: 4px;
+}
 .download-actions button:first-child {
   background: var(--color-surface-2);
   color: var(--color-text);

@@ -65,7 +65,7 @@ export function SourceAccountPanel({ sourceKey }: { sourceKey: string }) {
     }
   }
   return (
-    <section className="source-panel">
+    <section className="source-panel source-account-panel">
       <h3>源账号</h3>
       {error && <p role="alert">{error}</p>}
       {!auth && !loading && error && (
