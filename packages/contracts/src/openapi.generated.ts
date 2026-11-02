@@ -1874,6 +1874,24 @@ export const openApiDocument = {
         parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
       },
     },
+    "/api/v1/novels/downloads/{id}/epub": {
+      get: {
+        operationId: "exportNovelEpub",
+        tags: ["novels"],
+        summary: "exportNovelEpub",
+        responses: {
+          "200": {
+            description: "OK",
+            content: { "application/epub+zip": { schema: { type: "string", format: "binary" } } },
+          },
+          "400": { description: "Invalid input" },
+          "404": { description: "Not found" },
+          "409": { description: "Operation conflicts with task state" },
+          "422": { description: "Unsupported rule or upstream failure" },
+        },
+        parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
+      },
+    },
     "/api/v1/novels/downloads/{id}/txt": {
       get: {
         operationId: "exportNovelTxt",

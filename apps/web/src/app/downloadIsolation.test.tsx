@@ -198,7 +198,7 @@ const novelTask = (status: NovelTask["status"] = "running", completed = 1): Nove
   limit: 5,
 });
 
-it("小说进度不重绘搜索页，侧栏计数和统一下载的分类、TXT 与任务操作保持同步", async () => {
+it("小说进度不重绘搜索页，侧栏计数和统一下载的分类、EPUB / TXT 与任务操作保持同步", async () => {
   vi.mocked(novelApi.tasks).mockResolvedValue([novelTask()]);
   const refreshNovels = () =>
     act(async () => document.dispatchEvent(new Event("visibilitychange")));
@@ -208,6 +208,7 @@ it("小说进度不重绘搜索页，侧栏计数和统一下载的分类、TXT 
   await click('.sidebar [aria-label="下载任务"]');
   expect(container.textContent).toContain("下载中的漫画");
   expect(container.textContent).toContain("统一下载的小说");
+  expect(container.querySelector('a[href$="/novel-task/epub"]')).toBeNull();
   expect(container.querySelector('a[href$="/novel-task/txt"]')).toBeNull();
   const action = vi.spyOn(novelApi, "action").mockResolvedValue(novelTask("paused", 2));
   vi.mocked(novelApi.tasks).mockResolvedValue([novelTask("paused", 2)]);
@@ -223,6 +224,7 @@ it("小说进度不重绘搜索页，侧栏计数和统一下载的分类、TXT 
   expect(container.querySelector('[aria-label="漫画下载任务"]')).toBeNull();
   vi.mocked(novelApi.tasks).mockResolvedValue([novelTask("completed", 5)]);
   await refreshNovels();
+  expect(container.querySelector('a[href$="/novel-task/epub"]')?.textContent).toBe("下载 EPUB");
   expect(container.querySelector('a[href$="/novel-task/txt"]')?.textContent).toBe("下载 TXT");
   await click('.sidebar [aria-label="漫画搜索"]');
   renders.search.mockClear();
@@ -300,7 +302,7 @@ it("从小说详情创建下载后进入统一下载页并刷新任务快照", a
   );
   expect(window.location.hash).toBe("#downloads");
   expect(container.querySelector("h1")?.textContent).toBe("下载任务");
-  expect(container.querySelector('a[href$="/novel-task/txt"]')).not.toBeNull();
+  expect(container.querySelector('a[href$="/novel-task/epub"]')).not.toBeNull();
 });
 
 it("小说源数量在所有页面可见，包含停用源，并随删除、导入及工作台刷新同步", async () => {

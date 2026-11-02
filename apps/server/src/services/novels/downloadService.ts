@@ -1,7 +1,8 @@
+import { writeEpub } from "./epub.js";
 import { NovelEngineExecutor } from "./engineExecutor.js";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { createReadStream } from "node:fs";
+import { createReadStream, existsSync } from "node:fs";
 import { mkdir, open, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import { assertDownloadSupported, type BookSource, type Catalog } from "@mansou/novel-engine";
@@ -41,9 +42,18 @@ export class NovelDownloadService {
     );
   }
   init() {
-    for (const task of this.all())
+    for (const task of this.all()) {
       if (task.status === "running")
         this.patch(task.id, { status: "queued", phase: "等待恢复", error: undefined });
+      // 成品缺失时沿用固定目录与章节缓存重建，不需要重新下载完整正文。
+      if (
+        task.status === "completed" &&
+        ["epub", "txt"].some(
+          (format) => !existsSync(path.join(this.directory(task.id), `book.${format}`)),
+        )
+      )
+        this.patch(task.id, { status: "queued", phase: "等待生成导出文件", error: undefined });
+    }
     this.scheduler.kick();
   }
   all(): Task[] {
@@ -212,7 +222,7 @@ export class NovelDownloadService {
         signal.throwIfAborted();
         this.patch(id, { completed: ++completed });
       }
-      this.patch(id, { phase: "生成 TXT", current: undefined });
+      this.patch(id, { phase: "生成 EPUB / TXT", current: undefined });
       await this.export(id, plan, signal);
       signal.throwIfAborted();
       this.patch(id, { status: "completed", phase: "已完成" });
@@ -227,32 +237,57 @@ export class NovelDownloadService {
   }
   private async export(id: string, plan: Plan, signal: AbortSignal) {
     const task = this.record(id).task;
+    await this.exportTxt(id, plan, signal);
+    await writeEpub(
+      { ...task, name: this.exportName(task) },
+      plan.indexes.map((index) => ({
+        title: plan.catalog.chapters[index].title,
+        file: this.chapterFile(id, index),
+      })),
+      path.join(this.directory(id), "book.epub"),
+      signal,
+    );
+  }
+  private async exportTxt(id: string, plan: Plan, signal: AbortSignal) {
+    const task = this.record(id).task;
     const file = path.join(this.directory(id), "book.txt");
     const staged = `${file}.tmp`;
-    const handle = await open(staged, "w");
     try {
-      await handle.writeFile(`${task.name}\n${task.author ? `作者：${task.author}\n` : ""}\n`);
-      let bytes = 0;
-      for (const index of plan.indexes) {
+      const handle = await open(staged, "w");
+      try {
         signal.throwIfAborted();
-        const body = await readFile(this.chapterFile(id, index), "utf8");
-        bytes += Buffer.byteLength(body);
-        if (bytes > 200 * 1024 * 1024) throw new Error("小说正文超过 200 MiB，停止导出");
-        await handle.writeFile(`${plan.catalog.chapters[index].title}\n\n${body}\n\n`);
+        await handle.writeFile(
+          `${this.exportName(task)}\n${task.author ? `作者：${task.author}\n` : ""}\n`,
+        );
+        let bytes = 0;
+        for (const index of plan.indexes) {
+          const body = await readFile(this.chapterFile(id, index), { encoding: "utf8", signal });
+          signal.throwIfAborted();
+          bytes += Buffer.byteLength(body);
+          if (bytes > 200 * 1024 * 1024) throw new Error("小说正文超过 200 MiB，停止导出");
+          await handle.writeFile(`${plan.catalog.chapters[index].title}\n\n${body}\n\n`);
+        }
+      } finally {
+        await handle.close();
       }
+      signal.throwIfAborted();
+      await rename(staged, file);
     } finally {
-      await handle.close();
+      await rm(staged, { force: true });
     }
-    signal.throwIfAborted();
-    await rename(staged, file);
   }
-  async openTxt(id: string) {
+  private exportName(task: Task) {
+    return task.all
+      ? task.name
+      : `${task.name}（节选：目录第 ${task.start}–${task.start + task.total - 1} 项）`;
+  }
+  async openExport(id: string, format: "epub" | "txt") {
     const task = this.record(id).task;
     if (task.status !== "completed")
       throw new AppError("DOWNLOAD_NOT_COMPLETED", "选定章节尚未全部下载成功");
-    const file = path.join(this.directory(id), "book.txt");
+    const file = path.join(this.directory(id), `book.${format}`);
     await stat(file);
-    return { name: `${task.name}.txt`, stream: createReadStream(file) };
+    return { name: `${this.exportName(task)}.${format}`, stream: createReadStream(file) };
   }
   close() {
     return this.scheduler.close().catch(this.onError);

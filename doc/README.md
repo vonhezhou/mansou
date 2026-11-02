@@ -4,7 +4,7 @@
 
 - [项目介绍与快速开始](../README.md)：功能、首次使用和本地开发。
 - [部署说明](deployment.md)：NAS/VPS、Docker、HTTPS、升级和备份恢复。
-- [小说功能](novels.md)：自定义书源、合集订阅、搜索与 TXT 下载，以及兼容和恢复边界。
+- [小说功能](novels.md)：自定义书源、合集订阅、搜索与 EPUB / TXT 下载，以及兼容和恢复边界。
 - [配置参考](configuration.md)：环境变量、默认值、数据目录和代理。
 - [鉴权说明](auth.md)：管理员初始化、会话、API Token 和密码恢复。
 - [API 文档](api.md)：OpenAPI、接口与事件格式。

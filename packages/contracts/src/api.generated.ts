@@ -1276,6 +1276,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/novels/downloads/{id}/epub": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** exportNovelEpub */
+    get: operations["exportNovelEpub"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/novels/downloads/{id}/txt": {
     parameters: {
       query?: never;
@@ -4638,6 +4655,56 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["NovelTask"];
+        };
+      };
+      /** @description Invalid input */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Operation conflicts with task state */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unsupported rule or upstream failure */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  exportNovelEpub: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/epub+zip": string;
         };
       };
       /** @description Invalid input */

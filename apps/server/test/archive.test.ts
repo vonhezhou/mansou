@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, writeFile, readFile, readdir, rm, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { inflateRawSync } from "node:zlib";
+import { zipEntries } from "../../../scripts/lib/read-zip.mjs";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createStorage, type DownloadTask } from "@mansou/storage";
 import * as archive from "../src/services/downloads/archive.js";
@@ -45,23 +45,6 @@ function saveTask(id: string, outputDir = images, version = "2026-10-29T00:00:00
   };
   repository.save(task);
   return task;
-}
-function zipEntries(data: Buffer) {
-  const end = data.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
-  let offset = data.readUInt32LE(end + 16);
-  return Array.from({ length: data.readUInt16LE(end + 10) }, () => {
-    const method = data.readUInt16LE(offset + 10),
-      size = data.readUInt32LE(offset + 20);
-    const length = data.readUInt16LE(offset + 28),
-      extra = data.readUInt16LE(offset + 30),
-      comment = data.readUInt16LE(offset + 32);
-    const name = data.subarray(offset + 46, offset + 46 + length).toString();
-    const local = data.readUInt32LE(offset + 42);
-    const start = local + 30 + data.readUInt16LE(local + 26) + data.readUInt16LE(local + 28);
-    const bytes = data.subarray(start, start + size);
-    offset += 46 + length + extra + comment;
-    return { name, method, data: method === 8 ? inflateRawSync(bytes) : bytes };
-  });
 }
 
 it("stores compressed image bytes without recompressing and preserves nested archive contents", async () => {

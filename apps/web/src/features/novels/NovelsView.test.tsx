@@ -213,7 +213,7 @@ it.each(["完成后进入任务", "关闭后不跳转", "关闭后创建失败",
     expect(requests.filter((request) => request.path === "/catalog")).toHaveLength(1);
     const ranges = container.querySelectorAll<HTMLInputElement>('input[type="number"]');
     await setValue(ranges[1], "2");
-    expect(container.querySelector('a[href$="/txt"]')).toBeNull();
+    expect(container.querySelector('a[href$="/epub"]')).toBeNull();
     if (scenario === "任务已创建但刷新失败")
       reloadDownloads.mockRejectedValueOnce(new Error("刷新失败"));
     await act(async () => {

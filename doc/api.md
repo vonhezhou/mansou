@@ -241,4 +241,4 @@ data: [{"id":"task-id","status":"running"}]
 
 ## 小说实验接口
 
-`/api/v1/novels` 提供书源 JSON 导入与规则读取、合集订阅、搜索、目录、文本下载任务及 TXT 导出。接口类型和请求参数以 OpenAPI YAML 为准；小说与漫画任务分别列出。兼容范围、更新语义和恢复粒度见[小说说明](novels.md)。
+`/api/v1/novels` 提供书源 JSON 导入与规则读取、合集订阅、搜索、目录、文本下载任务及 EPUB / TXT 导出。接口类型和请求参数以 OpenAPI YAML 为准；小说与漫画任务分别列出。兼容范围、更新语义和恢复粒度见[小说说明](novels.md)。

@@ -1,3 +1,4 @@
+import { zipEntries } from "./lib/read-zip.mjs";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { spawn, execFile } from "node:child_process";
@@ -69,11 +70,25 @@ const body = (chapter, page) =>
   `第 ${chapter} 章第 ${page} 页正文。${"合成长篇验收内容。".repeat(64)}`;
 const chapterText = (chapter) =>
   body(chapter, 1) + (chapter % 10 === 0 ? `\n${body(chapter, 2)}` : "");
-const expected = () =>
-  `合成长篇\n作者：验收夹具\n\n` +
-  Array.from({ length: chapters }, (_, i) => `第 ${i + 1} 章\n\n${chapterText(i + 1)}\n\n`).join(
-    "",
-  );
+const expected = () => Array.from({ length: chapters }, (_, i) => chapterText(i + 1)).join("\n");
+function verifyEpub(bytes) {
+  const entries = zipEntries(bytes);
+  assert.equal(entries[0].name, "mimetype");
+  assert.equal(entries[0].method, 0);
+  assert.equal(entries[0].data.toString(), "application/epub+zip");
+  const content = entries.filter((entry) => /^EPUB\/chapter-\d+\.xhtml$/.test(entry.name));
+  assert.equal(content.length, chapters);
+  const bodies = content
+    .map((entry, i) => {
+      assert.equal(entry.name, `EPUB/chapter-${i + 1}.xhtml`);
+      const text = entry.data.toString();
+      assert(text.includes(`<h1>第 ${i + 1} 章</h1>`));
+      return [...text.matchAll(/<p>(.*?)<\/p>/g)].map((match) => match[1]).join("\n");
+    })
+    .join("\n");
+  assert.equal(digest(bodies), digest(expected()), "EPUB 必须包含完整有序正文");
+  return digest(bodies);
+}
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const record = (stage, details = {}) => {
   const event = { stage, elapsedMs: Math.round(performance.now() - started), ...details };
@@ -342,18 +357,28 @@ try {
   const failed = await waitTask(task.id, (task) => task.status === "failed", "故障注入");
   assert.match(failed.error, /503/);
   record("failed-as-expected", { completed: failed.completed });
-  const unavailable = await fetch(`${current.url}/api/v1/novels/downloads/${task.id}/txt`);
+  const unavailable = await fetch(`${current.url}/api/v1/novels/downloads/${task.id}/epub`);
   assert.equal(unavailable.status, 409);
   await unavailable.body?.cancel();
   await api(`/novels/downloads/${task.id}/resume`, {});
   const completed = await waitTask(task.id, (task) => task.status === "completed", "完整下载");
   assert.equal(completed.completed, chapters);
   assert.equal(completed.total, chapters);
+  const epub = await fetch(`${current.url}/api/v1/novels/downloads/${task.id}/epub`);
+  assert.equal(epub.status, 200);
+  assert.equal(epub.headers.get("content-type"), "application/epub+zip");
+  const downloaded = Buffer.from(await epub.arrayBuffer());
+  const contentSha256 = verifyEpub(downloaded);
   const txt = await fetch(`${current.url}/api/v1/novels/downloads/${task.id}/txt`);
   assert.equal(txt.status, 200);
-  const downloaded = Buffer.from(await txt.arrayBuffer()),
-    expectedText = expected();
-  assert.equal(digest(downloaded), digest(expectedText), "TXT 必须与完整有序正文逐字节一致");
+  assert.equal(txt.headers.get("content-type"), "text/plain; charset=utf-8");
+  const downloadedTxt = await txt.text();
+  const expectedTxt =
+    "合成长篇\n作者：验收夹具\n\n" +
+    Array.from({ length: chapters }, (_, i) => `第 ${i + 1} 章\n\n${chapterText(i + 1)}\n\n`).join(
+      "",
+    );
+  assert.equal(digest(downloadedTxt), digest(expectedTxt), "TXT 必须包含完整有序正文");
   const repeated = requested
     .slice(beforeRestart)
     .filter((request) => checkpoint.has(request.chapter));
@@ -375,6 +400,9 @@ try {
   const latencies = health.map((value) => value.ms).sort((a, b) => a - b);
   Object.assign(report, {
     passed: true,
+    format: "epub3",
+    contentSha256,
+    txtSha256: digest(downloadedTxt),
     completed: completed.completed,
     bytes: downloaded.length,
     sha256: digest(downloaded),
@@ -400,9 +428,12 @@ try {
   const restored = (await api("/novels/downloads")).find((value) => value.id === task.id);
   assert.equal(restored.status, "completed");
   assert.equal((await api("/novels/sources")).sources[0].hash, imported.sources[0].hash);
+  const restoredEpub = await fetch(`${current.url}/api/v1/novels/downloads/${task.id}/epub`);
+  assert.equal(restoredEpub.status, 200);
+  assert.equal(digest(Buffer.from(await restoredEpub.arrayBuffer())), report.sha256);
   const restoredTxt = await fetch(`${current.url}/api/v1/novels/downloads/${task.id}/txt`);
   assert.equal(restoredTxt.status, 200);
-  assert.equal(digest(Buffer.from(await restoredTxt.arrayBuffer())), report.sha256);
+  assert.equal(digest(await restoredTxt.text()), report.txtSha256);
   report.backupRestore = { passed: true, newDataDirectory: true, sha256: report.sha256 };
   record("backup-restored");
   if (soakMinutes > 0) {
@@ -456,9 +487,9 @@ try {
         result = await waitTask(work.id, (task) => task.status === "completed", "持续运行重试");
       }
       assert.equal(result.completed, chapters);
-      const response = await fetch(`${current.url}/api/v1/novels/downloads/${work.id}/txt`);
+      const response = await fetch(`${current.url}/api/v1/novels/downloads/${work.id}/epub`);
       assert.equal(response.status, 200);
-      assert.equal(digest(Buffer.from(await response.arrayBuffer())), report.sha256);
+      assert.equal(verifyEpub(Buffer.from(await response.arrayBuffer())), report.contentSha256);
       await api(`/novels/downloads/${work.id}`, undefined, "DELETE");
       assert(
         health.every((value) => value.status === 200),

@@ -195,16 +195,17 @@ export async function registerNovelRoutes(
       api.delete("/downloads/:id", async (request) =>
         context.novelDownloads.delete(id(request.params)),
       );
-      api.get("/downloads/:id/txt", async (request, reply) => {
-        const file = await context.novelDownloads.openTxt(id(request.params));
-        return reply
-          .type("text/plain; charset=utf-8")
-          .header(
-            "content-disposition",
-            `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`,
-          )
-          .send(file.stream);
-      });
+      for (const format of ["epub", "txt"] as const)
+        api.get(`/downloads/:id/${format}`, async (request, reply) => {
+          const file = await context.novelDownloads.openExport(id(request.params), format);
+          return reply
+            .type(format === "epub" ? "application/epub+zip" : "text/plain; charset=utf-8")
+            .header(
+              "content-disposition",
+              `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+            )
+            .send(file.stream);
+        });
     },
     { prefix: "/novels" },
   );

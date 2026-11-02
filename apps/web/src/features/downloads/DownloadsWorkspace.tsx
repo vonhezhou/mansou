@@ -55,7 +55,7 @@ export function DownloadsWorkspace({
         <div>
           <span className="eyebrow">DOWNLOAD MANAGER</span>
           <h1>下载任务</h1>
-          <p>统一管理漫画与小说下载，完成后获取 CBZ 或 TXT 文件。</p>
+          <p>统一管理漫画与小说下载，完成后获取 CBZ、EPUB 或 TXT 文件。</p>
         </div>
       </header>
       <DownloadSummary downloads={tasks} />

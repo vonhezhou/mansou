@@ -1,3 +1,4 @@
+import { zipEntries } from "../../../scripts/lib/read-zip.mjs";
 import { request as httpRequest } from "node:http";
 import Fastify from "fastify";
 import { registerNovelRoutes } from "../src/routes/novels.js";
@@ -418,15 +419,20 @@ it.each(["完成", "中间页失败"])("多分页正文经过 Worker 和下载�
   await waitTask(env.downloads, mode === "完成" ? "completed" : "failed");
   if (mode === "中间页失败") {
     expect(env.downloads.all()[0].completed).toBe(0);
-    await expect(env.downloads.openTxt(task.id)).rejects.toMatchObject({
+    await expect(env.downloads.openExport(task.id, "epub")).rejects.toMatchObject({
       code: "DOWNLOAD_NOT_COMPLETED",
     });
-    await expect(stat(path.join(env.dir, "downloads", task.id, "book.txt"))).rejects.toMatchObject({
-      code: "ENOENT",
-    });
+    await expect(stat(path.join(env.dir, "downloads", task.id, "book.epub"))).rejects.toMatchObject(
+      {
+        code: "ENOENT",
+      },
+    );
   } else {
-    const text = await readFile(path.join(env.dir, "downloads", task.id, "book.txt"), "utf8");
-    expect(text).toContain("甲段正文\n乙段正文\n丙段正文");
+    const text = zipEntries(await readFile(path.join(env.dir, "downloads", task.id, "book.epub")))
+      .filter((entry) => /chapter-\d+\.xhtml$/.test(entry.name))
+      .map((entry) => entry.data.toString())
+      .join("\n");
+    expect(text).toContain("甲段正文</p><p>乙段正文</p><p>丙段正文");
     expect(text).toContain("第二章正文");
     expect(env.calls.filter((url) => ["/1", "/1b", "/1c"].includes(url))).toEqual([
       "/1",
@@ -435,7 +441,7 @@ it.each(["完成", "中间页失败"])("多分页正文经过 Worker 和下载�
     ]);
   }
 });
-it("缺省详情规则、children 目录与跨页全文替换经过真实 Worker 完成 TXT", async () => {
+it("缺省详情规则、children 目录与跨页全文替换经过真实 Worker 完成 EPUB", async () => {
   const env = await setup();
   env.setPage(
     "/book",
@@ -452,22 +458,42 @@ it("缺省详情规则、children 目录与跨页全文替换经过真实 Worker
   }).sources[0];
   const task = env.downloads.create({ sourceId: source.id, book, all: true });
   await waitTask(env.downloads, "completed");
-  const text = await readFile(path.join(env.dir, "downloads", task.id, "book.txt"), "utf8");
+  const text = zipEntries(await readFile(path.join(env.dir, "downloads", task.id, "book.epub")))
+    .filter((entry) => /chapter-\d+\.xhtml$/.test(entry.name))
+    .map((entry) => entry.data.toString())
+    .join("\n");
   expect(text).toContain("完整第一章正文");
   expect(text).not.toContain("上半页");
   expect(text).toContain("第二章正文");
 });
-it("失败下载不提供 TXT；重启后按原规则与目录恢复，跳过已完成章节", async () => {
+it.each(["epub", "txt"])("%s 成品缺失时重启仅使用已完成章节重建导出", async (format) => {
+  const env = await setup();
+  const source = env.sources.import(raw).sources[0];
+  const task = env.downloads.create({ sourceId: source.id, book, all: true });
+  await waitTask(env.downloads, "completed");
+  const output = path.join(env.dir, "downloads", task.id, `book.${format}`);
+  const original = await readFile(output);
+  await rm(output);
+  env.calls.length = 0;
+  await env.restart();
+  await waitTask(env.downloads, "completed");
+  expect(env.calls).toEqual([]);
+  expect(await readFile(output)).toEqual(original);
+});
+it("失败下载不提供 EPUB；重启后按原规则与目录恢复，跳过已完成章节", async () => {
   const env = await setup();
   const source = env.sources.import(raw).sources[0];
   env.failSecond(true);
   const task = env.downloads.create({ sourceId: source.id, book, all: true });
   await waitTask(env.downloads, "failed");
   expect(env.downloads.all()[0].completed).toBe(1);
-  await expect(env.downloads.openTxt(task.id)).rejects.toMatchObject({
+  await expect(env.downloads.openExport(task.id, "txt")).rejects.toMatchObject({
     code: "DOWNLOAD_NOT_COMPLETED",
   });
-  await expect(stat(path.join(env.dir, "downloads", task.id, "book.txt"))).rejects.toMatchObject({
+  await expect(env.downloads.openExport(task.id, "epub")).rejects.toMatchObject({
+    code: "DOWNLOAD_NOT_COMPLETED",
+  });
+  await expect(stat(path.join(env.dir, "downloads", task.id, "book.epub"))).rejects.toMatchObject({
     code: "ENOENT",
   });
   env.sources.import({ ...raw, ruleContent: { content: ".wrong@text" } });
@@ -477,7 +503,10 @@ it("失败下载不提供 TXT；重启后按原规则与目录恢复，跳过已
   await env.downloads.action(task.id, "resume");
   await waitTask(env.downloads, "completed");
   expect(env.calls).toEqual(["/2"]);
-  const text = await readFile(path.join(env.dir, "downloads", task.id, "book.txt"), "utf8");
+  const text = zipEntries(await readFile(path.join(env.dir, "downloads", task.id, "book.epub")))
+    .filter((entry) => /chapter-\d+\.xhtml$/.test(entry.name))
+    .map((entry) => entry.data.toString())
+    .join("\n");
   expect(text.indexOf("第一章")).toBeLessThan(text.indexOf("第二章"));
   expect(text).toContain("第一章下半页");
   expect(text).toContain("第二章正文");
@@ -557,11 +586,26 @@ it("小说 HTTP 闭环使用现有鉴权，校验参数并返回可操作的错�
   });
   expect(created.statusCode).toBe(200);
   await waitTask(context.novelDownloads, "completed");
+  const epub = await request("GET", `/downloads/${created.json().id}/epub`);
+  expect(epub.statusCode).toBe(200);
+  expect(epub.headers["content-type"]).toContain("application/epub+zip");
+  expect(decodeURIComponent(epub.headers["content-disposition"] as string)).toContain(
+    "节选：目录第 2–2 项",
+  );
+  const entries = zipEntries(epub.rawPayload);
+  const text = entries.map((entry) => entry.data.toString()).join("\n");
+  expect(text).toContain("第二章正文");
+  expect(text).not.toContain("第一章上半页");
+  expect(entries.filter((entry) => /chapter-\d+\.xhtml$/.test(entry.name))).toHaveLength(1);
   const txt = await request("GET", `/downloads/${created.json().id}/txt`);
   expect(txt.statusCode).toBe(200);
-  expect(txt.headers["content-type"]).toContain("text/plain");
-  expect(txt.body).toContain("第二章正文");
-  expect(txt.body).not.toContain("第一章上半页");
+  expect(txt.headers["content-type"]).toContain("text/plain; charset=utf-8");
+  expect(decodeURIComponent(txt.headers["content-disposition"] as string)).toContain(
+    "节选：目录第 2–2 项）.txt",
+  );
+  expect(txt.body).toBe(
+    "凡人测试（节选：目录第 2–2 项）\n作者：测试作者\n\n第二章\n\n第二章正文\n\n",
+  );
   await request("PUT", `/sources/${encodeURIComponent(sourceId)}`, { enabled: false });
   expect(
     (await request("POST", "/search", { keyword: "凡人", sourceIds: [sourceId] })).statusCode,
@@ -654,7 +698,7 @@ it("关闭引擎同时终止在途网络与排队操作，不遗留等待者", a
 it.each([
   { row: '<a class="chapter" href="/3"></a>', missing: "标题" },
   { row: '<a class="chapter">第三章</a>', missing: "链接" },
-])("目录条目缺少$missing 时拒绝下载，不能把部分目录导出为成功 TXT", async ({ row, missing }) => {
+])("目录条目缺少$missing 时拒绝下载，不能把部分目录导出为成功 EPUB", async ({ row, missing }) => {
   const env = await setup();
   env.setPage("/toc2", `<a class="chapter" href="/2">第二章</a>${row}`);
   const source = env.sources.import(raw).sources[0];
@@ -669,7 +713,7 @@ it.each([
     error: expect.stringContaining(`缺少${missing}`),
   });
   expect(env.calls).not.toContain("/1");
-  await expect(env.downloads.openTxt(task.id)).rejects.toMatchObject({
+  await expect(env.downloads.openExport(task.id, "epub")).rejects.toMatchObject({
     code: "DOWNLOAD_NOT_COMPLETED",
   });
 });

@@ -11,7 +11,7 @@ export function NovelDownloads({ tasks, busy, run, reload }: Props) {
     <section className="novel-stack" aria-label="小说下载任务">
       <p className="muted">
         任务在服务器执行。暂停或失败后可继续，已完成章节不会重复抓取。只有选定章节全部成功才提供
-        TXT；完整目录不代表作品完结或站点无缺章。
+        EPUB 或 TXT。设备不支持 EPUB 时可选择 TXT；完整目录不代表作品完结或站点无缺章。
       </p>
       {!tasks.length && <p>暂无小说下载任务。</p>}
       {[...tasks].reverse().map((task) => {
@@ -60,9 +60,17 @@ export function NovelDownloads({ tasks, busy, run, reload }: Props) {
                 </button>
               )}
               {task.status === "completed" && (
-                <a className="button novel-export" href={novelApi.txtUrl(task.id)}>
-                  下载 TXT
-                </a>
+                <>
+                  <a className="button novel-export" href={novelApi.epubUrl(task.id)}>
+                    下载 EPUB
+                  </a>
+                  <a
+                    className="button secondary-button novel-export"
+                    href={novelApi.txtUrl(task.id)}
+                  >
+                    下载 TXT
+                  </a>
+                </>
               )}
               <button
                 className="secondary-button"
