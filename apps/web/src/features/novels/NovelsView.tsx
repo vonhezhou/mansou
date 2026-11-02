@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { novelApi, type NovelOrigin, type NovelSearch } from "../../api/novels.js";
 import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { useNovelCatalog } from "../../hooks/useNovelCatalog.js";
@@ -37,19 +37,27 @@ export function NovelsView({
       searchController.current?.abort();
     };
   }, []);
-  const available = state.sources.filter(
-    (source) =>
-      source.enabled &&
-      source.searchSupported &&
-      source.downloadSupported &&
-      state.subscriptions.some((group) => group.id === source.groupId && group.enabled),
-  );
-  const aggregateIds = available.map((source) => source.id);
-  const searchSources = available.map((source) => ({
-    key: source.id,
-    name: source.name,
-    hasSearch: true,
-  }));
+  const { available, aggregateIds, searchSources } = useMemo(() => {
+    const enabledGroups = new Set(
+      state.subscriptions.filter((group) => group.enabled).map((group) => group.id),
+    );
+    const available = state.sources.filter(
+      (source) =>
+        source.enabled &&
+        source.searchSupported &&
+        source.downloadSupported &&
+        enabledGroups.has(source.groupId),
+    );
+    return {
+      available,
+      aggregateIds: available.map((source) => source.id),
+      searchSources: available.map((source) => ({
+        key: source.id,
+        name: source.name,
+        hasSearch: true,
+      })),
+    };
+  }, [state.sources, state.subscriptions]);
   const closeCatalog = useCallback(() => {
     selection.current++;
     close();

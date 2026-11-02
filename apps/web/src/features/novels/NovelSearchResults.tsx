@@ -14,7 +14,15 @@ type Props = {
   onPage: (page: number) => void;
 };
 
-function BookCard({ book, busy, onOpen }: { book: Book; busy: boolean; onOpen: Props["onOpen"] }) {
+const BookCard = memo(function BookCard({
+  book,
+  busy,
+  onOpen,
+}: {
+  book: Book;
+  busy: boolean;
+  onOpen: Props["onOpen"];
+}) {
   const cover = book.origins.find((origin) => origin.coverUrl)?.coverUrl;
   return (
     <button
@@ -43,7 +51,49 @@ function BookCard({ book, busy, onOpen }: { book: Book; busy: boolean; onOpen: P
       </span>
     </button>
   );
-}
+});
+
+// 流式搜索保留已返回源的对象引用，后续结果不必重复渲染此前的整组卡片。
+const SourceResults = memo(function SourceResults({
+  source,
+  busy,
+  onOpen,
+}: {
+  source: NovelSearch["sources"][number];
+  busy: boolean;
+  onOpen: Props["onOpen"];
+}) {
+  return (
+    <section className="aggregate-source">
+      <header>
+        <div className="section-identity">
+          <span className="source-avatar" aria-hidden="true">
+            {source.sourceName.slice(0, 1)}
+          </span>
+          <h3>{source.sourceName}</h3>
+        </div>
+        <span className="muted">{`${source.books.length} 项`}</span>
+      </header>
+      <div className="cards">
+        {source.books.map((book) => {
+          const origin: NovelOrigin = {
+            ...book,
+            sourceId: source.sourceId,
+            sourceName: source.sourceName,
+          };
+          return (
+            <BookCard
+              key={book.bookUrl}
+              book={{ name: book.name, author: book.author, origins: [origin] }}
+              busy={busy}
+              onOpen={onOpen}
+            />
+          );
+        })}
+      </div>
+    </section>
+  );
+});
 
 export const NovelSearchResults = memo(function NovelSearchResults({
   result,
@@ -154,36 +204,7 @@ export const NovelSearchResults = memo(function NovelSearchResults({
           {result.sources
             .filter((source) => source.status !== "error")
             .map((source) => (
-              <section className="aggregate-source" key={source.sourceId}>
-                <header>
-                  <div className="section-identity">
-                    <span className="source-avatar" aria-hidden="true">
-                      {source.sourceName.slice(0, 1)}
-                    </span>
-                    <h3>{source.sourceName}</h3>
-                  </div>
-                  <span className="muted">
-                    {source.status === "error" ? "搜索失败" : `${source.books.length} 项`}
-                  </span>
-                </header>
-                <div className="cards">
-                  {source.books.map((book) => {
-                    const origin: NovelOrigin = {
-                      ...book,
-                      sourceId: source.sourceId,
-                      sourceName: source.sourceName,
-                    };
-                    return (
-                      <BookCard
-                        key={book.bookUrl}
-                        book={{ name: book.name, author: book.author, origins: [origin] }}
-                        busy={busy}
-                        onOpen={onOpen}
-                      />
-                    );
-                  })}
-                </div>
-              </section>
+              <SourceResults key={source.sourceId} source={source} busy={busy} onOpen={onOpen} />
             ))}
         </div>
       ) : (
