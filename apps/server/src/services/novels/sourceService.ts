@@ -28,6 +28,15 @@ const local: Subscription = { id: "local", name: "自定义书源", enabled: tru
 
 export class NovelSourceService {
   private mutation: Promise<unknown> = Promise.resolve();
+  private readonly previewCatalogs = new Map<string, { value: Catalog; expires: number }>();
+  private catalogKey(source: SourceRecord, bookUrl: string) {
+    return JSON.stringify([
+      source.summary.id,
+      source.summary.hash,
+      this.engine.sessions.version(source.summary.id),
+      bookUrl,
+    ]);
+  }
   constructor(
     private readonly db: StorageDatabase["novels"],
     private readonly fetcher: typeof fetch,
@@ -350,9 +359,40 @@ export class NovelSourceService {
       },
     });
   }
-  catalog(sourceId: string, bookUrl: string, signal?: AbortSignal) {
+  async catalog(sourceId: string, bookUrl: string, signal?: AbortSignal) {
     const source = this.source(sourceId);
     assertDownloadSupported(source.raw);
-    return this.engine.execute<Catalog>("catalog", [source.raw, bookUrl], signal, sourceId);
+    const key = this.catalogKey(source, bookUrl);
+    const value = await this.engine.execute<Catalog>(
+      "catalog",
+      [source.raw, bookUrl],
+      signal,
+      sourceId,
+    );
+    signal?.throwIfAborted();
+    // 目录短时复用于逐章预览，刷新目录仍会重新抓取；规则及登录身份参与缓存键。
+    for (const [key, entry] of this.previewCatalogs)
+      if (entry.expires <= Date.now()) this.previewCatalogs.delete(key);
+    this.previewCatalogs.delete(key);
+    this.previewCatalogs.set(key, { value, expires: Date.now() + 60_000 });
+    while (this.previewCatalogs.size > 3)
+      this.previewCatalogs.delete(this.previewCatalogs.keys().next().value!);
+    return value;
+  }
+  async preview(sourceId: string, bookUrl: string, chapterUrl: string, signal?: AbortSignal) {
+    const source = this.source(sourceId);
+    assertDownloadSupported(source.raw);
+    const hit = this.previewCatalogs.get(this.catalogKey(source, bookUrl));
+    const catalog =
+      hit && hit.expires > Date.now() ? hit.value : await this.catalog(sourceId, bookUrl, signal);
+    const chapter = catalog.chapters.find((chapter) => chapter.url === chapterUrl);
+    if (!chapter) throw new AppError("VALIDATION_ERROR", "章节不在当前目录中，请刷新目录后重试");
+    const content = await this.engine.execute<string>(
+      "chapter",
+      [source.raw, chapter, catalog],
+      signal,
+      sourceId,
+    );
+    return { chapter, content };
   }
 }

@@ -577,6 +577,43 @@ it("小说 HTTP 闭环使用现有鉴权，校验参数并返回可操作的错�
   expect(events[1].source.sourceId).toBe(sourceId);
   const catalog = await request("POST", "/catalog", { sourceId, bookUrl: book.bookUrl });
   expect(catalog.json().chapters).toHaveLength(2);
+  const previewRequest = { sourceId, bookUrl: book.bookUrl, chapterUrl: "https://novels.test/1" };
+  const callsBeforePreview = env.calls.length;
+  const preview = await request("POST", "/preview", previewRequest);
+  expect(preview.statusCode).toBe(200);
+  expect(preview.json()).toEqual({
+    chapter: { title: "第一章", url: previewRequest.chapterUrl },
+    content: "第一章上半页\n第一章下半页",
+  });
+  expect(env.calls.slice(callsBeforePreview)).toEqual(["/1", "/1b"]);
+  expect(
+    (
+      await request("POST", "/preview", { ...previewRequest, chapterUrl: "https://novels.test/2" })
+    ).json().content,
+  ).toBe("第二章正文");
+  expect(
+    (
+      await request("POST", "/preview", {
+        ...previewRequest,
+        chapterUrl: "https://novels.test/other-book",
+      })
+    ).statusCode,
+  ).toBe(400);
+  expect(env.calls).not.toContain("/other-book");
+  expect(
+    (await request("POST", "/preview", { ...previewRequest, chapterUrl: "file:///tmp/chapter" }))
+      .statusCode,
+  ).toBe(400);
+  expect(
+    (await request("POST", "/preview", { ...previewRequest, sourceId: "missing" })).statusCode,
+  ).toBe(404);
+  env.failSecond(true);
+  expect(
+    (await request("POST", "/preview", { ...previewRequest, chapterUrl: "https://novels.test/2" }))
+      .statusCode,
+  ).toBe(422);
+  env.failSecond(false);
+  expect(context.novelDownloads.all()).toHaveLength(0);
   const created = await request("POST", "/downloads", {
     sourceId,
     book,
@@ -610,6 +647,7 @@ it("小说 HTTP 闭环使用现有鉴权，校验参数并返回可操作的错�
   expect(
     (await request("POST", "/search", { keyword: "凡人", sourceIds: [sourceId] })).statusCode,
   ).toBe(400);
+  expect((await request("POST", "/preview", previewRequest)).statusCode).toBe(400);
   const protectedApp = await buildApp(
     { ...readAuthConfig(), mode: "required", origin: "https://example.test" },
     { ...readConfig(), dataDir: path.join(dir, "protected") },
@@ -747,57 +785,62 @@ it("单次网络超时跨 Worker 仍返回 TIMEOUT", async () => {
     code: "TIMEOUT",
   });
 });
-it("客户端断开目录请求时终止上游请求，下一次目录请求仍可用", async () => {
-  const dir = await mkdtemp(path.join(os.tmpdir(), "mansou-novels-cancel-"));
-  cleanups.push(() => rm(dir, { recursive: true, force: true }));
-  let upstreamSignal: AbortSignal | undefined;
-  let hold = true;
-  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-    const url = String(input);
-    if (hold) {
-      upstreamSignal = init!.signal!;
-      return new Promise((_resolve, reject) =>
-        upstreamSignal!.addEventListener("abort", () => reject(upstreamSignal!.reason), {
-          once: true,
-        }),
-      );
-    }
-    return response(pages[new URL(url).pathname], url);
-  });
-  const { app, context } = await buildApp(
-    { ...readAuthConfig(), mode: "none" },
-    { ...readConfig(), dataDir: dir },
-  );
-  cleanups.push(() => app.close());
-  await initializeApp(context);
-  const sourceId = context.novelSources.import(raw).sources[0].id;
-  await app.listen({ host: "127.0.0.1", port: 0 });
-  const address = app.server.address();
-  if (!address || typeof address === "string") throw new Error("测试服务未监听");
-  const request = httpRequest({
-    hostname: "127.0.0.1",
-    port: address.port,
-    path: "/api/v1/novels/catalog",
-    method: "POST",
-    headers: { "content-type": "application/json" },
-  });
-  request.on("error", () => {});
-  cleanups.push(async () => {
+it.each(["catalog", "preview"])(
+  "客户端断开 %s 请求时终止上游请求，下一次请求仍可用",
+  async (operation) => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "mansou-novels-cancel-"));
+    cleanups.push(() => rm(dir, { recursive: true, force: true }));
+    let upstreamSignal: AbortSignal | undefined;
+    let hold = true;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (hold && (operation === "catalog" || new URL(url).pathname === "/1")) {
+        upstreamSignal = init!.signal!;
+        return new Promise((_resolve, reject) =>
+          upstreamSignal!.addEventListener("abort", () => reject(upstreamSignal!.reason), {
+            once: true,
+          }),
+        );
+      }
+      return response(pages[new URL(url).pathname], url);
+    });
+    const { app, context } = await buildApp(
+      { ...readAuthConfig(), mode: "none" },
+      { ...readConfig(), dataDir: dir },
+    );
+    cleanups.push(() => app.close());
+    await initializeApp(context);
+    const sourceId = context.novelSources.import(raw).sources[0].id;
+    await app.listen({ host: "127.0.0.1", port: 0 });
+    const address = app.server.address();
+    if (!address || typeof address === "string") throw new Error("测试服务未监听");
+    const request = httpRequest({
+      hostname: "127.0.0.1",
+      port: address.port,
+      path: `/api/v1/novels/${operation}`,
+      method: "POST",
+      headers: { "content-type": "application/json" },
+    });
+    request.on("error", () => {});
+    cleanups.push(async () => {
+      request.destroy();
+    });
+    const payload = { sourceId, bookUrl: book.bookUrl, chapterUrl: "https://novels.test/1" };
+    request.end(JSON.stringify(payload));
+    await vi.waitFor(() => expect(upstreamSignal).toBeDefined());
     request.destroy();
-  });
-  request.end(JSON.stringify({ sourceId, bookUrl: book.bookUrl }));
-  await vi.waitFor(() => expect(upstreamSignal).toBeDefined());
-  request.destroy();
-  await vi.waitFor(() => expect(upstreamSignal!.aborted).toBe(true));
-  hold = false;
-  const next = await app.inject({
-    method: "POST",
-    url: "/api/v1/novels/catalog",
-    payload: { sourceId, bookUrl: book.bookUrl },
-  });
-  expect(next.statusCode).toBe(200);
-  expect(next.json().chapters).toHaveLength(2);
-});
+    await vi.waitFor(() => expect(upstreamSignal!.aborted).toBe(true));
+    hold = false;
+    const next = await app.inject({
+      method: "POST",
+      url: `/api/v1/novels/${operation}`,
+      payload,
+    });
+    expect(next.statusCode).toBe(200);
+    if (operation === "catalog") expect(next.json().chapters).toHaveLength(2);
+    else expect(next.json().content).toBe("第一章上半页\n第一章下半页");
+  },
+);
 it("表格的纯空白补列项不误报缺章，但不能掩盖目录选择器不匹配", async () => {
   const env = await setup();
   const source = {
@@ -895,4 +938,30 @@ it("自定义书源重新导入保留收藏，按地址区分同名源", async (
   env.sources.setFavorite(id, false);
   await env.restart();
   expect(env.sources.state().sources[0].favorite).toBe(false);
+});
+
+it("预览目录在过期、规则更新和退出登录后重取，显式刷新覆盖旧目录", async () => {
+  const env = await setup();
+  const sourceId = env.sources.import(raw).sources[0].id;
+  const chapterUrl = "https://novels.test/1";
+  await env.sources.catalog(sourceId, book.bookUrl);
+  const now = Date.now();
+  const clock = vi.spyOn(Date, "now").mockReturnValue(now + 61_000);
+  env.calls.length = 0;
+  await env.sources.preview(sourceId, book.bookUrl, chapterUrl);
+  expect(env.calls).toContain("/toc");
+  clock.mockRestore();
+  env.calls.length = 0;
+  env.sources.import({ ...raw, bookSourceName: "更新后的规则" });
+  await env.sources.preview(sourceId, book.bookUrl, chapterUrl);
+  expect(env.calls).toContain("/toc");
+  env.calls.length = 0;
+  env.sources.logout(sourceId);
+  await env.sources.preview(sourceId, book.bookUrl, chapterUrl);
+  expect(env.calls).toContain("/toc");
+  env.setPage("/toc", '<a class="chapter" href="/2">新的唯一章</a>');
+  await env.sources.catalog(sourceId, book.bookUrl);
+  await expect(env.sources.preview(sourceId, book.bookUrl, chapterUrl)).rejects.toThrow(
+    "章节不在当前目录",
+  );
 });

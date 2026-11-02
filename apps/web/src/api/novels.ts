@@ -53,6 +53,13 @@ export const novelApi = {
       "POST",
       signal,
     ),
+  preview: (origin: NovelOrigin, chapterUrl: string, signal?: AbortSignal) =>
+    call<components["schemas"]["NovelPreview"]>(
+      "/preview",
+      { sourceId: origin.sourceId, bookUrl: origin.bookUrl, chapterUrl },
+      "POST",
+      signal,
+    ),
   tasks: (signal?: AbortSignal) => api<NovelTask[]>("/novels/downloads", { signal }),
   download: (origin: NovelOrigin, all: boolean, start: number, limit: number) =>
     call<NovelTask>("/downloads", { sourceId: origin.sourceId, book: origin, all, start, limit }),

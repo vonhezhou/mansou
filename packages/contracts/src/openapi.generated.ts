@@ -1760,6 +1760,30 @@ export const openApiDocument = {
         },
       },
     },
+    "/api/v1/novels/preview": {
+      post: {
+        operationId: "previewNovelChapter",
+        tags: ["novels"],
+        summary: "预览指定小说章节正文",
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/NovelPreview" } },
+            },
+          },
+          "400": { description: "输入无效或章节不在当前目录" },
+          "404": { description: "书源不存在" },
+          "422": { description: "规则不支持或上游抓取失败" },
+        },
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/NovelPreviewRequest" } },
+          },
+        },
+      },
+    },
     "/api/v1/novels/downloads": {
       get: {
         operationId: "listNovelDownloads",
@@ -2885,6 +2909,23 @@ export const openApiDocument = {
         type: "object",
         properties: { sourceId: { type: "string" }, bookUrl: { type: "string", format: "uri" } },
         required: ["sourceId", "bookUrl"],
+      },
+      NovelPreviewRequest: {
+        type: "object",
+        properties: {
+          sourceId: { type: "string" },
+          bookUrl: { type: "string", format: "uri", maxLength: 8192 },
+          chapterUrl: { type: "string", format: "uri", maxLength: 8192 },
+        },
+        required: ["sourceId", "bookUrl", "chapterUrl"],
+      },
+      NovelPreview: {
+        type: "object",
+        properties: {
+          chapter: { $ref: "#/components/schemas/NovelChapter" },
+          content: { type: "string", description: "合并分页后的单章纯文本，最大 4 MiB" },
+        },
+        required: ["chapter", "content"],
       },
       NovelDownloadRequest: {
         type: "object",

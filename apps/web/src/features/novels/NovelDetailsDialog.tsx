@@ -3,6 +3,7 @@ import type { NovelBook, NovelCatalog, NovelOrigin, NovelSource } from "../../ap
 import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { AsyncImage } from "../../app/AsyncImage.js";
 import { Icon } from "../../app/Icon.js";
+import { NovelChapterPreview } from "./NovelChapterPreview.js";
 import { NovelCatalogList } from "./NovelCatalogList.js";
 
 type Props = {
@@ -198,6 +199,12 @@ export function NovelDetailsDialog(props: Props) {
                     : "可刷新目录，或关闭后更换书源搜索。"}
                 </p>
               )}
+              <NovelChapterPreview
+                key={JSON.stringify([props.origin.sourceId, props.origin.bookUrl])}
+                origin={props.origin}
+                catalog={catalog}
+                selected={startValid ? start : 0}
+              />
               <NovelCatalogList
                 chapters={catalog.chapters}
                 selected={startValid ? start : 0}
@@ -218,6 +225,7 @@ export function NovelDetailsDialog(props: Props) {
           <label>
             起始目录项
             <input
+              aria-label="起始目录项"
               type="number"
               inputMode="numeric"
               min={1}
@@ -236,6 +244,7 @@ export function NovelDetailsDialog(props: Props) {
           <label>
             下载项数
             <input
+              aria-label="下载项数"
               type="number"
               inputMode="numeric"
               min={1}

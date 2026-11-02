@@ -211,7 +211,9 @@ it.each(["完成后进入任务", "关闭后不跳转", "关闭后创建失败",
     await act(async () => card.click());
     expect(container.querySelector("dialog[open]")).not.toBeNull();
     expect(requests.filter((request) => request.path === "/catalog")).toHaveLength(1);
-    const ranges = container.querySelectorAll<HTMLInputElement>('input[type="number"]');
+    const ranges = container.querySelectorAll<HTMLInputElement>(
+      '.novel-download-range input[type="number"]',
+    );
     await setValue(ranges[1], "2");
     expect(container.querySelector('a[href$="/epub"]')).toBeNull();
     if (scenario === "任务已创建但刷新失败")

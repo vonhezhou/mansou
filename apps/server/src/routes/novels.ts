@@ -174,6 +174,14 @@ export async function registerNovelRoutes(
           context.novelSources.catalog(body.sourceId, body.bookUrl, signal),
         );
       });
+      api.post("/preview", async (request, reply) => {
+        const body = z
+          .object({ sourceId: z.string(), bookUrl: httpUrl, chapterUrl: httpUrl })
+          .parse(request.body);
+        return withCancellation(reply, (signal) =>
+          context.novelSources.preview(body.sourceId, body.bookUrl, body.chapterUrl, signal),
+        );
+      });
       api.get("/downloads", async () => context.novelDownloads.all());
       api.post("/downloads", async (request) =>
         context.novelDownloads.create(

@@ -98,7 +98,9 @@ it("五万项目录只挂载一页，支持末页、名称/序号检索和定位
   await act(async () => button("末页").click());
   expect(rows()[49].title).toBe("第 50000 章");
   await act(async () => rows()[49].click());
-  const inputs = container.querySelectorAll<HTMLInputElement>('input[type="number"]');
+  const inputs = container.querySelectorAll<HTMLInputElement>(
+    '.novel-download-range input[type="number"]',
+  );
   expect(inputs[0].value).toBe("50000");
   expect(inputs[1].value).toBe("1");
   const search = container.querySelector<HTMLInputElement>('[aria-label="搜索章节"]')!;

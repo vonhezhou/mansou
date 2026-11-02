@@ -1190,6 +1190,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/novels/preview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** 预览指定小说章节正文 */
+    post: operations["previewNovelChapter"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/novels/downloads": {
     parameters: {
       query?: never;
@@ -1870,6 +1887,18 @@ export interface components {
       sourceId: string;
       /** Format: uri */
       bookUrl: string;
+    };
+    NovelPreviewRequest: {
+      sourceId: string;
+      /** Format: uri */
+      bookUrl: string;
+      /** Format: uri */
+      chapterUrl: string;
+    };
+    NovelPreview: {
+      chapter: components["schemas"]["NovelChapter"];
+      /** @description 合并分页后的单章纯文本，最大 4 MiB */
+      content: string;
     };
     NovelDownloadRequest: {
       sourceId: string;
@@ -4379,6 +4408,51 @@ export interface operations {
         content?: never;
       };
       /** @description Unsupported rule or upstream failure */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  previewNovelChapter: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NovelPreviewRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelPreview"];
+        };
+      };
+      /** @description 输入无效或章节不在当前目录 */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description 书源不存在 */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description 规则不支持或上游抓取失败 */
       422: {
         headers: {
           [name: string]: unknown;
