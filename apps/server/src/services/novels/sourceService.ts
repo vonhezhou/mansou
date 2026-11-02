@@ -13,6 +13,7 @@ import {
   type RegisteredSource,
   type SourceOutcome,
   type SearchOptions,
+  loginFields,
 } from "@mansou/novel-engine";
 import type { components } from "@mansou/contracts";
 import type { StorageDatabase } from "@mansou/storage";
@@ -32,7 +33,23 @@ export class NovelSourceService {
     private readonly fetcher: typeof fetch,
     private readonly timeoutMs: number,
     private readonly engine: NovelEngineExecutor,
-  ) {}
+  ) {
+    // 运行时能力升级后重算旧记录，避免旧的“不支持”标记挡住新实现；用户状态和规则快照保持不变。
+    this.db.transaction(() => {
+      for (const row of this.db.list<SourceRecord>("source")) {
+        const checked = this.record(row.raw, row.summary.groupId).summary;
+        const summary = {
+          ...row.summary,
+          searchSupported: checked.searchSupported,
+          downloadSupported: checked.downloadSupported,
+          searchError: checked.searchError,
+          downloadError: checked.downloadError,
+        };
+        if (JSON.stringify(summary) !== JSON.stringify(row.summary))
+          this.db.save("source", row.summary.id, { ...row, summary });
+      }
+    });
+  }
   private serialize<T>(work: () => Promise<T>): Promise<T> {
     const next = this.mutation.then(work);
     this.mutation = next.catch(() => {});
@@ -112,8 +129,10 @@ export class NovelSourceService {
       throw new AppError("VALIDATION_ERROR", "选择中含不支持下载的书源，请先移除这些书源");
     this.db.transaction(() => {
       for (const row of rows) {
-        if (action === "delete") this.db.delete("source", row.summary.id);
-        else
+        if (action === "delete") {
+          this.engine.sessions.clear(row.summary.id);
+          this.db.delete("source", row.summary.id);
+        } else
           this.db.save("source", row.summary.id, {
             ...row,
             summary: { ...row.summary, enabled: action === "enable" },
@@ -136,8 +155,38 @@ export class NovelSourceService {
   }
   deleteSource(id: string) {
     this.source(id, false);
+    this.engine.sessions.clear(id);
     this.db.delete("source", id);
     return this.state();
+  }
+  account(id: string) {
+    const { raw } = this.source(id, false);
+    return {
+      loginSupported: Boolean(raw.loginUrl),
+      loggedIn: this.engine.sessions.get(id).loggedIn,
+      fields: loginFields(raw),
+    };
+  }
+  async login(id: string, values: Record<string, string>, signal?: AbortSignal) {
+    const { raw } = this.source(id, false);
+    const fields = loginFields(raw);
+    const allowed = new Set(fields.map((field) => field.name));
+    if (Object.keys(values).some((name) => !allowed.has(name)))
+      throw new AppError("VALIDATION_ERROR", "登录字段不在书源表单定义中");
+    this.engine.sessions.clear(id);
+    const version = this.engine.sessions.version(id);
+    try {
+      await this.engine.execute("login", [raw, values], signal, id);
+    } catch (error) {
+      if (this.engine.sessions.version(id) === version) this.engine.sessions.clear(id);
+      throw error;
+    }
+    return this.account(id);
+  }
+  logout(id: string) {
+    this.source(id, false);
+    this.engine.sessions.clear(id);
+    return this.account(id);
   }
   private subscription(id: string) {
     const group = this.db.get<Subscription>("subscription", id);
@@ -153,7 +202,10 @@ export class NovelSourceService {
       const records = incoming.filter((row) => row.summary.downloadSupported);
       // 部分订阅失败时仍保留未获取的旧规则，但明确变为不支持下载的规则必须移除。
       for (const row of incoming)
-        if (!row.summary.downloadSupported) this.db.delete("source", row.summary.id);
+        if (!row.summary.downloadSupported) {
+          this.engine.sessions.clear(row.summary.id);
+          this.db.delete("source", row.summary.id);
+        }
       const ids = new Set(records.map((row) => row.summary.id));
       for (const old of this.db.list<SourceRecord>("source"))
         if (!warning && old.summary.groupId === group.id && !ids.has(old.summary.id)) {
@@ -162,7 +214,10 @@ export class NovelSourceService {
               ...old,
               summary: { ...old.summary, missingFromSubscription: true },
             });
-          else this.db.delete("source", old.summary.id);
+          else {
+            this.engine.sessions.clear(old.summary.id);
+            this.db.delete("source", old.summary.id);
+          }
         }
       for (const row of records) this.db.save("source", row.summary.id, row);
       this.db.save("subscription", group.id, {
@@ -225,7 +280,10 @@ export class NovelSourceService {
       this.subscription(id);
       this.db.transaction(() => {
         for (const source of this.db.list<SourceRecord>("source"))
-          if (source.summary.groupId === id) this.db.delete("source", source.summary.id);
+          if (source.summary.groupId === id) {
+            this.engine.sessions.clear(source.summary.id);
+            this.db.delete("source", source.summary.id);
+          }
         this.db.delete("subscription", id);
       });
       return this.state();
@@ -274,6 +332,7 @@ export class NovelSourceService {
             "search",
             [source, key, page],
             options.signal,
+            source.id,
           );
         } catch (error) {
           return {
@@ -294,6 +353,6 @@ export class NovelSourceService {
   catalog(sourceId: string, bookUrl: string, signal?: AbortSignal) {
     const source = this.source(sourceId);
     assertDownloadSupported(source.raw);
-    return this.engine.execute<Catalog>("catalog", [source.raw, bookUrl], signal);
+    return this.engine.execute<Catalog>("catalog", [source.raw, bookUrl], signal, sourceId);
   }
 }

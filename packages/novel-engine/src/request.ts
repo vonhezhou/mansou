@@ -2,6 +2,7 @@ import JSON5 from "json5";
 import iconv from "iconv-lite";
 import type { BookSource } from "./types.js";
 import { SourceError } from "./types.js";
+import { scriptCode, type SourceScript } from "./script.js";
 
 interface Options {
   method?: string;
@@ -16,6 +17,7 @@ export interface SearchRequest {
   headers: Record<string, string>;
   body?: Uint8Array;
   charset: string;
+  bodyJs?: string;
 }
 const UA =
   "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36";
@@ -30,8 +32,29 @@ function parseObject(value: string): Record<string, unknown> {
   }
 }
 
-function interpolate(raw: string, key: string, page: number): string {
+function interpolate(
+  raw: string,
+  key: string,
+  page: number,
+  script?: SourceScript,
+  jsonStrings = false,
+): string {
   const template = /\{\{\s*(key|page)\s*\}\}/g;
+  if (script)
+    return raw.replace(/\{\{([\s\S]*?)\}\}/g, (_, expression: string, offset: number) => {
+      if (expression.trim() === "key") return key;
+      if (expression.trim() === "page") return String(page);
+      const value = script.evaluate(expression);
+      if (jsonStrings && typeof value === "string") {
+        let quoted = false;
+        for (let index = 0; index < offset; index++) {
+          if (raw[index] === "\\") index++;
+          else if (raw[index] === '"') quoted = !quoted;
+        }
+        if (quoted) return JSON.stringify(value).slice(1, -1);
+      }
+      return typeof value === "object" ? JSON.stringify(value) : String(value ?? "");
+    });
   if (/\{\{|@js:|<js>/i.test(raw.replace(template, "")))
     throw new SourceError("UNSUPPORTED_RULE", "仅支持 {{key}} 和 {{page}} 模板，不执行 JS");
   const value = raw.replace(template, (_, name: string) => (name === "key" ? key : String(page)));
@@ -67,13 +90,29 @@ function encodeFields(value: string, charset: string): string {
     .join("&");
 }
 
-export function buildRequest(source: BookSource, key: string, page: number): SearchRequest {
+export function buildRequest(
+  source: BookSource,
+  key: string,
+  page: number,
+  script?: SourceScript,
+): SearchRequest {
   let rawUrl = source.searchUrl?.trim() ?? "";
+  const code = scriptCode(rawUrl);
+  if (code !== undefined) {
+    if (!script) throw new SourceError("UNSUPPORTED_RULE", "脚本 URL 需要书源上下文");
+    rawUrl = String(script.evaluate(code) ?? "");
+  }
   if (!rawUrl) throw new SourceError("UNSUPPORTED_RULE", "书源缺少 searchUrl");
   const match = /,\s*\{(?!\{)/.exec(rawUrl);
   const options: Options = match ? parseObject(rawUrl.slice(match.index + 1)) : {};
   if (match) rawUrl = rawUrl.slice(0, match.index);
-  const supported = new Set(["method", "body", "headers", "charset"]);
+  const supported = new Set([
+    "method",
+    "body",
+    "headers",
+    "charset",
+    ...(script ? ["js", "bodyJs"] : []),
+  ]);
   for (const k of Object.keys(options))
     if (!supported.has(k)) throw new SourceError("UNSUPPORTED_RULE", `不支持请求选项：${k}`);
   const charset = options.charset ?? "utf-8";
@@ -82,26 +121,42 @@ export function buildRequest(source: BookSource, key: string, page: number): Sea
   const method = String(options.method ?? "GET").toUpperCase();
   if (!["GET", "POST"].includes(method))
     throw new SourceError("UNSUPPORTED_RULE", `不支持请求方法：${method}`);
-  const renderedUrl = interpolate(rawUrl, encode(key, charset), page)
+  let renderedUrl = interpolate(rawUrl, encode(key, charset), page, script)
     .replace(/<([^<>]*)>/g, (_, value: string) => {
       const choices = value.split(",");
       return choices[Math.min(page, choices.length) - 1]!.trim();
     })
     .replace(/\?([^#]*)/, (_, query: string) => `?${encodeFields(query, charset)}`);
+  if (typeof options.js === "string" && script)
+    renderedUrl = String(script.evaluate(options.js, { result: renderedUrl }));
   const url = new URL(renderedUrl, source.bookSourceUrl);
   if (!["http:", "https:"].includes(url.protocol))
     throw new SourceError("UNSUPPORTED_RULE", "仅允许 HTTP/HTTPS 书源");
   const headers: Record<string, string> = { "User-Agent": UA };
-  const userHeaders = source.header ? parseObject(source.header) : {};
+  const headerCode = source.header && scriptCode(source.header);
+  const header = headerCode !== undefined && script ? script.evaluate(headerCode) : source.header;
+  const userHeaders = header
+    ? typeof header === "object"
+      ? (header as Record<string, unknown>)
+      : parseObject(interpolate(String(header), key, page, script))
+    : {};
   if (
     options.headers !== undefined &&
     (!options.headers || typeof options.headers !== "object" || Array.isArray(options.headers))
   )
     throw new SourceError("UNSUPPORTED_RULE", "headers 必须是对象");
-  for (const [name, value] of Object.entries({ ...userHeaders, ...options.headers })) {
+  const loginHeaders =
+    script && new URL(script.source.bookSourceUrl).origin === url.origin
+      ? script.state.loginHeaders
+      : {};
+  for (const [name, value] of Object.entries({
+    ...userHeaders,
+    ...loginHeaders,
+    ...options.headers,
+  })) {
     if (typeof value !== "string" || /[\r\n]/.test(value))
       throw new SourceError("UNSUPPORTED_RULE", "请求头必须是单行字符串");
-    let expanded = interpolate(value, key, page);
+    let expanded = interpolate(value, key, page, script);
     try {
       if (/[\r\n]/.test(expanded)) throw new Error("多行请求头");
       expanded = new Headers({ [name]: expanded }).get(name)!;
@@ -129,7 +184,13 @@ export function buildRequest(source: BookSource, key: string, page: number): Sea
     let bodyText: string;
     if (isJson && !objectBody) {
       // JSON 字符串不能做表单编码；先转义关键词，再校验插值后的 JSON，兼容未加引号的页码。
-      bodyText = interpolate(String(options.body), JSON.stringify(key).slice(1, -1), page);
+      bodyText = interpolate(
+        String(options.body),
+        JSON.stringify(key).slice(1, -1),
+        page,
+        script,
+        true,
+      );
       try {
         JSON.parse(bodyText);
       } catch {
@@ -138,7 +199,7 @@ export function buildRequest(source: BookSource, key: string, page: number): Sea
     } else if (objectBody) {
       const replace = (value: unknown): unknown =>
         typeof value === "string"
-          ? interpolate(value, key, page)
+          ? interpolate(value, key, page, script)
           : Array.isArray(value)
             ? value.map(replace)
             : value && typeof value === "object"
@@ -147,17 +208,24 @@ export function buildRequest(source: BookSource, key: string, page: number): Sea
       bodyText = JSON.stringify(replace(options.body));
     } else if (!contentType || /^application\/x-www-form-urlencoded\b/i.test(contentType))
       bodyText = encodeFields(
-        interpolate(String(options.body), encode(key, charset), page),
+        interpolate(String(options.body), encode(key, charset), page, script),
         charset,
       );
-    else bodyText = interpolate(String(options.body), key, page);
+    else bodyText = interpolate(String(options.body), key, page, script);
     body = iconv.encode(bodyText, charset);
     if (!Object.keys(headers).some((h) => h.toLowerCase() === "content-type"))
       headers["Content-Type"] = isJson
         ? `application/json; charset=${charset}`
         : "application/x-www-form-urlencoded";
   }
-  return { url: url.href, method, headers, body, charset };
+  return {
+    url: url.href,
+    method,
+    headers,
+    body,
+    charset,
+    ...(typeof options.bodyJs === "string" ? { bodyJs: options.bodyJs } : {}),
+  };
 }
 
 export async function fetchHtml(
@@ -165,6 +233,7 @@ export async function fetchHtml(
   signal: AbortSignal,
   maxBytes = 2 * 1024 * 1024,
   fetcher: typeof fetch = fetch,
+  script?: SourceScript,
 ): Promise<{ html: string; url: string }> {
   try {
     const response = await fetcher(request.url, {
@@ -174,7 +243,7 @@ export async function fetchHtml(
       signal,
       redirect: "follow",
     });
-    if (!response.ok) {
+    if (!response.ok && !script?.source.loginCheckJs) {
       await response.body?.cancel();
       throw new SourceError("HTTP_ERROR", `上游返回 HTTP ${response.status}`);
     }
@@ -205,7 +274,26 @@ export async function fetchHtml(
       request.charset;
     if (!iconv.encodingExists(charset))
       throw new SourceError("SOURCE_ERROR", `响应编码不支持：${charset}`);
-    return { html: iconv.decode(data, charset), url: response.url };
+    let html = iconv.decode(data, charset);
+    if (request.bodyJs && script)
+      html = String(
+        script.evaluate(request.bodyJs, { result: html, baseUrl: response.url || request.url }),
+      );
+    let handledError = false;
+    if (script?.source.loginCheckJs) {
+      const check = scriptCode(script.source.loginCheckJs) ?? script.source.loginCheckJs;
+      const checked = script.evaluate(
+        `result = {body:()=>${JSON.stringify(html)}, code:()=>${response.status}, url:()=>${JSON.stringify(response.url || request.url)}};\n(() => { const checked = eval(${JSON.stringify(check)}); return checked && typeof checked.body === 'function' ? checked.body() : checked; })()`,
+      );
+      if (checked === false) throw new SourceError("SOURCE_ERROR", "登录校验未通过");
+      if (typeof checked === "string") {
+        handledError = checked !== html;
+        html = checked;
+      }
+    }
+    if (!response.ok && !handledError)
+      throw new SourceError("HTTP_ERROR", `上游返回 HTTP ${response.status}`);
+    return { html, url: response.url || request.url };
   } catch (error) {
     if (error instanceof SourceError) throw error;
     if (signal.aborted) throw new SourceError("TIMEOUT", "书源请求已超时或取消");

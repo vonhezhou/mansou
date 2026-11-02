@@ -48,6 +48,18 @@ export async function registerNovelRoutes(
         throw error;
       });
       api.get("/sources", async () => context.novelSources.state());
+      api.get("/sources/:id/account", async (request) =>
+        context.novelSources.account(id(request.params)),
+      );
+      api.post("/sources/:id/login", async (request, reply) => {
+        const body = z.object({ values: z.record(z.string().max(4096)) }).parse(request.body);
+        return withCancellation(reply, (signal) =>
+          context.novelSources.login(id(request.params), body.values, signal),
+        );
+      });
+      api.delete("/sources/:id/account", async (request) =>
+        context.novelSources.logout(id(request.params)),
+      );
       api.post("/sources/import", { bodyLimit: 8 * 1024 * 1024 }, async (request) => {
         const body = z.object({ sources: z.unknown() }).parse(request.body);
         return context.novelSources.import(body.sources);

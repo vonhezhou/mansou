@@ -1415,6 +1415,58 @@ export const openApiDocument = {
         },
       },
     },
+    "/api/v1/novels/sources/{id}/account": {
+      parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+      get: {
+        operationId: "getNovelSourceAccount",
+        tags: ["novels"],
+        summary: "获取书源登录状态和字段，不返回凭据",
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/NovelAccount" } },
+            },
+          },
+        },
+      },
+      delete: {
+        operationId: "logoutNovelSource",
+        tags: ["novels"],
+        summary: "清除书源 Cookie、令牌和脚本数据",
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/NovelAccount" } },
+            },
+          },
+        },
+      },
+    },
+    "/api/v1/novels/sources/{id}/login": {
+      parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+      post: {
+        operationId: "loginNovelSource",
+        tags: ["novels"],
+        summary: "执行书源 HTTP 登录，不自动保存输入密码",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/NovelLoginRequest" } },
+          },
+        },
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/NovelAccount" } },
+            },
+          },
+          "422": { description: "登录失败或规则不支持" },
+        },
+      },
+    },
     "/api/v1/novels/sources/import": {
       post: {
         operationId: "importNovelSources",
@@ -2483,6 +2535,37 @@ export const openApiDocument = {
           entry: { $ref: "#/components/schemas/ApiToken" },
         },
         required: ["token", "entry"],
+      },
+      NovelAccount: {
+        type: "object",
+        required: ["loginSupported", "loggedIn", "fields"],
+        properties: {
+          loginSupported: { type: "boolean" },
+          loggedIn: { type: "boolean" },
+          fields: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["name", "label", "type"],
+              properties: {
+                name: { type: "string" },
+                label: { type: "string" },
+                type: { type: "string", enum: ["text", "password"] },
+              },
+            },
+          },
+        },
+      },
+      NovelLoginRequest: {
+        type: "object",
+        required: ["values"],
+        properties: {
+          values: {
+            type: "object",
+            maxProperties: 20,
+            additionalProperties: { type: "string", maxLength: 4096 },
+          },
+        },
       },
       NovelSource: {
         type: "object",

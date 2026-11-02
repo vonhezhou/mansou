@@ -158,6 +158,7 @@ export class NovelDownloadService {
           "catalog",
           [row.raw, task.bookUrl],
           signal,
+          task.sourceId,
         );
         signal.throwIfAborted();
         if (!catalog.tocComplete)
@@ -193,6 +194,7 @@ export class NovelDownloadService {
                 "chapter",
                 [row.raw, chapter, plan.catalog],
                 signal,
+                task.sourceId,
               );
               break;
             } catch (error) {

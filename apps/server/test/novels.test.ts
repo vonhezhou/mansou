@@ -105,7 +105,8 @@ it.each(["完成", "断开"])(
         }
       },
     );
-    const app = Fastify();
+    // 夹具关闭时清理取消后客户端重建的空闲连接，不让连接池阻塞测试收尾。
+    const app = Fastify({ forceCloseConnections: true });
     await registerNovelRoutes(app, { novelSources: env.sources, novelDownloads: env.downloads });
     cleanups.push(async () => {
       release();
@@ -244,7 +245,7 @@ async function waitTask(downloads: NovelDownloadService, status: string) {
 }
 it("导入和订阅只保留支持下载的源，更新为不支持时移除旧记录", async () => {
   const env = await setup();
-  const unsupported = { ...raw, ruleContent: { content: "@js:unsupported()" } };
+  const unsupported = { ...raw, ruleContent: { content: "@webjs:unsupported()" } };
   const other = { ...raw, bookSourceUrl: "https://other.test" };
   expect(env.sources.import([unsupported, other]).sources.map((source) => source.url)).toEqual([
     other.bookSourceUrl,
@@ -570,6 +571,18 @@ it("小说 HTTP 闭环使用现有鉴权，校验参数并返回可操作的错�
     { ...readConfig(), dataDir: path.join(dir, "protected") },
   );
   cleanups.push(() => protectedApp.app.close());
+  for (const method of ["GET", "POST", "DELETE"] as const) {
+    const url = `/api/v1/novels/sources/${encodeURIComponent(sourceId)}/${method === "POST" ? "login" : "account"}`;
+    expect(
+      (
+        await protectedApp.app.inject({
+          method,
+          url,
+          ...(method === "POST" ? { payload: { values: {} } } : {}),
+        })
+      ).statusCode,
+    ).toBe(401);
+  }
   expect(
     (
       await protectedApp.app.inject({
@@ -663,7 +676,12 @@ it.each([
 it.each([
   { code: "HTTP_ERROR", source: raw, body: "服务不可用", status: 503 },
   { code: "RESPONSE_TOO_LARGE", source: raw, body: "x".repeat(2 * 1024 * 1024 + 1), status: 200 },
-  { code: "UNSUPPORTED_RULE", source: { ...raw, jsLib: "unsupported" }, body: "", status: 200 },
+  {
+    code: "UNSUPPORTED_RULE",
+    source: { ...raw, ruleContent: { content: "@webjs:result" } },
+    body: "",
+    status: 200,
+  },
 ])("Worker 往返保留 $code 错误码", async ({ code, source, body, status }) => {
   const engine = new NovelEngineExecutor(
     async (input) => response(body, String(input), status),

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { buildRequest } from "./request.js";
-import { validateRule } from "./rules.js";
+import { validateSourceRule as validateRule } from "./analyzer.js";
 import type { BookSource, RegisteredSource } from "./types.js";
 import { SourceError } from "./types.js";
 
@@ -47,14 +47,7 @@ export function assertSupported(source: BookSource): void {
   assertNoWebView(source);
   if ((source.bookSourceType ?? 0) !== 0)
     throw new SourceError("UNSUPPORTED_RULE", "当前版本仅支持文本书源");
-  for (const field of [
-    "jsLib",
-    "loginUrl",
-    "loginUi",
-    "loginCheckJs",
-    "mainJs",
-    "concurrentRate",
-  ] as const) {
+  for (const field of ["concurrentRate"] as const) {
     if (source[field])
       throw new SourceError("UNSUPPORTED_RULE", `当前版本尚未支持 ${field}，不静默忽略`);
   }
@@ -75,7 +68,15 @@ export function assertSupported(source: BookSource): void {
       throw new SourceError("UNSUPPORTED_RULE", `搜索规则 ${key} 必须是字符串`);
     if (key !== "checkKeyWord") validateRule(value, key === "bookList" ? "elements" : "string");
   }
-  buildRequest(source, "检查", 1);
+  const dynamic = [source.searchUrl, source.header].some(
+    (value) =>
+      value &&
+      /@js:|<js>|\{\{|["']?(?:js|bodyJs)["']?\s*:/i.test(
+        value.replace(/\{\{\s*(?:key|page)\s*\}\}/g, ""),
+      ),
+  );
+  if (!source.searchUrl?.trim()) throw new SourceError("UNSUPPORTED_RULE", "书源缺少 searchUrl");
+  if (!dynamic) buildRequest(source, "检查", 1);
 }
 
 export function registerSources(sources: BookSource[]): RegisteredSource[] {

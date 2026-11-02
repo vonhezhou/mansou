@@ -30,7 +30,8 @@
     "zod": "^3.24.1",
     "@mansou/core": "workspace:*",
     "@mansou/plugin-runtime": "workspace:*",
-    "@mansou/novel-engine": "workspace:*"
+    "@mansou/novel-engine": "workspace:*",
+    "tough-cookie": "^6.0.2"
   },
   "devDependencies": {
     "@types/yazl": "^3.3.1",

@@ -98,7 +98,7 @@ function composition(rule: string): { operator: string; parts: string[] } {
   return combinations[0] ?? { operator: "&&", parts: [rule] };
 }
 
-function combine<T>(rule: string, read: (branch: string) => T[]): T[] {
+export function combine<T>(rule: string, read: (branch: string) => T[]): T[] {
   const { operator, parts } = composition(rule);
   const lists: T[][] = [];
   for (const part of parts) {

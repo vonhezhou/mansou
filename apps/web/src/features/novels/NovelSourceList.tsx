@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { novelApi, type NovelState } from "../../api/novels.js";
+import { NovelAccountDialog } from "./NovelAccountDialog.js";
 
 type Props = {
   state: NovelState;
@@ -18,9 +19,11 @@ export function NovelSourceList({ state, busy, run, onChange, onEdit }: Props) {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(new Set<string>());
   const [notice, setNotice] = useState("");
+  const [accountSource, setAccountSource] = useState<{ id: string; name: string }>();
   const panel = useRef<HTMLElement>(null);
   useEffect(() => {
     const ids = new Set(state.sources.map((source) => source.id));
+    setAccountSource((old) => (old && ids.has(old.id) ? old : undefined));
     setSelected((old) => new Set([...old].filter((id) => ids.has(id))));
   }, [state.sources]);
   useEffect(() => {
@@ -291,6 +294,13 @@ export function NovelSourceList({ state, busy, run, onChange, onEdit }: Props) {
             <div className="source-actions">
               <button
                 className="secondary-button"
+                disabled={busy}
+                onClick={() => setAccountSource(source)}
+              >
+                账号与会话
+              </button>
+              <button
+                className="secondary-button"
                 aria-label={`${source.favorite ? "取消收藏" : "收藏"} ${source.name}`}
                 aria-pressed={!!source.favorite}
                 disabled={busy}
@@ -335,6 +345,13 @@ export function NovelSourceList({ state, busy, run, onChange, onEdit }: Props) {
         </p>
       )}
       {pagination}
+      {accountSource && (
+        <NovelAccountDialog
+          key={accountSource.id}
+          source={accountSource}
+          onClose={() => setAccountSource(undefined)}
+        />
+      )}
     </section>
   );
 }

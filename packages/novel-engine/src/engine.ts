@@ -1,5 +1,6 @@
 import { buildRequest, fetchHtml } from "./request.js";
-import { HtmlRules } from "./rules.js";
+import { SourceRules } from "./analyzer.js";
+import { withSourceScript, type SourceScript, type RuntimeOptions } from "./script.js";
 import { SEARCH_FIELDS } from "./sources.js";
 import {
   SourceError,
@@ -29,15 +30,17 @@ export function parseSearchHtml(
   source: RegisteredSource,
   html: string,
   responseUrl: string,
+  script?: SourceScript,
 ): SearchBook[] {
   const rules = source.source.ruleSearch!;
-  const parser = new HtmlRules(html);
+  const parser = new SourceRules(html, script, responseUrl);
   const rows = parser.elements(String(rules.bookList));
   if (!rows.length) {
-    const visible = parser.$("body").clone();
+    if (html.trimStart().startsWith("{") || html.trimStart().startsWith("[")) return [];
+    const visible = parser.html.$("body").clone();
     visible.find("script,style").remove();
     const text = visible.text().replace(/\s+/g, " ").trim();
-    const title = parser.$("title").text();
+    const title = parser.html.$("title").text();
     if (
       /没有找到|未找到|暂无相关|没有搜索到|无搜索结果|找不到您要搜索|共有\s*0\s*条|no results/i.test(
         text,
@@ -63,7 +66,7 @@ export function parseSearchHtml(
   }
   const books: SearchBook[] = [];
   const seen = new Set<string>();
-  rows.each((_, row) => {
+  rows.forEach((row) => {
     const values = Object.fromEntries(
       SEARCH_FIELDS.map((field) => [field, parser.string(rules[field] as string | undefined, row)]),
     );
@@ -83,7 +86,7 @@ export function parseSearchHtml(
   return books;
 }
 
-export interface SearchOptions {
+export interface SearchOptions extends RuntimeOptions {
   timeoutMs: number;
   concurrency: number;
   signal?: AbortSignal;
@@ -101,7 +104,7 @@ export async function searchOne(
   source: RegisteredSource,
   key: string,
   page: number,
-  options: Pick<SearchOptions, "timeoutMs" | "signal" | "fetcher">,
+  options: Pick<SearchOptions, "timeoutMs" | "signal" | "fetcher" | "host">,
 ): Promise<SourceOutcome> {
   const started = performance.now();
   const outcome: SourceOutcome = {
@@ -117,14 +120,22 @@ export async function searchOne(
     signal.throwIfAborted();
     if (!source.supported)
       throw new SourceError("UNSUPPORTED_RULE", source.reason ?? "书源尚未支持");
-    const response = await fetchHtml(
-      buildRequest(source.source, key, page),
-      signal,
-      undefined,
-      options.fetcher,
+    await withSourceScript(
+      source.source,
+      { ...options, signal, bindings: { key, page } },
+      async (script) => {
+        script.setBindings({ key, page });
+        const response = await fetchHtml(
+          buildRequest(source.source, key, page, script),
+          signal,
+          undefined,
+          options.fetcher,
+          script,
+        );
+        signal.throwIfAborted();
+        outcome.books = parseSearchHtml(source, response.html, response.url, script);
+      },
     );
-    signal.throwIfAborted();
-    outcome.books = parseSearchHtml(source, response.html, response.url);
   } catch (error) {
     outcome.status = "error";
     const reason = options.signal?.aborted

@@ -10,6 +10,7 @@ export type NovelSearch = components["schemas"]["NovelSearch"];
 export type NovelOrigin = components["schemas"]["NovelOrigin"];
 export type NovelCatalog = components["schemas"]["NovelCatalog"];
 export type NovelTask = components["schemas"]["NovelTask"];
+export type NovelAccount = components["schemas"]["NovelAccount"];
 const call = <T>(path: string, body?: unknown, method = "POST", signal?: AbortSignal) =>
   api<T>(`/novels${path}`, {
     method,
@@ -17,6 +18,12 @@ const call = <T>(path: string, body?: unknown, method = "POST", signal?: AbortSi
     signal,
   });
 export const novelApi = {
+  account: (id: string, signal?: AbortSignal) =>
+    call<NovelAccount>(`/sources/${encodeURIComponent(id)}/account`, undefined, "GET", signal),
+  login: (id: string, values: Record<string, string>, signal?: AbortSignal) =>
+    call<NovelAccount>(`/sources/${encodeURIComponent(id)}/login`, { values }, "POST", signal),
+  logout: (id: string, signal?: AbortSignal) =>
+    call<NovelAccount>(`/sources/${encodeURIComponent(id)}/account`, undefined, "DELETE", signal),
   state: (signal?: AbortSignal) => api<NovelState>("/novels/sources", { signal }),
   import: (sources: unknown) => call<NovelImportResult>("/sources/import", { sources }),
   batch: (ids: string[], action: "enable" | "disable" | "delete") =>

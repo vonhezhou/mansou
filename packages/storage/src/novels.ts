@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 
-type Kind = "source" | "subscription" | "task" | "plan";
+type Kind = "source" | "subscription" | "task" | "plan" | "session";
 
 /** 小说状态独立存储；规则和下载计划保留快照，不随订阅刷新改变。 */
 export class NovelStorage {

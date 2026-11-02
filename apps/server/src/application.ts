@@ -54,7 +54,7 @@ export function createApplication(
     config.downloadTaskConcurrency,
     onError,
   );
-  const novelEngine = new NovelEngineExecutor(http.fetch, config.requestTimeoutMs);
+  const novelEngine = new NovelEngineExecutor(http.fetch, config.requestTimeoutMs, storage.novels);
   const novelSources = new NovelSourceService(
     storage.novels,
     http.fetch,

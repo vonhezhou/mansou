@@ -980,6 +980,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/novels/sources/{id}/account": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /** 获取书源登录状态和字段，不返回凭据 */
+    get: operations["getNovelSourceAccount"];
+    put?: never;
+    post?: never;
+    /** 清除书源 Cookie、令牌和脚本数据 */
+    delete: operations["logoutNovelSource"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/novels/sources/{id}/login": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** 执行书源 HTTP 登录，不自动保存输入密码 */
+    post: operations["loginNovelSource"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/novels/sources/import": {
     parameters: {
       query?: never;
@@ -1631,6 +1670,21 @@ export interface components {
       /** @description Shown once. Store securely; never available from the list endpoint. */
       token: string;
       entry: components["schemas"]["ApiToken"];
+    };
+    NovelAccount: {
+      loginSupported: boolean;
+      loggedIn: boolean;
+      fields: {
+        name: string;
+        label: string;
+        /** @enum {string} */
+        type: "text" | "password";
+      }[];
+    };
+    NovelLoginRequest: {
+      values: {
+        [key: string]: string;
+      };
     };
     NovelSource: {
       favorite?: boolean;
@@ -3637,6 +3691,83 @@ export interface operations {
         content?: never;
       };
       /** @description Unsupported rule or upstream failure */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getNovelSourceAccount: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelAccount"];
+        };
+      };
+    };
+  };
+  logoutNovelSource: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelAccount"];
+        };
+      };
+    };
+  };
+  loginNovelSource: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NovelLoginRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NovelAccount"];
+        };
+      };
+      /** @description 登录失败或规则不支持 */
       422: {
         headers: {
           [name: string]: unknown;

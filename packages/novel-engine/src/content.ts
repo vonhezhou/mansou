@@ -1,5 +1,6 @@
 import { HtmlRules } from "./rules.js";
-import { validateRule } from "./rules.js";
+import { validateSourceRule as validateRule, SourceRules } from "./analyzer.js";
+import { withSourceScript, type RuntimeOptions, type SourceScript } from "./script.js";
 import { buildRequest, fetchHtml } from "./request.js";
 import { SourceError, type BookSource } from "./types.js";
 import { assertNoWebView } from "./sources.js";
@@ -8,12 +9,13 @@ export interface Chapter {
   title: string;
   url: string;
 }
-export interface ContentOptions {
+export interface ContentOptions extends RuntimeOptions {
   maxTocPages?: number;
   maxContentPages?: number;
   timeoutMs?: number;
   signal?: AbortSignal;
   fetcher?: typeof fetch;
+  script?: SourceScript;
 }
 export interface Catalog {
   bookUrl: string;
@@ -42,7 +44,7 @@ export function assertDownloadSupported(source: BookSource): void {
   assertNoWebView(source);
   if ((source.bookSourceType ?? 0) !== 0)
     throw new SourceError("UNSUPPORTED_RULE", "文本下载 仅支持文本书源");
-  for (const field of ["jsLib", "loginUrl", "loginUi", "loginCheckJs", "mainJs", "concurrentRate"])
+  for (const field of ["concurrentRate"])
     if (source[field]) throw new SourceError("UNSUPPORTED_RULE", `下载尚不支持 ${field}`);
   const info = rules(source, "ruleBookInfo");
   const toc = rules(source, "ruleToc");
@@ -64,7 +66,8 @@ export function assertDownloadSupported(source: BookSource): void {
     if (!["content", "title", "nextContentUrl", "replaceRegex"].includes(key))
       throw new SourceError("UNSUPPORTED_RULE", `正文规则 ${key} 尚未支持`);
     validateRule(value, "string");
-    if (key === "replaceRegex") new HtmlRules("").replace(value, "");
+    if (key === "replaceRegex" && !/@js:|<js>|\{\{/i.test(value))
+      new HtmlRules("").replace(value, "");
   }
 }
 
@@ -103,19 +106,36 @@ async function loadPage(source: BookSource, url: string, base: string, options: 
   options.signal?.throwIfAborted();
   const timeout = AbortSignal.timeout(options.timeoutMs ?? 8000);
   const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout;
-  const request = buildRequest({ ...source, bookSourceUrl: base, searchUrl: url }, "", 1);
+  options.script?.setBindings({ baseUrl: base });
+  const request = buildRequest(
+    { ...source, bookSourceUrl: base, searchUrl: url },
+    "",
+    1,
+    options.script,
+  );
   if (!Object.keys(request.headers).some((k) => k.toLowerCase() === "referer"))
     request.headers.Referer = base;
-  const response = await fetchHtml(request, signal, undefined, options.fetcher);
+  const response = await fetchHtml(request, signal, undefined, options.fetcher, options.script);
   signal.throwIfAborted();
   return {
     ...response,
     url: urlOf(response.url || request.url, request.url),
-    parser: new HtmlRules(response.html),
+    parser: new SourceRules(response.html, options.script, response.url || request.url),
   };
 }
 
 export async function loadCatalog(
+  source: BookSource,
+  bookUrl: string,
+  options: ContentOptions = {},
+): Promise<Catalog> {
+  assertDownloadSupported(source);
+  return withSourceScript(source, options, (script) =>
+    loadCatalogWithScript(source, bookUrl, { ...options, script }),
+  );
+}
+
+async function loadCatalogWithScript(
   source: BookSource,
   bookUrl: string,
   options: ContentOptions = {},
@@ -126,9 +146,8 @@ export async function loadCatalog(
   const toc = rules(source, "ruleToc");
   const load = (url: string, base: string) => loadPage(source, url, base, options);
   const detail = await load(bookUrl, source.bookSourceUrl);
-  const detailRoot = info.init
-    ? detail.parser.elements(info.init).first()[0]
-    : detail.parser.$.root()[0];
+  options.script?.setBindings({ book: { bookUrl: detail.url } });
+  const detailRoot = info.init ? detail.parser.elements(info.init)[0] : detail.parser.root;
   if (!detailRoot) throw new SourceError("PARSE_MISMATCH", "详情 init 未匹配");
   let tocUrl = info.tocUrl
     ? (links(detail.parser.string(info.tocUrl, detailRoot), detail.url)[0] ?? detail.url)
@@ -151,19 +170,11 @@ export async function loadCatalog(
     if (alreadyVisited) continue;
     const rows = page.parser.elements(listRule);
     if (!rows.length) throw new SourceError("PARSE_MISMATCH", `目录列表未匹配：${url}`);
-    rows.each((index, row) => {
+    rows.forEach((row, index) => {
       const title = page.parser.string(toc.chapterName, row);
       const link = links(page.parser.string(toc.chapterUrl, row), page.url)[0];
       // 表格目录可能用纯空白单元格补齐列数；只跳过没有任何条目信息的占位。
-      const element = page.parser.$(row);
-      if (
-        !title &&
-        !link &&
-        !element.text().trim() &&
-        !element.children().length &&
-        !element.attr("href")
-      )
-        return;
+      if (!title && !link && page.parser.empty(row)) return;
       // 不能把部分条目解析成功当作完整目录，避免下载静默缺章。
       if (!title || !link)
         throw new SourceError(
@@ -177,10 +188,7 @@ export async function loadCatalog(
       chapters.push({ title, url: link });
     });
     if (toc.nextTocUrl)
-      for (const next of links(
-        page.parser.string(toc.nextTocUrl, page.parser.$.root()[0]!),
-        page.url,
-      ))
+      for (const next of links(page.parser.string(toc.nextTocUrl, page.parser.root), page.url))
         if (!visited.has(next) && !queue.includes(next)) queue.push(next);
   }
   const tocComplete = queue.every((url) => visited.has(url));
@@ -190,6 +198,19 @@ export async function loadCatalog(
 }
 
 export async function loadChapter(
+  source: BookSource,
+  chapter: Chapter,
+  catalog: Catalog,
+  options: ContentOptions = {},
+): Promise<string> {
+  assertDownloadSupported(source);
+  return withSourceScript(source, options, (script) => {
+    script.setBindings({ book: { bookUrl: catalog.bookUrl }, chapter });
+    return loadChapterWithScript(source, chapter, catalog, { ...options, script });
+  });
+}
+
+async function loadChapterWithScript(
   source: BookSource,
   chapter: Chapter,
   catalog: Catalog,
@@ -226,7 +247,7 @@ export async function loadChapter(
     if (bodies.length && boundaries.has(page.url)) continue;
     seenPages.add(current);
     seenPages.add(page.url);
-    const body = plainText(page.parser.string(content.content, page.parser.$.root()[0]!));
+    const body = plainText(page.parser.string(content.content, page.parser.root));
     if (!body || (body.length < 200 && /章节加载失败|请开启JavaScript|正在加载正文/.test(body)))
       throw new SourceError("PARSE_MISMATCH", `正文为空或未加载：${current}`);
     bytes += Buffer.byteLength(body) + (bodies.length ? 1 : 0);
@@ -234,9 +255,7 @@ export async function loadChapter(
     bodies.push(body);
     if (!follow || !content.nextContentUrl) continue;
     const next = [
-      ...new Set(
-        links(page.parser.string(content.nextContentUrl, page.parser.$.root()[0]!), page.url),
-      ),
+      ...new Set(links(page.parser.string(content.nextContentUrl, page.parser.root), page.url)),
     ];
     // 多链接代表本章的分页列表，按规则顺序读取一次；子页导航不再递归，避免往返。
     const listed = next.length > 1;
@@ -250,7 +269,11 @@ export async function loadChapter(
   }
   let result = bodies.join("\n");
   // replaceRegex 是全文替换，必须等所有分页格式化、合并后执行。
-  if (content.replaceRegex) result = new HtmlRules("").replace(content.replaceRegex, result);
+  if (content.replaceRegex)
+    result = new SourceRules(result, options.script, chapter.url).replace(
+      content.replaceRegex,
+      result,
+    );
   result = result
     .split("\n")
     .map((line) => line.trim())

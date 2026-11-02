@@ -68,10 +68,10 @@ test("POST 表单按 GBK 编码，JSON body 插值不会因引号破坏结构", 
   );
 });
 
-test("浏览器、脚本、未知选项和并发率规则不能静默降级", () => {
+test("浏览器、未知选项和并发率规则不能静默降级", () => {
   for (const extra of [
     { searchUrl: "/search,{webView:true}" },
-    { ruleSearch: { bookList: ".bookbox", name: "@js:result", bookUrl: "a@href" } },
+    { ruleSearch: { bookList: ".bookbox", name: "@webjs:result", bookUrl: "a@href" } },
     { searchUrl: "/search,{retry:3}" },
     { concurrentRate: "1/1000" },
   ]) {
