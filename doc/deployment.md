@@ -122,9 +122,9 @@ pnpm --filter @mansou/server storage import-json
 
 管理员密码恢复见 [鉴权说明](auth.md)。
 
-## NUC 小说分支测试部署
+## NUC 测试部署
 
-2026-10-31 经用户授权，已将 `codex/novel-search` 在 NUC 测试环境部署；当前应用提交为 `6283f23`，镜像为 `mansou:novel-6283f23`。小说搜索使用 `/#novels`，独立小说源管理使用 `/#novel-sources`，漫画与小说统一下载任务使用 `/#downloads`。访问 `http://192.168.30.147:3210`；沿用该可信局域网测试环境原有的免登录配置。
+2026-11-02 经用户授权，已将 `main` 的应用提交 `4a795aa` 部署至 NUC，镜像为 `mansou:novel-4a795aa`。小说搜索使用 `/#novels`，独立小说源管理使用 `/#novel-sources`，漫画与小说统一下载任务使用 `/#downloads`。访问 `http://192.168.30.147:3210`；沿用该可信局域网测试环境原有的免登录配置。
 
 当前发布目录为 `/home/von/codes/venera/mansou-novel/current`，保留原 `/home/von/codes/venera/venera_web/.env` 和 `data/`。统一操作入口：
 
@@ -133,6 +133,10 @@ ssh nuc /home/von/codes/venera/mansou-novel/compose.sh ps
 ssh nuc /home/von/codes/venera/mansou-novel/compose.sh logs --tail=100 mansou
 ```
 
-不要在旧源码目录直接执行重新构建，以免把当前测试镜像切回旧版本。原镜像和升级前完整备份保留在 NUC，具体位置见[首次部署记录](verification/2026-10-31-nuc-deployment.json)和[当前发布记录](verification/2026-10-31-nuc-deployment-6283f23.json)。升级检查比较持久化源、启停及任务身份，并核对真实启用源加载；运行时临时测试源不作为持久化数据保留的依据。
+不要在旧源码目录直接执行重新构建，以免把当前测试镜像切回旧版本。原镜像和升级前完整备份保留在 NUC，具体位置见[首次部署记录](verification/2026-10-31-nuc-deployment.json)和[当前发布记录](verification/2026-11-02-nuc-deployment-4a795aa.json)。升级检查比较持久化源、启停及任务身份，并核对真实启用源加载；运行时临时测试源不作为持久化数据保留的依据。
 
 五个小说基线源来自用户提供的私有 JSON，通过 API 导入，未内置到镜像。新笔趣阁已实测搜索和两章 TXT 导出；其他源的网络、规则与完整目录限制见[验收说明](novel-acceptance.md)。
+
+本次发布保留 2 个漫画源、319 个小说源、1 个漫画下载任务、2 个小说下载任务，以及原章节缓存和规则快照。已有小说任务从缓存重建 EPUB 3 与 UTF-8 TXT，两个导出接口均通过内容校验。完整停服备份在 `/home/von/codes/venera/mansou-novel/backups/20261102T081243Z-4a795aa/`，上一镜像和发布目录保留用于回滚。
+
+宿主机 HTTP 验收使用现有局域网地址 `http://192.168.30.147:3210`；本次观察到宿主机 `127.0.0.1:3210` 在旧、新版本均返回空响应，容器内健康检查正常。容器恢复验收与浏览器结果见[双格式发布记录](verification/2026-11-02-nuc-deployment-4a795aa.json)和[120 章隔离验收](verification/2026-11-02-nuc-epub-txt-120.json)。

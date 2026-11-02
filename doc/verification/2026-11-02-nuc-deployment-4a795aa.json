@@ -1,0 +1,100 @@
+{
+  "commit": "4a795aa1c9f09f953b7552fc287bce45537622b7",
+  "previousRelease": "/home/von/codes/venera/mansou-novel/releases/b8bf99d",
+  "previousImage": "sha256:b54570dd7ef256609e0c5173fdd2228dcc68528e8085c565959e0c7a06747020",
+  "releaseDirectory": "/home/von/codes/venera/mansou-novel/releases/4a795aa",
+  "backup": "/home/von/codes/venera/mansou-novel/backups/20261102T081243Z-4a795aa",
+  "passed": true,
+  "exports": [
+    {
+      "taskId": "8557a1a7-2e07-43bc-960e-3dfb9ebfdd2c",
+      "chapters": 2,
+      "epub": {
+        "bytes": 10251,
+        "sha256": "7303ce757750bd7829bddde99ea55c00653f077e498fff1c1d6e99f748cea11b",
+        "passed": true
+      },
+      "txt": {
+        "bytes": 13265,
+        "sha256": "1c739ba5fadc49dfac94554d9bc720ea34421c01aee8d8eacd965b7d596bdaab",
+        "passed": true
+      }
+    },
+    {
+      "taskId": "a8caff5b-901e-42c9-a138-3341aa59c9ba",
+      "chapters": 2,
+      "epub": {
+        "bytes": 12153,
+        "sha256": "3c3573fbe13808314898e381382f7f6703399239b5e7950e5a0d9af70c446bd1",
+        "passed": true
+      },
+      "txt": {
+        "bytes": 17629,
+        "sha256": "242fcb4a45aee2ab6121b300a98ef06aed1d0134b7911ce9a2c2a1801f0c6c17",
+        "passed": true
+      }
+    }
+  ],
+  "imageId": "sha256:8e33dd14e2ec5232eca5d43ea14b758742b446fa0083fae7272cdbcea54b5b78",
+  "preservedComicSources": 2,
+  "loadedComicSources": 2,
+  "preservedComicDownloads": 1,
+  "preservedNovelSources": 319,
+  "preservedNovelDownloads": 2,
+  "preservedFiles": 140,
+  "health": true,
+  "githubCi": {
+    "passed": true,
+    "url": "https://github.com/vonhezhou/mansou/actions/runs/41410574377"
+  },
+  "browser": {
+    "passed": true,
+    "checks": [
+      {
+        "width": 1440,
+        "format": "epub",
+        "links": 2,
+        "status": 200,
+        "type": "application/epub+zip",
+        "passed": true
+      },
+      {
+        "width": 1440,
+        "format": "txt",
+        "links": 2,
+        "status": 200,
+        "type": "text/plain; charset=utf-8",
+        "passed": true
+      },
+      {
+        "width": 390,
+        "format": "epub",
+        "links": 2,
+        "status": 200,
+        "type": "application/epub+zip",
+        "passed": true
+      },
+      {
+        "width": 390,
+        "format": "txt",
+        "links": 2,
+        "status": 200,
+        "type": "text/plain; charset=utf-8",
+        "passed": true
+      }
+    ],
+    "errors": [],
+    "contentSaved": false
+  },
+  "accessUrl": "http://192.168.30.147:3210",
+  "verificationImage": {
+    "tag": "mansou:verify-4a795aa",
+    "imageId": "sha256:6a649c3428c4c5e959d20475b0e755bea582e561b65f1d6664b8515e3f3492a1",
+    "difference": "仅增加 procps 供验收脚本采样 RSS，正式应用镜像未增加该工具"
+  },
+  "notes": [
+    "宿主机 loopback HTTP 在旧版本也返回空响应；导出内容验收使用既有局域网地址。首次切换因此触发自动回滚，调整验收地址后部署通过。",
+    "旧任务重建允许更新时间与最终导出文件发生变化；任务身份、规则快照、目录计划及章节缓存保持不变。",
+    "正文校验仅在 NUC 内执行；浏览器仅检查界面和 HEAD 响应头，未向开发机下载正文。"
+  ]
+}

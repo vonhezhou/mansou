@@ -1,0 +1,199 @@
+{
+  "startedAt": "2026-11-02T08:09:55.474Z",
+  "environment": {
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64",
+    "runner": "process"
+  },
+  "chapters": 120,
+  "milestone": {
+    "pause": 12,
+    "kill": 30,
+    "fail": 54
+  },
+  "events": [
+    {
+      "stage": "started",
+      "elapsedMs": 778,
+      "taskId": "0d591e68-4913-4798-86b6-691cab5f7ea9"
+    },
+    {
+      "stage": "paused",
+      "elapsedMs": 4031,
+      "completed": 12
+    },
+    {
+      "stage": "killed",
+      "elapsedMs": 8511,
+      "cached": 30,
+      "removedChapterCache": 16
+    },
+    {
+      "stage": "failed-as-expected",
+      "elapsedMs": 15259,
+      "completed": 53
+    },
+    {
+      "stage": "completed",
+      "elapsedMs": 32013,
+      "bytes": 54163,
+      "sha256": "a7195a35e7ec4a6766808134e488814a9ee8535e6e18d5be5e7e5923b9d722d2"
+    },
+    {
+      "stage": "backup-restored",
+      "elapsedMs": 32537
+    }
+  ],
+  "passed": true,
+  "format": "epub3",
+  "contentSha256": "a48a1d9b4e262f70945e1d598c923b244db6da9d188d7154f542fcd7b84cf66f",
+  "txtSha256": "192a8c64381219251457bd928e61b08188790cded0b62ca056910338762949d7",
+  "completed": 120,
+  "bytes": 54163,
+  "sha256": "a7195a35e7ec4a6766808134e488814a9ee8535e6e18d5be5e7e5923b9d722d2",
+  "elapsedMs": 32550,
+  "downloadElapsedMs": 32013,
+  "chapterRequests": 134,
+  "restoredCachedChapters": 29,
+  "lostCacheRefetched": 16,
+  "rssPeakMiB": 226.7421875,
+  "health": {
+    "samples": 32,
+    "failures": 0,
+    "p95Ms": 1.2552639999994426,
+    "maxMs": 1.8498019999999542
+  },
+  "resourceSamples": [
+    {
+      "elapsedMs": 1006.637732,
+      "rssMiB": 158
+    },
+    {
+      "elapsedMs": 2004.627477,
+      "rssMiB": 162.55078125
+    },
+    {
+      "elapsedMs": 3005.553766,
+      "rssMiB": 173.9296875
+    },
+    {
+      "elapsedMs": 4005.557092,
+      "rssMiB": 141.453125
+    },
+    {
+      "elapsedMs": 5006.652107,
+      "rssMiB": 176.12109375
+    },
+    {
+      "elapsedMs": 6005.69733,
+      "rssMiB": 155.99609375
+    },
+    {
+      "elapsedMs": 7006.205258999999,
+      "rssMiB": 170.08984375
+    },
+    {
+      "elapsedMs": 8005.977593,
+      "rssMiB": 178.7734375
+    },
+    {
+      "elapsedMs": 9006.701214,
+      "rssMiB": 132.9453125
+    },
+    {
+      "elapsedMs": 10006.264432,
+      "rssMiB": 141.31640625
+    },
+    {
+      "elapsedMs": 11005.819964,
+      "rssMiB": 153.203125
+    },
+    {
+      "elapsedMs": 12007.027452,
+      "rssMiB": 155.921875
+    },
+    {
+      "elapsedMs": 13006.377811,
+      "rssMiB": 171.5234375
+    },
+    {
+      "elapsedMs": 14006.079075,
+      "rssMiB": 181.69140625
+    },
+    {
+      "elapsedMs": 15005.9442,
+      "rssMiB": 190.7109375
+    },
+    {
+      "elapsedMs": 16006.474093,
+      "rssMiB": 212.26171875
+    },
+    {
+      "elapsedMs": 17005.892314999997,
+      "rssMiB": 226.7421875
+    },
+    {
+      "elapsedMs": 18006.369898999998,
+      "rssMiB": 183.6640625
+    },
+    {
+      "elapsedMs": 19005.986924999997,
+      "rssMiB": 192.26953125
+    },
+    {
+      "elapsedMs": 20006.099456,
+      "rssMiB": 210.234375
+    },
+    {
+      "elapsedMs": 21005.782262999997,
+      "rssMiB": 172.7265625
+    },
+    {
+      "elapsedMs": 22005.923724999997,
+      "rssMiB": 167.10546875
+    },
+    {
+      "elapsedMs": 23006.179117,
+      "rssMiB": 159.3203125
+    },
+    {
+      "elapsedMs": 24006.167073,
+      "rssMiB": 179.54296875
+    },
+    {
+      "elapsedMs": 25006.205781999997,
+      "rssMiB": 171.9921875
+    },
+    {
+      "elapsedMs": 26006.365427999997,
+      "rssMiB": 188.8984375
+    },
+    {
+      "elapsedMs": 27006.740515999998,
+      "rssMiB": 178.42578125
+    },
+    {
+      "elapsedMs": 28006.902817,
+      "rssMiB": 171.29296875
+    },
+    {
+      "elapsedMs": 29006.740859999998,
+      "rssMiB": 188.37890625
+    },
+    {
+      "elapsedMs": 30007.189827,
+      "rssMiB": 197.8671875
+    },
+    {
+      "elapsedMs": 31007.023492,
+      "rssMiB": 200.66015625
+    }
+  ],
+  "backupRestore": {
+    "passed": true,
+    "newDataDirectory": true,
+    "sha256": "a7195a35e7ec4a6766808134e488814a9ee8535e6e18d5be5e7e5923b9d722d2"
+  },
+  "finishedAt": "2026-11-02T08:10:28.024Z"
+}

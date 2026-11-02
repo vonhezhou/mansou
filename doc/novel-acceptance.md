@@ -161,4 +161,12 @@ EPUBCheck 5.3.0 按 EPUB 3.3 规则检查两份合成样书，覆盖中文、特
 java -jar /path/to/epubcheck.jar /path/to/book.epub
 ```
 
-本轮未在目标阅读器或 NAS 上验收，未执行 Docker 构建或部署，也未重新触发远程 CI。
+本地验证阶段尚未在目标阅读器或 NAS 上验收；后续授权发布的 Docker、NUC 与远程 CI 结果见下文。
+
+## EPUB / TXT 发布验收（2026-11-02）
+
+应用提交 `4a795aa` 与 CI 并发修复 `e3cb947` 已推送 `main`，[GitHub CI](https://github.com/vonhezhou/mansou/actions/runs/41410574377)通过。NUC 正式镜像 `mansou:novel-4a795aa` 构建并部署成功，服务为 healthy，源、任务身份、原始规则、目录计划与章节缓存保持不变，见[部署报告](verification/2026-11-02-nuc-deployment-4a795aa.json)。
+
+[120 章隔离恢复验收](verification/2026-11-02-nuc-epub-txt-120.json)通过，32 次健康检查均成功，RSS 峰值约 226.74 MiB。验收运行于正式应用镜像派生的临时镜像，仅为 RSS 采样增加 `procps`；最初精简镜像缺少 `ps`，未取得 RSS 样本而失败，补齐验收工具后完整复验通过。正式部署镜像保持精简。
+
+NUC 内使用两条既有小说任务核对 EPUB / TXT 内容、顺序、节选范围和响应头；桌面 1440px 与移动端 390px 浏览器检查两个格式入口、HEAD 响应头和布局，无横向溢出及浏览器错误。未从 NUC 向开发机下载小说正文。首次切换因宿主机 loopback 验收连接异常自动回滚，确认旧版本同样受影响后改用既有局域网地址，最终部署与数据保留检查全部通过。仍未在实体阅读器上验证兼容性。
