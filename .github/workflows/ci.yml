@@ -14,11 +14,4 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @mansou/contracts generate:check
-      - run: pnpm build
-      - run: pnpm typecheck
-      - run: pnpm lint
-      - run: pnpm test
-      - run: pnpm verify:novels --chapters 120 --output /tmp/novels-acceptance.json
-      - run: docker build .
+      - run: pnpm run ci

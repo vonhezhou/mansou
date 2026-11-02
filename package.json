@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "ci": "pnpm install --frozen-lockfile && pnpm --filter @mansou/contracts generate:check && pnpm build && pnpm typecheck && pnpm lint && pnpm test && pnpm verify:novels --chapters 120 --output /tmp/novels-acceptance.json && docker build .",
     "dev": "sh -c 'pnpm dev:server & server=$!; sleep 1; pnpm dev:web & web=$!; trap \"kill $server $web 2>/dev/null\" INT TERM EXIT; wait'",
     "dev:server": "pnpm --filter @mansou/server dev",
     "dev:web": "pnpm --filter @mansou/web dev",

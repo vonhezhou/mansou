@@ -27,8 +27,8 @@ it("逐源更新、合并来源，并正确解析跨网络分块的中文和多�
   const bytes = encode(start, source("one"), source("two"), source("three", ""), complete);
   const updates: any[] = [];
   setCsrfToken("csrf-test");
-  const fetcher = vi.fn(
-    async (_url: string, _init?: RequestInit) =>
+  const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(
+    async () =>
       new Response(
         new ReadableStream({
           start(controller) {
