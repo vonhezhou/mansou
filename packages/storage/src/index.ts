@@ -42,6 +42,21 @@ class AppStorage {
     this.db.close();
   }
 
+  getSetting<T>(key: string): T | undefined {
+    const row = this.db.prepare("select value_json from app_settings where key = ?").get(key) as
+      | { value_json: string }
+      | undefined;
+    return row ? (JSON.parse(row.value_json) as T) : undefined;
+  }
+
+  setSetting(key: string, value: unknown) {
+    this.db
+      .prepare(
+        "insert into app_settings(key, value_json, updated_at) values (?, ?, ?) on conflict(key) do update set value_json = excluded.value_json, updated_at = excluded.updated_at",
+      )
+      .run(key, JSON.stringify(value), new Date().toISOString());
+  }
+
   getPluginData(sourceKey: string, key: string) {
     const row = this.db
       .prepare("select value_json from plugin_data where source_key = ? and key = ?")

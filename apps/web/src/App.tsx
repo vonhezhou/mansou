@@ -223,7 +223,7 @@ function Workspace({
           onCountAllPages={() => void searchState.countAllPages()}
           onToggleSelectedEpisode={searchState.toggleSelectedEpisode}
           onSelectEpisodes={searchState.selectEpisodes}
-          onCreateDownload={(mode) => void searchState.createDownload(mode)}
+          onCreateDownload={(mode, directory) => void searchState.createDownload(mode, directory)}
         />
       )}
 

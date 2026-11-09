@@ -1,5 +1,5 @@
 import type { Application } from "../application.js";
 export type RouteContext = Pick<
   Application,
-  "auth" | "repository" | "sources" | "search" | "imageProxy" | "downloads"
+  "auth" | "repository" | "sources" | "search" | "imageProxy" | "downloads" | "downloadDirectory"
 >;

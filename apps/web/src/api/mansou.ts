@@ -160,6 +160,7 @@ export const mansouApi = {
     comicId: string;
     episodeId?: string;
     all?: boolean;
+    downloadDir?: string;
   }) => api<DownloadTask>("/downloads", { method: "POST", body: JSON.stringify(input) }),
   listDownloadItemsPage: (
     taskId: string,

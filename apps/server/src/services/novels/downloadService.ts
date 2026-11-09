@@ -26,6 +26,7 @@ export class NovelDownloadService {
     private readonly engine: NovelEngineExecutor,
     private readonly options: {
       outputDir: string;
+      resolveDirectory?: (value?: string) => string;
       concurrency: number;
       retries: number;
     },
@@ -43,6 +44,7 @@ export class NovelDownloadService {
   }
   init() {
     for (const task of this.all()) {
+      if (!task.downloadDir) this.patch(task.id, { downloadDir: this.options.outputDir });
       if (task.status === "running")
         this.patch(task.id, { status: "queued", phase: "等待恢复", error: undefined });
       // 成品缺失时沿用固定目录与章节缓存重建，不需要重新下载完整正文。
@@ -74,12 +76,17 @@ export class NovelDownloadService {
     if (this.scheduler.closing) throw new AppError("APP_CLOSING", "服务正在关闭");
     const source = this.sources.source(input.sourceId);
     assertDownloadSupported(source.raw);
+    const downloadDir =
+      this.options.resolveDirectory?.(input.downloadDir) ??
+      input.downloadDir ??
+      this.options.outputDir;
     const all = input.all ?? true;
     const start = all ? 1 : (input.start ?? 1),
       limit = all ? 3 : (input.limit ?? 3);
     const duplicate = this.all().find(
       (task) =>
         !this.deleting.has(task.id) &&
+        (task.downloadDir ?? this.options.outputDir) === downloadDir &&
         task.sourceId === input.sourceId &&
         task.bookUrl === input.book.bookUrl &&
         task.all === all &&
@@ -91,6 +98,7 @@ export class NovelDownloadService {
     const now = new Date().toISOString();
     const task: Task = {
       id: randomUUID(),
+      downloadDir,
       sourceId: input.sourceId,
       sourceName: source.summary.name,
       name: input.book.name,
@@ -151,7 +159,7 @@ export class NovelDownloadService {
     }
   }
   private directory(id: string) {
-    return path.join(this.options.outputDir, id);
+    return path.join(this.record(id).task.downloadDir ?? this.options.outputDir, id);
   }
   private chapterFile(id: string, index: number) {
     return path.join(this.directory(id), `${index}.txt`);

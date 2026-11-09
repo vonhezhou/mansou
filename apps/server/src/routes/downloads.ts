@@ -51,6 +51,7 @@ export async function registerDownloadRoutes(
         sourceKey: z.string(),
         comicId: z.string(),
         episodeId: z.string().optional(),
+        downloadDir: z.string().trim().min(1).max(4096).optional(),
         all: z.boolean().optional(),
       })
       .parse(request.body);

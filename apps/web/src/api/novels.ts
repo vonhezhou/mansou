@@ -61,8 +61,21 @@ export const novelApi = {
       signal,
     ),
   tasks: (signal?: AbortSignal) => api<NovelTask[]>("/novels/downloads", { signal }),
-  download: (origin: NovelOrigin, all: boolean, start: number, limit: number) =>
-    call<NovelTask>("/downloads", { sourceId: origin.sourceId, book: origin, all, start, limit }),
+  download: (
+    origin: NovelOrigin,
+    all: boolean,
+    start: number,
+    limit: number,
+    downloadDir?: string,
+  ) =>
+    call<NovelTask>("/downloads", {
+      sourceId: origin.sourceId,
+      book: origin,
+      all,
+      start,
+      limit,
+      downloadDir,
+    }),
   action: (id: string, action: "pause" | "resume" | "cancel" | "delete") =>
     call<NovelTask>(
       `/downloads/${encodeURIComponent(id)}${action === "delete" ? "" : `/${action}`}`,

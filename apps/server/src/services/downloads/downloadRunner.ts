@@ -23,6 +23,10 @@ export class DownloadRunner {
     private readonly options: DownloadOptions,
   ) {}
 
+  get defaultDirectory() {
+    return this.options.outputDir;
+  }
+
   private async plan(task: DownloadTask, signal: AbortSignal) {
     signal.throwIfAborted();
     const details = await this.sources.get(task.sourceKey).comicDetails(task.comicId);
@@ -37,7 +41,7 @@ export class DownloadRunner {
         : ["_default"]
       : [task.episodeId === "_default" ? (available[0] ?? "_default") : task.episodeId];
     const comicDir = path.join(
-      this.options.outputDir,
+      task.downloadDir ?? this.options.outputDir,
       encodeURIComponent(task.sourceKey),
       safeFilename(`${title}_${task.comicId}`),
     );

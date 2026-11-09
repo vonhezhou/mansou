@@ -10,7 +10,13 @@ import { DownloadRunner, classifyDownloadError } from "./downloadRunner.js";
 import { DownloadScheduler } from "./downloadScheduler.js";
 export type { DownloadTask } from "@mansou/storage";
 
-type DownloadInput = { sourceKey: string; comicId: string; episodeId?: string; all?: boolean };
+type DownloadInput = {
+  sourceKey: string;
+  comicId: string;
+  episodeId?: string;
+  all?: boolean;
+  downloadDir?: string;
+};
 const terminal = new Set(["completed", "failed", "cancelled"]);
 
 export class DownloadService {
@@ -28,6 +34,7 @@ export class DownloadService {
     private readonly runner: DownloadRunner,
     concurrency: number,
     private readonly onError: (error: unknown) => void,
+    private readonly resolveDirectory: (value?: string) => string | undefined = (value) => value,
   ) {
     this.scheduler = new DownloadScheduler(
       concurrency,
@@ -42,7 +49,12 @@ export class DownloadService {
     this.assertOpen();
     for (const task of this.all()) {
       const resume = task.status === "running" || task.status === "queued";
-      this.repository.save({ ...task, logs: task.logs ?? [], phase: task.phase ?? task.status });
+      this.repository.save({
+        ...task,
+        downloadDir: task.downloadDir ?? this.runner.defaultDirectory,
+        logs: task.logs ?? [],
+        phase: task.phase ?? task.status,
+      });
       if (resume)
         this.update(
           task.id,
@@ -76,6 +88,7 @@ export class DownloadService {
 
   create(input: DownloadInput) {
     this.assertOpen();
+    const downloadDir = this.resolveDirectory(input.downloadDir);
     const episodeId = input.episodeId ?? "_default";
     const tasks = this.repository.forComic(input.sourceKey, input.comicId);
     if (tasks.some((task) => this.deleting.has(task.id))) {
@@ -84,6 +97,7 @@ export class DownloadService {
     const existing = tasks.find(
       (task) =>
         !this.deleting.has(task.id) &&
+        task.downloadDir === downloadDir &&
         Boolean(task.all) === Boolean(input.all) &&
         (input.all || task.episodeId === episodeId || task.episodeId === "__all__") &&
         ["queued", "running", "paused", "completed"].includes(task.status),
@@ -92,6 +106,7 @@ export class DownloadService {
     const now = new Date().toISOString();
     const task: DownloadTask = {
       id: randomUUID(),
+      downloadDir,
       sourceKey: input.sourceKey,
       comicId: input.comicId,
       all: input.all,

@@ -27,6 +27,7 @@ export type DownloadTask = {
   recovered?: boolean;
   current?: string;
   logs: Array<{ time: string; phase: DownloadPhase; message: string }>;
+  downloadDir?: string;
   outputDir?: string;
   createdAt: string;
   updatedAt: string;

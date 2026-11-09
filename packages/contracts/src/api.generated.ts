@@ -722,6 +722,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/settings/downloads": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["getDownloadSettings"];
+    put: operations["updateDownloadSettings"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/settings/cache": {
     parameters: {
       query?: never;
@@ -1565,7 +1581,11 @@ export interface components {
     EpisodePages: {
       images: string[];
     };
+    DownloadSettings: {
+      downloadDir: string;
+    };
     CreateDownloadRequest: {
+      downloadDir?: string;
       sourceKey: string;
       comicId: string;
       episodeId?: string;
@@ -1577,6 +1597,7 @@ export interface components {
       message: string;
     };
     DownloadTask: {
+      downloadDir?: string;
       id: string;
       sourceKey: string;
       comicId: string;
@@ -1842,6 +1863,7 @@ export interface components {
       chapters: components["schemas"]["NovelChapter"][];
     };
     NovelTask: {
+      downloadDir?: string;
       id: string;
       sourceId: string;
       sourceName: string;
@@ -1901,6 +1923,7 @@ export interface components {
       content: string;
     };
     NovelDownloadRequest: {
+      downloadDir?: string;
       sourceId: string;
       book: components["schemas"]["NovelBook"];
       /** @default true */
@@ -3305,6 +3328,50 @@ export interface operations {
       404: components["responses"]["Error"];
       409: components["responses"]["DownloadConflict"];
       503: components["responses"]["Error"];
+    };
+  };
+  getDownloadSettings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadSettings"];
+        };
+      };
+    };
+  };
+  updateDownloadSettings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DownloadSettings"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadSettings"];
+        };
+      };
     };
   };
   getCacheStats: {

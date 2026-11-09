@@ -1079,6 +1079,38 @@ export const openApiDocument = {
         },
       },
     },
+    "/api/v1/settings/downloads": {
+      get: {
+        operationId: "getDownloadSettings",
+        tags: ["settings"],
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/DownloadSettings" } },
+            },
+          },
+        },
+      },
+      put: {
+        operationId: "updateDownloadSettings",
+        tags: ["settings"],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/DownloadSettings" } },
+          },
+        },
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/DownloadSettings" } },
+            },
+          },
+        },
+      },
+    },
     "/api/v1/settings/cache": {
       get: {
         operationId: "getCacheStats",
@@ -2328,9 +2360,15 @@ export const openApiDocument = {
         properties: { images: { type: "array", items: { type: "string" } } },
         required: ["images"],
       },
+      DownloadSettings: {
+        type: "object",
+        required: ["downloadDir"],
+        properties: { downloadDir: { type: "string", minLength: 1, maxLength: 4096 } },
+      },
       CreateDownloadRequest: {
         type: "object",
         properties: {
+          downloadDir: { type: "string", minLength: 1, maxLength: 4096 },
           sourceKey: { type: "string" },
           comicId: { type: "string" },
           episodeId: { type: "string" },
@@ -2351,6 +2389,7 @@ export const openApiDocument = {
         type: "object",
         additionalProperties: true,
         properties: {
+          downloadDir: { type: "string" },
           id: { type: "string" },
           sourceKey: { type: "string" },
           comicId: { type: "string" },
@@ -2830,6 +2869,7 @@ export const openApiDocument = {
       NovelTask: {
         type: "object",
         properties: {
+          downloadDir: { type: "string", minLength: 1, maxLength: 4096 },
           id: { type: "string" },
           sourceId: { type: "string" },
           sourceName: { type: "string" },
@@ -2930,6 +2970,7 @@ export const openApiDocument = {
       NovelDownloadRequest: {
         type: "object",
         properties: {
+          downloadDir: { type: "string", minLength: 1, maxLength: 4096 },
           sourceId: { type: "string" },
           book: { $ref: "#/components/schemas/NovelBook" },
           all: { type: "boolean", default: true },

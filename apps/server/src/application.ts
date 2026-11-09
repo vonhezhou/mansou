@@ -1,3 +1,4 @@
+import { DownloadDirectory } from "./services/downloadDirectory.js";
 import { NovelEngineExecutor } from "./services/novels/engineExecutor.js";
 import path from "node:path";
 import { NovelSourceService } from "./services/novels/sourceService.js";
@@ -42,6 +43,7 @@ export function createApplication(
     sources,
     new ImageCache(paths.imageCache, config.imageCacheMaxBytes),
   );
+  const downloadDirectory = new DownloadDirectory(storage, paths.downloads);
   const downloadRepository = new DownloadRepository(storage);
   const downloads = new DownloadService(
     downloadRepository,
@@ -53,6 +55,7 @@ export function createApplication(
     }),
     config.downloadTaskConcurrency,
     onError,
+    (value) => downloadDirectory.resolve(value),
   );
   const novelEngine = new NovelEngineExecutor(http.fetch, config.requestTimeoutMs, storage.novels);
   const novelSources = new NovelSourceService(
@@ -67,6 +70,7 @@ export function createApplication(
     novelEngine,
     {
       outputDir: path.join(paths.downloads, "novels"),
+      resolveDirectory: (value) => path.join(downloadDirectory.resolve(value), "novels"),
       concurrency: config.downloadTaskConcurrency,
       retries: config.downloadRetries,
     },
@@ -82,6 +86,7 @@ export function createApplication(
     search,
     imageProxy,
     downloads,
+    downloadDirectory,
     novelSources,
     novelDownloads,
     novelEngine,

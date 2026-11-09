@@ -189,6 +189,7 @@ export async function registerNovelRoutes(
             .object({
               sourceId: z.string(),
               book,
+              downloadDir: z.string().trim().min(1).max(4096).optional(),
               all: z.boolean().default(true),
               start: z.number().int().min(1).max(50000).default(1),
               limit: z.number().int().min(1).max(50000).default(3),

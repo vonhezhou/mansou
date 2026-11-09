@@ -1255,6 +1255,33 @@ paths:
           $ref: "#/components/responses/DownloadConflict"
         "503":
           $ref: "#/components/responses/Error"
+  /api/v1/settings/downloads:
+    get:
+      operationId: getDownloadSettings
+      tags: [settings]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadSettings"
+    put:
+      operationId: updateDownloadSettings
+      tags: [settings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DownloadSettings"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadSettings"
   /api/v1/settings/cache:
     get:
       operationId: getCacheStats
@@ -2757,9 +2784,21 @@ components:
             type: string
       required:
         - images
+    DownloadSettings:
+      type: object
+      required: [downloadDir]
+      properties:
+        downloadDir:
+          type: string
+          minLength: 1
+          maxLength: 4096
     CreateDownloadRequest:
       type: object
       properties:
+        downloadDir:
+          type: string
+          minLength: 1
+          maxLength: 4096
         sourceKey:
           type: string
         comicId:
@@ -2788,6 +2827,8 @@ components:
       type: object
       additionalProperties: true
       properties:
+        downloadDir:
+          type: string
         id:
           type: string
         sourceKey:
@@ -3404,6 +3445,10 @@ components:
     NovelTask:
       type: object
       properties:
+        downloadDir:
+          type: string
+          minLength: 1
+          maxLength: 4096
         id: *a1
         sourceId: *a1
         sourceName: *a1
@@ -3525,6 +3570,10 @@ components:
     NovelDownloadRequest:
       type: object
       properties:
+        downloadDir:
+          type: string
+          minLength: 1
+          maxLength: 4096
         sourceId: *a1
         book:
           $ref: "#/components/schemas/NovelBook"

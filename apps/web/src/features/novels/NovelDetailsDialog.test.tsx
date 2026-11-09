@@ -123,7 +123,7 @@ it("五万项目录只挂载一页，支持末页、名称/序号检索和定位
   expect(button("下载全部 50,000 项").disabled).toBe(false);
   await setValue(inputs[1], "2");
   await act(async () => button("下载所选范围").click());
-  expect(onDownload).toHaveBeenCalledWith(false, 49999, 2);
+  expect(onDownload).toHaveBeenCalledWith(false, 49999, 2, undefined);
   await setValue(inputs[0], "");
   expect(button("下载所选范围").disabled).toBe(true);
 });
@@ -140,4 +140,12 @@ it("加载中允许切换来源和关闭，目录不完整时保持下载禁用"
   expect(button("下载所选范围").disabled).toBe(true);
   expect(button("下载全部 2 项").disabled).toBe(true);
   expect(container.textContent).toContain("目录尚未遍历完");
+});
+
+it("小说下载允许覆盖本次服务器目录", async () => {
+  await act(async () => root.render(<NovelDetailsDialog {...base} catalog={catalog(3)} />));
+  const input = container.querySelector<HTMLInputElement>('input[maxlength="4096"]')!;
+  await setValue(input, "/custom-novels");
+  await act(async () => button("下载所选范围").click());
+  expect(onDownload).toHaveBeenCalledWith(false, 1, 3, "/custom-novels");
 });

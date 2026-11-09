@@ -1,3 +1,4 @@
+import { DownloadDirectoryField } from "../../app/DownloadDirectoryField.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { NovelBook, NovelCatalog, NovelOrigin, NovelSource } from "../../api/novels.js";
 import { LoadingStatus } from "../../app/LoadingStatus.js";
@@ -19,10 +20,11 @@ type Props = {
   onSelect: (origin: NovelOrigin) => void;
   onRefresh: () => void;
   onClose: () => void;
-  onDownload: (all: boolean, start: number, limit: number) => void;
+  onDownload: (all: boolean, start: number, limit: number, downloadDir?: string) => void;
 };
 
 export function NovelDetailsDialog(props: Props) {
+  const [directory, setDirectory] = useState("");
   const dialog = useRef<HTMLDialogElement>(null);
   const [startText, setStartText] = useState("1");
   const [limitText, setLimitText] = useState("3");
@@ -275,15 +277,23 @@ export function NovelDetailsDialog(props: Props) {
             )}
           </div>
         </div>
+        <DownloadDirectoryField
+          value={directory}
+          onChange={setDirectory}
+          disabled={props.downloading}
+        />
         <div className="novel-detail-download-actions">
           <button
             className="secondary-button"
             disabled={!catalog?.tocComplete || !total || props.downloading}
-            onClick={() => props.onDownload(true, 1, 3)}
+            onClick={() => props.onDownload(true, 1, 3, directory.trim() || undefined)}
           >
             {catalog ? `下载全部 ${total.toLocaleString()} 项` : "下载全部章节"}
           </button>
-          <button disabled={!canDownload} onClick={() => props.onDownload(false, start, limit)}>
+          <button
+            disabled={!canDownload}
+            onClick={() => props.onDownload(false, start, limit, directory.trim() || undefined)}
+          >
             <Icon name="download" size={16} />
             下载所选范围
           </button>

@@ -1,3 +1,4 @@
+import { DownloadSettingsPanel } from "./DownloadSettingsPanel.js";
 import type { ReactNode } from "react";
 import type { Health } from "../types.js";
 import { Icon } from "./Icon.js";
@@ -30,6 +31,7 @@ export function SettingsView(props: SettingsViewProps) {
           connectionStatus={props.busy ? "checking" : props.health?.ok ? "online" : "offline"}
         />
       </section>
+      <DownloadSettingsPanel />
       <section className="settings-panel">
         <h2>界面外观</h2>
         <div className="setting-row">

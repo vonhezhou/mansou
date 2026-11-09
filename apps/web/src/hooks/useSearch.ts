@@ -409,7 +409,7 @@ export function useSearch(options: UseSearchOptions) {
     );
   }
 
-  async function createDownload(mode: "first" | "selected" | "all") {
+  async function createDownload(mode: "first" | "selected" | "all", downloadDir?: string) {
     if (!details || (mode === "selected" && selectedEpisodeIds.length === 0)) return;
     const requestId = detailRequest.current;
     setCountProgress(null);
@@ -438,7 +438,7 @@ export function useSearch(options: UseSearchOptions) {
         setDownloadCreateStatus(`创建中：0/${requests.length}`);
         for (const request of requests) {
           try {
-            await mansouApi.createDownload(request);
+            await mansouApi.createDownload({ ...request, ...(downloadDir ? { downloadDir } : {}) });
             success += 1;
           } catch (error) {
             failed += 1;

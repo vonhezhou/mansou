@@ -132,7 +132,7 @@ export function NovelsView({
     },
     [result, runSearch],
   );
-  const download = async (all: boolean, start: number, limit: number) => {
+  const download = async (all: boolean, start: number, limit: number, downloadDir?: string) => {
     if (creating.current || !origin || !catalog?.tocComplete) return;
     const selected = selection.current;
     creating.current = true;
@@ -140,7 +140,7 @@ export function NovelsView({
     setDownloadError(undefined);
     let created = false;
     try {
-      await novelApi.download(origin, all, start, limit);
+      await novelApi.download(origin, all, start, limit, downloadDir);
       created = true;
       await onDownloadCreated();
       // 请求提交后允许关闭弹窗；后台任务仍保留，但迟到结果不能把用户带离当前页面。

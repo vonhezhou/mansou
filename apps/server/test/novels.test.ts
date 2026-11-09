@@ -965,3 +965,22 @@ it("预览目录在过期、规则更新和退出登录后重取，显式刷新�
     "章节不在当前目录",
   );
 });
+
+it("小说自定义目录写入成品，重启后保留路径并按目录区分同书任务", async () => {
+  const env = await setup();
+  const source = env.sources.import(raw).sources[0];
+  const downloadDir = path.join(env.dir, "custom");
+  const input = { sourceId: source.id, book, all: true, downloadDir };
+  const task = env.downloads.create(input);
+  await waitTask(env.downloads, "completed");
+  expect(env.downloads.create(input).id).toBe(task.id);
+  await stat(path.join(downloadDir, task.id, "book.epub"));
+  await stat(path.join(downloadDir, task.id, "book.txt"));
+  await env.restart();
+  expect(env.downloads.all()[0].downloadDir).toBe(downloadDir);
+  const exported = await env.downloads.openExport(task.id, "txt");
+  exported.stream.destroy();
+  expect(env.downloads.create({ ...input, downloadDir: path.join(env.dir, "other") }).id).not.toBe(
+    task.id,
+  );
+});
