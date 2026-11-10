@@ -44,7 +44,6 @@ export class NovelDownloadService {
   }
   init() {
     for (const task of this.all()) {
-      if (!task.downloadDir) this.patch(task.id, { downloadDir: this.options.outputDir });
       if (task.status === "running")
         this.patch(task.id, { status: "queued", phase: "等待恢复", error: undefined });
       // 成品缺失时沿用固定目录与章节缓存重建，不需要重新下载完整正文。
@@ -98,7 +97,8 @@ export class NovelDownloadService {
     const now = new Date().toISOString();
     const task: Task = {
       id: randomUUID(),
-      downloadDir,
+      // 内置目录随数据目录备份恢复，自定义目录固定为用户指定的绝对路径。
+      downloadDir: downloadDir === this.options.outputDir ? undefined : downloadDir,
       sourceId: input.sourceId,
       sourceName: source.summary.name,
       name: input.book.name,
