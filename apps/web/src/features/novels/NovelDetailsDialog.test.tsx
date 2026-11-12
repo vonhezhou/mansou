@@ -142,6 +142,42 @@ it("加载中允许切换来源和关闭，目录不完整时保持下载禁用"
   expect(container.textContent).toContain("目录尚未遍历完");
 });
 
+it("正文独立预览关闭后保留详情，切换来源清理预览且不遗留滚动锁", async () => {
+  const previousOverflow = document.body.style.overflow;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async () =>
+        new Response(JSON.stringify({ content: "测试正文" }), {
+          headers: { "content-type": "application/json" },
+        }),
+    ),
+  );
+  await act(async () => root.render(<NovelDetailsDialog {...base} catalog={catalog(10)} />));
+  await act(async () => {
+    button("最新 N 章").focus();
+    button("最新 N 章").click();
+  });
+  const preview = document.querySelector<HTMLDialogElement>(".novel-text-preview-dialog")!;
+  expect(preview.open).toBe(true);
+  await act(async () =>
+    preview.dispatchEvent(new Event("cancel", { bubbles: true, cancelable: true })),
+  );
+  expect(onClose).not.toHaveBeenCalled();
+  expect(container.querySelector<HTMLDialogElement>("dialog")?.open).toBe(true);
+  expect(document.activeElement).toBe(button("最新 N 章"));
+  await act(async () => button("最新 N 章").click());
+  await act(async () =>
+    root.render(<NovelDetailsDialog {...base} origin={other} catalog={catalog(10)} />),
+  );
+  expect(document.querySelector(".novel-text-preview-dialog")).toBeNull();
+  expect(document.body.style.overflow).toBe("hidden");
+  await act(async () => button("开头 N 章").click());
+  await act(async () => root.render(<div />));
+  expect(document.querySelector(".novel-text-preview-dialog")).toBeNull();
+  expect(document.body.style.overflow).toBe(previousOverflow);
+});
+
 it("小说下载允许覆盖本次服务器目录", async () => {
   await act(async () => root.render(<NovelDetailsDialog {...base} catalog={catalog(3)} />));
   const input = container.querySelector<HTMLInputElement>('input[maxlength="4096"]')!;
