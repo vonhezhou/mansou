@@ -22,7 +22,15 @@ export interface RegisteredSource {
   reason?: string;
 }
 
+export type BookFile = {
+  format: string;
+  size?: number;
+  language?: string;
+  publisher?: string;
+  year?: string;
+};
 export interface SearchBook {
+  file?: BookFile;
   name: string;
   author: string;
   bookUrl: string;
@@ -45,6 +53,8 @@ export interface AggregatedBook {
 }
 
 export type ErrorCode =
+  | "AUTH_REQUIRED"
+  | "RATE_LIMITED"
   | "UNSUPPORTED_RULE"
   | "SOURCE_ERROR"
   | "TIMEOUT"

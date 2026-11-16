@@ -44,6 +44,34 @@ async function input(name: string, value: string) {
   });
 }
 
+it("Z-Library 账号可切换 Cookie 登录，并展示共享下载额度", async () => {
+  vi.spyOn(novelApi, "account").mockResolvedValue({
+    ...account,
+    methods: ["password", "cookies"],
+    quota: { used: 1, limit: 10, remaining: 9 },
+  });
+  const login = vi.spyOn(novelApi, "login").mockResolvedValue({ ...account, loggedIn: true });
+  await open();
+  expect(container.textContent).toContain("剩余 9 次");
+  await act(async () => {
+    const select = container.querySelector("select")!;
+    select.value = "cookies";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await input("remix_userid", "123");
+  await input("remix_userkey", "secret");
+  await act(async () =>
+    container
+      .querySelector("form")!
+      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })),
+  );
+  expect(login).toHaveBeenCalledWith(
+    "source-a",
+    { method: "cookies", remix_userid: "123", remix_userkey: "secret" },
+    expect.any(AbortSignal),
+  );
+});
+
 it("按书源提交登录字段，成功后清除输入，并可退出本源会话", async () => {
   vi.spyOn(novelApi, "account").mockResolvedValue(account);
   const login = vi.spyOn(novelApi, "login").mockResolvedValue({ ...account, loggedIn: true });

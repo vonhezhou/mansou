@@ -8,6 +8,8 @@ export function SourceAccountPanel({ sourceKey }: { sourceKey: string }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [cookies, setCookies] = useState<Record<string, string>>({});
+  const [method, setMethod] = useState<"password" | "cookies">("password");
+  const controller = useRef<AbortController | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [operation, setOperation] = useState<"login" | "logout" | null>(null);
@@ -16,14 +18,24 @@ export function SourceAccountPanel({ sourceKey }: { sourceKey: string }) {
   const [error, setError] = useState("");
   useEffect(() => {
     let active = true;
+    const request = new AbortController();
+    controller.current = request;
     setLoading(true);
     setAuth(null);
     setError("");
+    setUsername("");
+    setPassword("");
+    setCookies({});
+    setOperation(null);
+    submitting.current = false;
     if (sourceKey)
       mansouApi
-        .getSourceAuth(sourceKey)
+        .getSourceAuth(sourceKey, request.signal)
         .then((value) => {
-          if (active) setAuth(value);
+          if (active) {
+            setAuth(value);
+            setMethod(value.methods[0] ?? "password");
+          }
         })
         .catch((error) => {
           if (active) setError(error instanceof Error ? error.message : String(error));
@@ -34,34 +46,43 @@ export function SourceAccountPanel({ sourceKey }: { sourceKey: string }) {
     else setLoading(false);
     return () => {
       active = false;
+      request.abort();
     };
   }, [sourceKey, loadAttempt]);
   async function submit(logout = false) {
     if (!auth || loading || submitting.current) return;
+    const request = controller.current;
+    if (!request || request.signal.aborted) return;
     submitting.current = true;
     setOperation(logout ? "logout" : "login");
     setError("");
     try {
-      setAuth(
-        logout
-          ? await mansouApi.logoutSource(sourceKey)
-          : await mansouApi.loginSource(
-              sourceKey,
-              auth.methods.includes("password")
-                ? { method: "password", username, password }
-                : {
-                    method: "cookies",
-                    values: auth.cookieFields.map((field) => cookies[field] ?? ""),
-                  },
-            ),
-      );
-      setPassword("");
-      setCookies({});
+      const result = logout
+        ? await mansouApi.logoutSource(sourceKey, request.signal)
+        : await mansouApi.loginSource(
+            sourceKey,
+            method === "password"
+              ? { method: "password", username, password }
+              : {
+                  method: "cookies",
+                  values: auth.cookieFields.map((field) => cookies[field] ?? ""),
+                },
+            request.signal,
+          );
+      if (!request.signal.aborted) setAuth(result);
     } catch (error) {
-      setError(error instanceof Error ? error.message : String(error));
+      if (!request.signal.aborted) {
+        setError(error instanceof Error ? error.message : String(error));
+        const current = await mansouApi.getSourceAuth(sourceKey, request.signal).catch(() => null);
+        if (current && !request.signal.aborted) setAuth(current);
+      }
     } finally {
-      submitting.current = false;
-      setOperation(null);
+      if (!request.signal.aborted) {
+        submitting.current = false;
+        setOperation(null);
+        setPassword("");
+        setCookies({});
+      }
     }
   }
   return (
@@ -78,6 +99,32 @@ export function SourceAccountPanel({ sourceKey }: { sourceKey: string }) {
       {auth ? (
         <>
           <p>{auth.loggedIn ? "已登录此源" : "未登录此源"}</p>
+          {auth.quota && (
+            <p role="status">
+              今日已用 {auth.quota.used} / {auth.quota.limit} 次，剩余 {auth.quota.remaining} 次
+            </p>
+          )}
+          {auth.methods.length > 1 && (
+            <label>
+              登录方式
+              <select
+                aria-label="登录方式"
+                value={method}
+                disabled={busy}
+                onChange={(event) => {
+                  setMethod(event.target.value as "password" | "cookies");
+                  setPassword("");
+                  setCookies({});
+                }}
+              >
+                {auth.methods.map((value) => (
+                  <option key={value} value={value}>
+                    {value === "password" ? "账号密码" : "Cookie"}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {auth.methods.length > 0 && (
             <form
               onSubmit={(event) => {
@@ -85,7 +132,7 @@ export function SourceAccountPanel({ sourceKey }: { sourceKey: string }) {
                 void submit();
               }}
             >
-              {auth.methods.includes("password") ? (
+              {method === "password" ? (
                 <>
                   <label>
                     源账号

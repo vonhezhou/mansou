@@ -214,8 +214,11 @@ export class VeneraAdapter implements SourceProvider {
     const account = this.source.account;
     return {
       loggedIn: this.data.loadSync(this.source.key, "account") != null,
-      methods: account?.login ? ["password"] : account?.loginWithCookies ? ["cookies"] : [],
-      cookieFields: account?.login ? [] : (account?.loginWithCookies?.fields ?? []),
+      methods: [
+        ...(account?.login ? ["password" as const] : []),
+        ...(account?.loginWithCookies ? ["cookies" as const] : []),
+      ],
+      cookieFields: account?.loginWithCookies?.fields ?? [],
       webview: account?.loginWithWebview ? "unsupported" : "unavailable",
       registerUrl: account?.registerWebsite,
     };
@@ -236,7 +239,7 @@ export class VeneraAdapter implements SourceProvider {
         // Venera plugins can read this tuple for authenticated requests/re-login.
         this.data.saveSync(this.source.key, "account", [input.username, input.password]);
       } else {
-        this.require(!account?.login && account?.loginWithCookies, "cookie login");
+        this.require(account?.loginWithCookies, "cookie login");
         const login = account!.loginWithCookies!;
         if (input.values.length !== login.fields.length || !(await login.validate(input.values)))
           throw new Error("Invalid cookies");
@@ -263,9 +266,12 @@ export class VeneraAdapter implements SourceProvider {
   }
 
   private async performLogout() {
-    await this.source.account?.logout?.();
-    this.data.deleteSync(this.source.key, "account");
-    await this.cookieStore.clear(this.source.key);
+    try {
+      await this.source.account?.logout?.();
+    } finally {
+      this.data.deleteSync(this.source.key, "account");
+      await this.cookieStore.clear(this.source.key);
+    }
     return this.auth();
   }
 

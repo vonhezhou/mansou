@@ -739,6 +739,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/downloads/{taskId}/file": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 下载数据源提供的原始文件 */
+    get: operations["downloadSourceFile"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/novels/downloads/{id}/file": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 下载数据源提供的原始文件 */
+    get: operations["downloadNovelFile"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/settings/downloads": {
     parameters: {
       query?: never;
@@ -1546,7 +1580,20 @@ export interface components {
       /** @description 分类错误码，不返回插件原始错误、调用参数或凭据。 */
       lastErrorCode?: string;
     };
+    SourceQuota: {
+      used: number;
+      limit: number;
+      remaining: number;
+    };
+    SourceFile: {
+      format: string;
+      size?: number;
+      language?: string;
+      publisher?: string;
+      year?: string;
+    };
     SourceAuth: {
+      quota?: components["schemas"]["SourceQuota"];
       loggedIn: boolean;
       methods: ("password" | "cookies")[];
       cookieFields: string[];
@@ -1636,6 +1683,7 @@ export interface components {
     };
     ComicDetails: components["schemas"]["Comic"] &
       ({
+        file?: components["schemas"]["SourceFile"];
         comicId?: string;
         chapters?: {
           [key: string]: string;
@@ -1667,6 +1715,7 @@ export interface components {
       message: string;
     };
     DownloadTask: {
+      fileFormat?: string;
       /** @enum {string} */
       destination?: "public" | "personal" | "custom";
       downloadDir?: string;
@@ -1799,6 +1848,8 @@ export interface components {
       entry: components["schemas"]["ApiToken"];
     };
     NovelAccount: {
+      methods?: ("password" | "cookies")[];
+      quota?: components["schemas"]["SourceQuota"];
       loginSupported: boolean;
       loggedIn: boolean;
       fields: {
@@ -1814,6 +1865,8 @@ export interface components {
       };
     };
     NovelSource: {
+      /** @enum {string} */
+      provider?: "zlibrary";
       quality?: components["schemas"]["SourceQuality"];
       favorite?: boolean;
       /** @description 收藏源已从订阅消失，保留最后一次规则。 */
@@ -1855,6 +1908,7 @@ export interface components {
       }[];
     };
     NovelBook: {
+      file?: components["schemas"]["SourceFile"];
       name: string;
       author: string;
       bookUrl: string;
@@ -1865,6 +1919,7 @@ export interface components {
       wordCount?: string;
     };
     NovelOrigin: {
+      file?: components["schemas"]["SourceFile"];
       sourceId: string;
       sourceName: string;
       name: string;
@@ -1933,6 +1988,7 @@ export interface components {
       url: string;
     };
     NovelCatalog: {
+      file?: components["schemas"]["SourceFile"];
       bookUrl: string;
       tocUrl: string;
       tocComplete: boolean;
@@ -1940,6 +1996,7 @@ export interface components {
       chapters: components["schemas"]["NovelChapter"][];
     };
     NovelTask: {
+      fileFormat?: string;
       /** @enum {string} */
       destination?: "public" | "personal" | "custom";
       downloadDir?: string;
@@ -3443,6 +3500,78 @@ export interface operations {
       404: components["responses"]["Error"];
       409: components["responses"]["DownloadConflict"];
       503: components["responses"]["Error"];
+    };
+  };
+  downloadSourceFile: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        taskId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 已完成的原始文件 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/octet-stream": string;
+        };
+      };
+      /** @description 任务不存在 */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description 文件尚未完成 */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  downloadNovelFile: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 已完成的原始文件 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/octet-stream": string;
+        };
+      };
+      /** @description 任务不存在 */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description 文件尚未完成 */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   getDownloadSettings: {

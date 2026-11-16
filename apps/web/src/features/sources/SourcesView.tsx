@@ -18,7 +18,7 @@ export function SourcesView(props: SourcesViewProps) {
   const [activeView, setActiveView] = useState<"installed" | "subscriptions">("installed");
   const tabId = useId();
   const [repositoryOpen, setRepositoryOpen] = useState(false);
-  const [sourceDialog, setSourceDialog] = useState<"settings" | "cookies" | null>(null);
+  const [sourceDialog, setSourceDialog] = useState<"settings" | "cookies" | "account" | null>(null);
   const enabledSources = props.sourceMetadata.filter(
     (source) => source.enabled === true || source.enabled === 1,
   ).length;
@@ -115,7 +115,7 @@ export function SourcesView(props: SourcesViewProps) {
       </div>
       {sourceDialog && (
         <AppDialog
-          title={`${props.sourceMetadata.find((source) => source.key === props.sourceKey)?.name ?? props.sourceKey} · ${sourceDialog === "settings" ? "源设置与账号" : "Cookie"}`}
+          title={`${props.sourceMetadata.find((source) => source.key === props.sourceKey)?.name ?? props.sourceKey} · ${sourceDialog === "settings" ? "源设置与账号" : sourceDialog === "account" ? "账号与登录" : "Cookie"}`}
           onClose={() => setSourceDialog(null)}
         >
           {props.error && (

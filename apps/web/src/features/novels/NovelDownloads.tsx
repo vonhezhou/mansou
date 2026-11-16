@@ -10,8 +10,8 @@ export function NovelDownloads({ tasks, busy, run, reload }: Props) {
   return (
     <section className="novel-stack" aria-label="小说下载任务">
       <p className="muted">
-        任务在服务器执行。暂停或失败后可继续，已完成章节不会重复抓取。只有选定章节全部成功才提供
-        EPUB 或 TXT。设备不支持 EPUB 时可选择 TXT；完整目录不代表作品完结或站点无缺章。
+        任务在服务器执行。暂停或失败后可继续，已完成章节复用缓存，未完成的整本文件会重新下载。
+        下载完成后可保存到本机。
       </p>
       {!tasks.length && <p>暂无小说下载任务。</p>}
       {[...tasks].reverse().map((task) => {
@@ -30,11 +30,17 @@ export function NovelDownloads({ tasks, busy, run, reload }: Props) {
                   ? "公共"
                   : "自定义目录"}{" "}
               · {task.author || "作者未知"} · {task.sourceName} ·{" "}
-              {task.all ? "下载目录全部章节" : `从第 ${task.start} 项起下载 ${task.limit} 项`}
+              {task.fileFormat
+                ? task.fileFormat === "pending"
+                  ? "整本文件"
+                  : `整本文件 · ${task.fileFormat.toUpperCase()}`
+                : task.all
+                  ? "下载目录全部章节"
+                  : `从第 ${task.start} 项起下载 ${task.limit} 项`}
             </p>
             <p role="status">
-              {task.phase} · {task.completed} / {task.total || "待解析"} 章{" "}
-              {task.current && `· ${task.current}`}
+              {task.phase} · {task.completed} / {task.total || "待解析"}{" "}
+              {task.fileFormat ? "字节" : "章"} {task.current && `· ${task.current}`}
             </p>
             {task.total > 0 && (
               <progress
@@ -64,7 +70,12 @@ export function NovelDownloads({ tasks, busy, run, reload }: Props) {
                   取消
                 </button>
               )}
-              {task.status === "completed" && (
+              {task.status === "completed" && task.fileFormat && (
+                <a className="button novel-export" href={novelApi.fileUrl(task.id)}>
+                  下载 {task.fileFormat.toUpperCase()}
+                </a>
+              )}
+              {task.status === "completed" && !task.fileFormat && (
                 <>
                   <a className="button novel-export" href={novelApi.epubUrl(task.id)}>
                     下载 EPUB

@@ -13,9 +13,16 @@ export function NovelAccountDialog({
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [method, setMethod] = useState<"password" | "cookies">("password");
   const controller = useRef<AbortController | undefined>(undefined);
   const submitting = useRef(false);
   useEffect(() => {
+    setAccount(undefined);
+    setValues({});
+    setMethod("password");
+    setError("");
+    setBusy(false);
+    submitting.current = false;
     const request = new AbortController();
     controller.current = request;
     void novelApi.account(source.id, request.signal).then(
@@ -38,14 +45,21 @@ export function NovelAccountDialog({
     try {
       const result = logout
         ? await novelApi.logout(source.id, request.signal)
-        : await novelApi.login(source.id, values, request.signal);
+        : await novelApi.login(
+            source.id,
+            method === "cookies" ? { ...values, method } : values,
+            request.signal,
+          );
       if (!request.signal.aborted) setAccount(result);
     } catch (reason) {
-      if (!request.signal.aborted)
-        setError(reason instanceof Error ? reason.message : String(reason));
-    } finally {
-      submitting.current = false;
       if (!request.signal.aborted) {
+        setError(reason instanceof Error ? reason.message : String(reason));
+        const current = await novelApi.account(source.id, request.signal).catch(() => null);
+        if (current && !request.signal.aborted) setAccount(current);
+      }
+    } finally {
+      if (!request.signal.aborted) {
+        submitting.current = false;
         setValues({});
         setBusy(false);
       }
@@ -58,6 +72,29 @@ export function NovelAccountDialog({
       {account && (
         <>
           <p role="status">{account.loggedIn ? "已登录此书源" : "未登录此书源"}</p>
+          {account.quota && (
+            <p role="status">
+              今日已用 {account.quota.used} / {account.quota.limit} 次，剩余{" "}
+              {account.quota.remaining} 次
+            </p>
+          )}
+          {(account.methods?.length ?? 0) > 1 && (
+            <label>
+              登录方式
+              <select
+                aria-label="登录方式"
+                value={method}
+                disabled={busy}
+                onChange={(event) => {
+                  setMethod(event.target.value as "password" | "cookies");
+                  setValues({});
+                }}
+              >
+                <option value="password">账号密码</option>
+                <option value="cookies">Cookie</option>
+              </select>
+            </label>
+          )}
           {account.loginSupported ? (
             <form
               onSubmit={(event) => {
@@ -65,7 +102,13 @@ export function NovelAccountDialog({
                 void submit();
               }}
             >
-              {account.fields.map((field) => (
+              {(method === "cookies"
+                ? [
+                    { name: "remix_userid", label: "remix_userid", type: "text" },
+                    { name: "remix_userkey", label: "remix_userkey", type: "password" },
+                  ]
+                : account.fields
+              ).map((field) => (
                 <label key={field.name}>
                   {field.label}
                   <input

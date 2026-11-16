@@ -9,7 +9,7 @@ type InstalledSourcesListProps = {
   busy: boolean;
   operation?: SourceOperation | null;
   sourceMetadata: SourceMetadata[];
-  onConfigureSource: (key: string, mode: "settings" | "cookies") => void;
+  onConfigureSource: (key: string, mode: "settings" | "cookies" | "account") => void;
   onUninstallSource: (source: SourceMetadata) => void;
   onUpdateSource: (key: string) => void;
   onSetSourceFavorite: (source: SourceMetadata, favorite: boolean) => void;
@@ -86,6 +86,13 @@ export function InstalledSourcesList(props: InstalledSourcesListProps) {
                 <SourceHealthStatus health={source.health} />
                 <SourceQualityStatus kind="comic" sourceKey={source.key} quality={source.quality} />
                 <div className="source-actions">
+                  <button
+                    className="secondary-button"
+                    disabled={props.busy}
+                    onClick={() => props.onConfigureSource(source.key, "account")}
+                  >
+                    账号与登录
+                  </button>
                   {source.availableVersion && (
                     <button disabled={props.busy} onClick={() => props.onUpdateSource(source.key)}>
                       {pending?.kind === "update" ? "更新中…" : `更新至 ${source.availableVersion}`}

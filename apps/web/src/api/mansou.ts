@@ -96,14 +96,16 @@ export const mansouApi = {
       method: "PUT",
       body: JSON.stringify({ enabled }),
     }),
-  getSourceAuth: (key: string) => api<SourceAuth>(`/sources/${encodeURIComponent(key)}/auth`),
-  loginSource: (key: string, input: SourceLogin) =>
+  getSourceAuth: (key: string, signal?: AbortSignal) =>
+    api<SourceAuth>(`/sources/${encodeURIComponent(key)}/auth`, { signal }),
+  loginSource: (key: string, input: SourceLogin, signal?: AbortSignal) =>
     api<SourceAuth>(`/sources/${encodeURIComponent(key)}/auth/login`, {
       method: "POST",
       body: JSON.stringify(input),
+      signal,
     }),
-  logoutSource: (key: string) =>
-    api<SourceAuth>(`/sources/${encodeURIComponent(key)}/auth/logout`, { method: "POST" }),
+  logoutSource: (key: string, signal?: AbortSignal) =>
+    api<SourceAuth>(`/sources/${encodeURIComponent(key)}/auth/logout`, { method: "POST", signal }),
   invokeSourceSetting: (key: string, setting: string) =>
     api<SourceSettingsActionResult>(
       `/sources/${encodeURIComponent(key)}/settings/${encodeURIComponent(setting)}/invoke`,
@@ -209,6 +211,7 @@ export const mansouApi = {
     api<{ path: string }>(`/downloads/${encodeURIComponent(taskId)}/cbz`, { method: "POST" }),
   downloadDownloadCbzUrl: (taskId: string) =>
     `${apiBase}/downloads/${encodeURIComponent(taskId)}/cbz`,
+  downloadFileUrl: (taskId: string) => `${apiBase}/downloads/${encodeURIComponent(taskId)}/file`,
   deleteDownload: (taskId: string, files = false) =>
     api(`/downloads/${encodeURIComponent(taskId)}${files ? "?files=true" : ""}`, {
       method: "DELETE",

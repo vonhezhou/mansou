@@ -157,9 +157,10 @@ export function mergeBooks(outcomes: SourceOutcome[]): AggregatedBook[] {
   for (const outcome of outcomes)
     for (const book of outcome.books) {
       // 缺失作者时不能仅凭同名跨源合并，避免把不同作品混在一起。
-      const key = book.author
-        ? JSON.stringify([normalize(book.name), normalize(book.author)])
-        : JSON.stringify([outcome.sourceId, book.bookUrl]);
+      const key =
+        book.author && !book.file
+          ? JSON.stringify([normalize(book.name), normalize(book.author)])
+          : JSON.stringify([outcome.sourceId, book.bookUrl]);
       const group = groups.get(key) ?? { name: book.name, author: book.author, origins: [] };
       if (!group.origins.some((o) => o.sourceId === outcome.sourceId && o.bookUrl === book.bookUrl))
         group.origins.push({ ...book, sourceId: outcome.sourceId, sourceName: outcome.sourceName });

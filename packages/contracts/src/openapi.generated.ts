@@ -1112,6 +1112,42 @@ export const openApiDocument = {
         },
       },
     },
+    "/api/v1/downloads/{taskId}/file": {
+      get: {
+        operationId: "downloadSourceFile",
+        tags: ["downloads"],
+        summary: "下载数据源提供的原始文件",
+        parameters: [{ in: "path", name: "taskId", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": {
+            description: "已完成的原始文件",
+            content: {
+              "application/octet-stream": { schema: { type: "string", format: "binary" } },
+            },
+          },
+          "404": { description: "任务不存在" },
+          "409": { description: "文件尚未完成" },
+        },
+      },
+    },
+    "/api/v1/novels/downloads/{id}/file": {
+      get: {
+        operationId: "downloadNovelFile",
+        tags: ["downloads"],
+        summary: "下载数据源提供的原始文件",
+        parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": {
+            description: "已完成的原始文件",
+            content: {
+              "application/octet-stream": { schema: { type: "string", format: "binary" } },
+            },
+          },
+          "404": { description: "任务不存在" },
+          "409": { description: "文件尚未完成" },
+        },
+      },
+    },
     "/api/v1/settings/downloads": {
       get: {
         operationId: "getDownloadSettings",
@@ -2323,10 +2359,31 @@ export const openApiDocument = {
           },
         },
       },
+      SourceQuota: {
+        type: "object",
+        required: ["used", "limit", "remaining"],
+        properties: {
+          used: { type: "integer" },
+          limit: { type: "integer" },
+          remaining: { type: "integer" },
+        },
+      },
+      SourceFile: {
+        type: "object",
+        required: ["format"],
+        properties: {
+          format: { type: "string" },
+          size: { type: "integer" },
+          language: { type: "string" },
+          publisher: { type: "string" },
+          year: { type: "string" },
+        },
+      },
       SourceAuth: {
         type: "object",
         required: ["loggedIn", "methods", "cookieFields", "webview"],
         properties: {
+          quota: { $ref: "#/components/schemas/SourceQuota" },
           loggedIn: { type: "boolean" },
           methods: { type: "array", items: { type: "string", enum: ["password", "cookies"] } },
           cookieFields: { type: "array", items: { type: "string" } },
@@ -2468,6 +2525,7 @@ export const openApiDocument = {
             type: "object",
             additionalProperties: true,
             properties: {
+              file: { $ref: "#/components/schemas/SourceFile" },
               comicId: { type: "string" },
               chapters: { type: "object", additionalProperties: { type: "string" } },
               thumbnails: { type: "array", items: { type: "string" } },
@@ -2516,6 +2574,7 @@ export const openApiDocument = {
         type: "object",
         additionalProperties: true,
         properties: {
+          fileFormat: { type: "string" },
           destination: { type: "string", enum: ["public", "personal", "custom"] },
           downloadDir: { type: "string" },
           id: { type: "string" },
@@ -2749,6 +2808,8 @@ export const openApiDocument = {
         type: "object",
         required: ["loginSupported", "loggedIn", "fields"],
         properties: {
+          methods: { type: "array", items: { type: "string", enum: ["password", "cookies"] } },
+          quota: { $ref: "#/components/schemas/SourceQuota" },
           loginSupported: { type: "boolean" },
           loggedIn: { type: "boolean" },
           fields: {
@@ -2779,6 +2840,7 @@ export const openApiDocument = {
       NovelSource: {
         type: "object",
         properties: {
+          provider: { type: "string", enum: ["zlibrary"] },
           quality: { $ref: "#/components/schemas/SourceQuality" },
           favorite: { type: "boolean" },
           missingFromSubscription: {
@@ -2867,6 +2929,7 @@ export const openApiDocument = {
       NovelBook: {
         type: "object",
         properties: {
+          file: { $ref: "#/components/schemas/SourceFile" },
           name: { type: "string" },
           author: { type: "string" },
           bookUrl: { type: "string" },
@@ -2881,6 +2944,7 @@ export const openApiDocument = {
       NovelOrigin: {
         type: "object",
         properties: {
+          file: { $ref: "#/components/schemas/SourceFile" },
           sourceId: { type: "string" },
           sourceName: { type: "string" },
           name: { type: "string" },
@@ -3006,6 +3070,7 @@ export const openApiDocument = {
       NovelCatalog: {
         type: "object",
         properties: {
+          file: { $ref: "#/components/schemas/SourceFile" },
           bookUrl: { type: "string" },
           tocUrl: { type: "string" },
           tocComplete: { type: "boolean" },
@@ -3017,6 +3082,7 @@ export const openApiDocument = {
       NovelTask: {
         type: "object",
         properties: {
+          fileFormat: { type: "string" },
           destination: { type: "string", enum: ["public", "personal", "custom"] },
           downloadDir: { type: "string", minLength: 1, maxLength: 4096 },
           id: { type: "string" },

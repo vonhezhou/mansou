@@ -46,6 +46,7 @@ export function NovelDetailsDialog(props: Props) {
   }, []);
   const catalog = props.catalog;
   const total = catalog?.chapters.length ?? 0;
+  const file = catalog?.file;
   useEffect(() => {
     setStartText("1");
     setLimitText(String(Math.min(3, total || 3)));
@@ -105,11 +106,13 @@ export function NovelDetailsDialog(props: Props) {
             <div className="novel-book-stats">
               <span>{props.origins.length} 个来源</span>
               <span>
-                {catalog
-                  ? `${total.toLocaleString()} 项目录`
-                  : props.loading
-                    ? "目录加载中"
-                    : "目录待加载"}
+                {file
+                  ? `${file.format.toUpperCase()} 整本文件`
+                  : catalog
+                    ? `${total.toLocaleString()} 项目录`
+                    : props.loading
+                      ? "目录加载中"
+                      : "目录待加载"}
               </span>
               {props.book?.wordCount && <span>{props.book.wordCount}</span>}
             </div>
@@ -157,70 +160,89 @@ export function NovelDetailsDialog(props: Props) {
             </div>
           </section>
         )}
-        <section
-          className="novel-directory-section"
-          aria-label="小说目录"
-          aria-busy={props.loading}
-        >
-          <div className="novel-section-heading">
-            <h3>章节目录{catalog && <span>{total.toLocaleString()}</span>}</h3>
-            <button
-              className="quiet-button"
-              disabled={props.loading || props.downloading}
-              onClick={props.onRefresh}
-            >
-              刷新目录
-            </button>
-          </div>
-          {props.loading && (
-            <div className="novel-catalog-loading">
-              <LoadingStatus label="正在加载所选书源目录…" />
-              <p className="muted">
-                {props.origins.length > 1
-                  ? "可以切换其他来源，或关闭详情取消加载。"
-                  : "关闭详情可取消加载，稍后仍可重试。"}
-              </p>
-              <div className="novel-catalog-skeleton" aria-hidden="true">
-                <i />
-                <i />
-                <i />
-                <i />
-              </div>
-            </div>
-          )}
-          {props.error && (
-            <div className="alert novel-catalog-error" role="alert">
-              <p>{props.error}</p>
-              <button className="secondary-button" onClick={props.onRefresh}>
-                重新加载目录
+        {file && (
+          <section aria-label="文件信息">
+            <h3>文件信息</h3>
+            <p>
+              {[
+                file.format.toUpperCase(),
+                file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MiB` : undefined,
+                file.language,
+                file.publisher,
+                file.year,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+            <p className="muted">书籍与漫画共用 Z-Library 账号及每日下载额度。</p>
+          </section>
+        )}
+        {!file && (
+          <section
+            className="novel-directory-section"
+            aria-label="小说目录"
+            aria-busy={props.loading}
+          >
+            <div className="novel-section-heading">
+              <h3>章节目录{catalog && <span>{total.toLocaleString()}</span>}</h3>
+              <button
+                className="quiet-button"
+                disabled={props.loading || props.downloading}
+                onClick={props.onRefresh}
+              >
+                刷新目录
               </button>
             </div>
-          )}
-          {catalog && (
-            <>
-              {!catalog.tocComplete && (
-                <p className="alert" role="status">
-                  目录尚未遍历完，暂不能下载。
+            {props.loading && (
+              <div className="novel-catalog-loading">
+                <LoadingStatus label="正在加载所选书源目录…" />
+                <p className="muted">
                   {props.origins.length > 1
-                    ? "可刷新目录或切换书源。"
-                    : "可刷新目录，或关闭后更换书源搜索。"}
+                    ? "可以切换其他来源，或关闭详情取消加载。"
+                    : "关闭详情可取消加载，稍后仍可重试。"}
                 </p>
-              )}
-              <NovelChapterPreview
-                key={JSON.stringify([props.origin.sourceId, props.origin.bookUrl])}
-                origin={props.origin}
-                catalog={catalog}
-                selected={startValid ? start : 0}
-              />
-              <NovelCatalogList
-                chapters={catalog.chapters}
-                selected={startValid ? start : 0}
-                disabled={props.downloading}
-                onSelect={chooseStart}
-              />
-            </>
-          )}
-        </section>
+                <div className="novel-catalog-skeleton" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                </div>
+              </div>
+            )}
+            {props.error && (
+              <div className="alert novel-catalog-error" role="alert">
+                <p>{props.error}</p>
+                <button className="secondary-button" onClick={props.onRefresh}>
+                  重新加载目录
+                </button>
+              </div>
+            )}
+            {catalog && (
+              <>
+                {!catalog.tocComplete && (
+                  <p className="alert" role="status">
+                    目录尚未遍历完，暂不能下载。
+                    {props.origins.length > 1
+                      ? "可刷新目录或切换书源。"
+                      : "可刷新目录，或关闭后更换书源搜索。"}
+                  </p>
+                )}
+                <NovelChapterPreview
+                  key={JSON.stringify([props.origin.sourceId, props.origin.bookUrl])}
+                  origin={props.origin}
+                  catalog={catalog}
+                  selected={startValid ? start : 0}
+                />
+                <NovelCatalogList
+                  chapters={catalog.chapters}
+                  selected={startValid ? start : 0}
+                  disabled={props.downloading}
+                  onSelect={chooseStart}
+                />
+              </>
+            )}
+          </section>
+        )}
       </div>
       <footer className="novel-detail-footer">
         {props.downloadError && (
@@ -228,60 +250,62 @@ export function NovelDetailsDialog(props: Props) {
             {props.downloadError}
           </p>
         )}
-        <div className="novel-download-range">
-          <label>
-            起始目录项
-            <input
-              aria-label="起始目录项"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={total || undefined}
-              value={startText}
-              disabled={!catalog || props.downloading}
-              onChange={(event) => {
-                const value = event.target.value;
-                setStartText(value);
-                const index = Number(value);
-                if (value && Number.isInteger(index) && index >= 1 && index <= total)
-                  chooseStart(index);
-              }}
-            />
-          </label>
-          <label>
-            下载项数
-            <input
-              aria-label="下载项数"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={remaining || undefined}
-              value={limitText}
-              disabled={!catalog || props.downloading}
-              onChange={(event) => setLimitText(event.target.value)}
-            />
-          </label>
-          <div className="novel-range-summary" role="status">
-            {props.downloading ? (
-              <LoadingStatus label="正在创建下载任务…" />
-            ) : !catalog ? (
-              "目录加载后可选择范围"
-            ) : !total ? (
-              "暂无可下载目录项"
-            ) : !startValid ? (
-              `请输入 1–${total} 的起始项`
-            ) : !limitValid ? (
-              `下载项数应为 1–${remaining}`
-            ) : (
-              <>
-                <strong>
-                  第 {start}–{start + limit - 1} 项 · 共 {limit} 项
-                </strong>
-                <span>点击目录条目可设置起始项</span>
-              </>
-            )}
+        {!file && (
+          <div className="novel-download-range">
+            <label>
+              起始目录项
+              <input
+                aria-label="起始目录项"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={total || undefined}
+                value={startText}
+                disabled={!catalog || props.downloading}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setStartText(value);
+                  const index = Number(value);
+                  if (value && Number.isInteger(index) && index >= 1 && index <= total)
+                    chooseStart(index);
+                }}
+              />
+            </label>
+            <label>
+              下载项数
+              <input
+                aria-label="下载项数"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={remaining || undefined}
+                value={limitText}
+                disabled={!catalog || props.downloading}
+                onChange={(event) => setLimitText(event.target.value)}
+              />
+            </label>
+            <div className="novel-range-summary" role="status">
+              {props.downloading ? (
+                <LoadingStatus label="正在创建下载任务…" />
+              ) : !catalog ? (
+                "目录加载后可选择范围"
+              ) : !total ? (
+                "暂无可下载目录项"
+              ) : !startValid ? (
+                `请输入 1–${total} 的起始项`
+              ) : !limitValid ? (
+                `下载项数应为 1–${remaining}`
+              ) : (
+                <>
+                  <strong>
+                    第 {start}–{start + limit - 1} 项 · 共 {limit} 项
+                  </strong>
+                  <span>点击目录条目可设置起始项</span>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        )}
         <DownloadDestinationField
           value={destination}
           onChange={setDestination}
@@ -290,21 +314,31 @@ export function NovelDetailsDialog(props: Props) {
         <div className="novel-detail-download-actions">
           <button
             className="secondary-button"
-            disabled={!destination || !catalog?.tocComplete || !total || props.downloading}
+            disabled={
+              !destination || !catalog?.tocComplete || (!file && !total) || props.downloading
+            }
             onClick={() => props.onDownload(true, 1, 3, destination)}
           >
-            {catalog ? `下载全部 ${total.toLocaleString()} 项` : "下载全部章节"}
+            {file
+              ? `下载 ${file.format.toUpperCase()} 整本文件`
+              : catalog
+                ? `下载全部 ${total.toLocaleString()} 项`
+                : "下载全部章节"}
           </button>
-          <button
-            disabled={!destination || !canDownload}
-            onClick={() => props.onDownload(false, start, limit, destination)}
-          >
-            <Icon name="download" size={16} />
-            下载所选范围
-          </button>
+          {!file && (
+            <button
+              disabled={!destination || !canDownload}
+              onClick={() => props.onDownload(false, start, limit, destination)}
+            >
+              <Icon name="download" size={16} />
+              下载所选范围
+            </button>
+          )}
         </div>
         <p className="novel-download-note">
-          目录可能包含公告；目录完整不代表作品完结。下载任务在服务器继续执行。
+          {file
+            ? "文件按上游原始格式保存，下载任务在服务器继续执行。"
+            : "目录可能包含公告；目录完整不代表作品完结。下载任务在服务器继续执行。"}
         </p>
       </footer>
     </dialog>

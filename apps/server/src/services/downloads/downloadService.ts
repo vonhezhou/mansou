@@ -235,6 +235,8 @@ export class DownloadService {
   async exportCbz(id: string) {
     const task = this.editable(id);
     if (!task) return null;
+    if (task.fileFormat)
+      throw new AppError("VALIDATION_ERROR", "此任务提供原始文件，请使用文件下载接口");
     if (task.status !== "completed" || !task.outputDir)
       throw new AppError("DOWNLOAD_NOT_COMPLETED", "Only completed download tasks can be exported");
     const directory = task.outputDir;
@@ -289,6 +291,23 @@ export class DownloadService {
   async openCbz(id: string) {
     const result = await this.exportCbz(id);
     return result ? { ...result, stream: createReadStream(result.path) } : null;
+  }
+  async openFile(id: string) {
+    const task = this.editable(id);
+    if (!task) return null;
+    if (
+      task.status !== "completed" ||
+      !task.outputDir ||
+      !task.fileFormat ||
+      !/^[a-z0-9]{1,12}$/.test(task.fileFormat)
+    )
+      throw new AppError("DOWNLOAD_NOT_COMPLETED", "整本文件尚未下载完成");
+    const file = path.join(task.outputDir, `book.${task.fileFormat}`);
+    await stat(file);
+    return {
+      name: `${task.title ?? task.comicId}.${task.fileFormat}`,
+      stream: createReadStream(file),
+    };
   }
   async retryImage(id: string, imageKey: string) {
     const task = this.retryable(id);

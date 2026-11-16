@@ -1,5 +1,6 @@
 export type DownloadStatus = "queued" | "running" | "paused" | "completed" | "failed" | "cancelled";
 export type DownloadPhase =
+  | "downloading_file"
   | "queued"
   | "loading_details"
   | "loading_pages"
@@ -11,6 +12,7 @@ export type DownloadPhase =
   | "cancelled";
 
 export type DownloadTask = {
+  fileFormat?: string;
   id: string;
   sourceKey: string;
   comicId: string;

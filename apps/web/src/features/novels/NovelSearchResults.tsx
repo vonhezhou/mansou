@@ -24,6 +24,7 @@ const BookCard = memo(function BookCard({
   onOpen: Props["onOpen"];
 }) {
   const cover = book.origins.find((origin) => origin.coverUrl)?.coverUrl;
+  const file = book.origins[0]?.file;
   return (
     <button
       className="comic-card"
@@ -44,8 +45,15 @@ const BookCard = memo(function BookCard({
         </span>
         <strong>{book.name}</strong>
         <span className="comic-subtitle">{book.author || "作者未知"}</span>
+        {file && (
+          <span className="comic-subtitle">
+            {[file.format.toUpperCase(), file.language, file.publisher, file.year]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
+        )}
         <span className="comic-card-foot">
-          查看目录与下载
+          {file ? "查看文件与下载" : "查看目录与下载"}
           <Icon name="chevron" size={15} />
         </span>
       </span>

@@ -19,6 +19,7 @@ import type { components } from "@mansou/contracts";
 import type { StorageDatabase } from "@mansou/storage";
 import { AppError } from "../../errors.js";
 import type { SourceQualityService } from "../sourceQuality.js";
+import { ZlibraryClient, ZLIBRARY_RULE, isZlibrary } from "../../sources/zlibrary/client.js";
 
 type Source = components["schemas"]["NovelSource"];
 type Subscription = components["schemas"]["NovelSubscription"];
@@ -44,7 +45,13 @@ export class NovelSourceService {
     private readonly timeoutMs: number,
     private readonly engine: NovelEngineExecutor,
     private readonly quality?: SourceQualityService,
+    private readonly zlibrary?: ZlibraryClient,
   ) {
+    if (zlibrary) {
+      const record = this.record({ ...ZLIBRARY_RULE, enabled: false }, "local");
+      if (!this.db.get("source", record.summary.id))
+        this.db.save("source", record.summary.id, record);
+    }
     // 运行时能力升级后重算旧记录，避免旧的“不支持”标记挡住新实现；用户状态和规则快照保持不变。
     this.db.transaction(() => {
       for (const row of this.db.list<SourceRecord>("source")) {
@@ -72,6 +79,7 @@ export class NovelSourceService {
       this.quality?.register("novel", row.summary.id, row.summary.hash);
       return {
         ...row.summary,
+        url: this.zlibrary && isZlibrary(row.raw) ? this.zlibrary.domain() : row.summary.url,
         quality: this.quality?.snapshot("novel", row.summary.id, row.summary.hash),
       };
     });
@@ -97,12 +105,12 @@ export class NovelSourceService {
     const old = this.db.get<SourceRecord>("source", id);
     let searchError: string | undefined, downloadError: string | undefined;
     try {
-      assertSupported(raw);
+      if (!(this.zlibrary && isZlibrary(raw))) assertSupported(raw);
     } catch (error) {
       searchError = String(error instanceof Error ? error.message : error);
     }
     try {
-      assertDownloadSupported(raw);
+      if (!(this.zlibrary && isZlibrary(raw))) assertDownloadSupported(raw);
     } catch (error) {
       downloadError = String(error instanceof Error ? error.message : error);
     }
@@ -112,6 +120,7 @@ export class NovelSourceService {
         id,
         groupId,
         name: raw.bookSourceName,
+        provider: isZlibrary(raw) ? "zlibrary" : undefined,
         url: raw.bookSourceUrl,
         hash: hash(JSON.stringify(raw)),
         enabled: old?.summary.enabled ?? raw.enabled !== false,
@@ -143,6 +152,8 @@ export class NovelSourceService {
   }
   batch(ids: string[], action: "enable" | "disable" | "delete") {
     const rows = [...new Set(ids)].map((id) => this.source(id, false));
+    if (action === "delete" && rows.some((row) => isZlibrary(row.raw)))
+      throw new AppError("SOURCE_BUILTIN", "内置 Z-Library 源可停用");
     if (action === "enable" && rows.some((row) => !row.summary.downloadSupported))
       throw new AppError("VALIDATION_ERROR", "选择中含不支持下载的书源，请先移除这些书源");
     this.db.transaction(() => {
@@ -173,7 +184,8 @@ export class NovelSourceService {
     return this.state();
   }
   deleteSource(id: string) {
-    this.source(id, false);
+    if (isZlibrary(this.source(id, false).raw))
+      throw new AppError("SOURCE_BUILTIN", "内置 Z-Library 源可停用");
     this.engine.sessions.clear(id);
     this.db.delete("source", id);
     this.quality?.delete("novel", id);
@@ -181,6 +193,16 @@ export class NovelSourceService {
   }
   account(id: string) {
     const { raw } = this.source(id, false);
+    if (this.zlibrary && isZlibrary(raw))
+      return this.zlibrary.account().then((account) => ({
+        ...account,
+        loginSupported: true,
+        methods: ["password", "cookies"] as const,
+        fields: [
+          { name: "username", label: "账号", type: "text" as const },
+          { name: "password", label: "密码", type: "password" as const },
+        ],
+      }));
     return {
       loginSupported: Boolean(raw.loginUrl),
       loggedIn: this.engine.sessions.get(id).loggedIn,
@@ -189,6 +211,16 @@ export class NovelSourceService {
   }
   async login(id: string, values: Record<string, string>, signal?: AbortSignal) {
     const { raw } = this.source(id, false);
+    if (this.zlibrary && isZlibrary(raw)) {
+      if (values.method === "cookies")
+        await this.zlibrary.loginCookies(
+          values.remix_userid ?? "",
+          values.remix_userkey ?? "",
+          signal,
+        );
+      else await this.zlibrary.login(values.username ?? "", values.password ?? "", signal);
+      return this.account(id);
+    }
     const fields = loginFields(raw);
     const allowed = new Set(fields.map((field) => field.name));
     if (Object.keys(values).some((name) => !allowed.has(name)))
@@ -204,7 +236,8 @@ export class NovelSourceService {
     return this.account(id);
   }
   logout(id: string) {
-    this.source(id, false);
+    const source = this.source(id, false);
+    if (this.zlibrary && isZlibrary(source.raw)) this.zlibrary.logout();
     this.engine.sessions.clear(id);
     return this.account(id);
   }
@@ -377,6 +410,37 @@ export class NovelSourceService {
       runSource: async (source, key, page, options) => {
         const started = performance.now();
         try {
+          if (this.zlibrary && isZlibrary(source.source)) {
+            const result = await this.zlibrary.search(key, page, options.signal);
+            this.quality?.record("novel", source.id, hash(JSON.stringify(source.source)), {
+              operation: "search",
+              elapsedMs: performance.now() - started,
+              nonempty: result.books.length > 0,
+            });
+            return {
+              sourceId: source.id,
+              sourceName: source.source.bookSourceName,
+              status: "ok" as const,
+              elapsedMs: Math.round(performance.now() - started),
+              books: result.books.map((book) => ({
+                name: book.title,
+                author: book.author,
+                bookUrl: this.zlibrary!.bookUrl(book.id),
+                coverUrl: book.cover,
+                intro: book.description,
+                kind: [book.format.toUpperCase(), book.language, book.publisher, book.year]
+                  .filter(Boolean)
+                  .join(" · "),
+                file: {
+                  format: book.format,
+                  size: book.size,
+                  language: book.language,
+                  publisher: book.publisher,
+                  year: book.year,
+                },
+              })),
+            };
+          }
           return await this.engine.execute<SourceOutcome>(
             "search",
             [source, key, page],
@@ -384,6 +448,16 @@ export class NovelSourceService {
             source.id,
           );
         } catch (error) {
+          if (this.zlibrary && isZlibrary(source.source))
+            this.quality?.record("novel", source.id, hash(JSON.stringify(source.source)), {
+              operation: "search",
+              elapsedMs: performance.now() - started,
+              errorCode: options.signal?.aborted
+                ? "CANCELLED"
+                : error instanceof SourceError
+                  ? error.code
+                  : "NETWORK_ERROR",
+            });
           return {
             sourceId: source.id,
             sourceName: source.source.bookSourceName,
@@ -401,6 +475,23 @@ export class NovelSourceService {
   }
   async catalog(sourceId: string, bookUrl: string, signal?: AbortSignal) {
     const source = this.source(sourceId);
+    if (this.zlibrary && isZlibrary(source.raw)) {
+      const book = await this.zlibrary.book(bookUrl, signal);
+      return {
+        bookUrl,
+        tocUrl: bookUrl,
+        tocComplete: true,
+        tocPages: 0,
+        chapters: [],
+        file: {
+          format: book.format,
+          size: book.size,
+          language: book.language,
+          publisher: book.publisher,
+          year: book.year,
+        },
+      };
+    }
     assertDownloadSupported(source.raw);
     const key = this.catalogKey(source, bookUrl);
     const value = await this.engine.execute<Catalog>(

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { DownloadDestinationField } from "../../app/DownloadDestinationField.js";
 
 type DownloadActionsProps = {
+  fileFormat?: string;
   selectedEpisodeIds: string[];
   downloadCreateStatus: string | null;
   onCreateDownload: (
@@ -19,14 +20,16 @@ export function DownloadActions(props: DownloadActionsProps) {
         下载在服务器后台运行，完成后可在下载中心获取文件。
       </p>
       <div className="actions download-actions">
-        <button
-          onClick={() => props.onCreateDownload("selected", destination)}
-          disabled={!destination || props.selectedEpisodeIds.length === 0}
-        >
-          下载所选章节
-        </button>
+        {!props.fileFormat && (
+          <button
+            onClick={() => props.onCreateDownload("selected", destination)}
+            disabled={!destination || props.selectedEpisodeIds.length === 0}
+          >
+            下载所选章节
+          </button>
+        )}
         <button disabled={!destination} onClick={() => props.onCreateDownload("all", destination)}>
-          下载全本
+          {props.fileFormat ? `下载 ${props.fileFormat.toUpperCase()} 整本文件` : "下载全本"}
         </button>
       </div>
       {props.downloadCreateStatus && (

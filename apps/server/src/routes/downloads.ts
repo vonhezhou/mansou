@@ -60,6 +60,18 @@ export async function registerDownloadRoutes(
   });
 
   app.get("/downloads", async () => context.downloads.all());
+  app.get("/downloads/:taskId/file", async (request, reply) => {
+    const { taskId } = z.object({ taskId: z.string() }).parse(request.params);
+    const file = await context.downloads.openFile(taskId);
+    if (!file) throw notFound("DOWNLOAD_NOT_FOUND", "Download task not found");
+    return reply
+      .type("application/octet-stream")
+      .header(
+        "content-disposition",
+        `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+      )
+      .send(file.stream);
+  });
 
   app.get("/downloads/:taskId", async (request) => {
     const params = z.object({ taskId: z.string() }).parse(request.params);

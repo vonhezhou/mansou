@@ -27,7 +27,9 @@ describe("application lifecycle", () => {
     const built = await build(false);
     await initializeApp(built.context);
     expect(built.context.sources.all()).toEqual([]);
-    expect(await built.context.sources.metadata()).toEqual([]);
+    expect(await built.context.sources.metadata()).toEqual([
+      expect.objectContaining({ key: "builtin:zlibrary", enabled: 0, canUninstall: false }),
+    ]);
     await built.context.sources.loadInstalled();
     expect(built.context.sources.all()).toEqual([]);
   });

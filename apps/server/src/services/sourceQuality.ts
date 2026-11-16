@@ -85,6 +85,9 @@ export class SourceQualityService {
   withSignal<T>(signal: AbortSignal | undefined, work: () => T): T {
     return signal ? this.scope.run(signal, work) : work();
   }
+  currentSignal() {
+    return this.scope.getStore();
+  }
 
   register(kind: SourceKind, key: string, version: string) {
     if (this.db.get<QualityRecord>(kind, key)?.version === version) return;

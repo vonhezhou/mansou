@@ -1,23 +1,10 @@
-import type { FastifyInstance, FastifyReply } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { SourceError } from "@mansou/novel-engine";
 import type { Application } from "../application.js";
 import type { components } from "@mansou/contracts";
 import { once } from "node:events";
-
-async function withCancellation<T>(reply: FastifyReply, work: (signal: AbortSignal) => Promise<T>) {
-  const controller = new AbortController();
-  const cancel = () => {
-    if (!reply.raw.writableFinished) controller.abort();
-  };
-  reply.raw.on("close", cancel);
-  try {
-    return await work(controller.signal);
-  } finally {
-    controller.abort();
-    reply.raw.off("close", cancel);
-  }
-}
+import { withCancellation } from "./cancellation.js";
 
 export async function registerNovelRoutes(
   app: FastifyInstance,
@@ -189,6 +176,16 @@ export async function registerNovelRoutes(
         );
       });
       api.get("/downloads", async () => context.novelDownloads.all());
+      api.get("/downloads/:id/file", async (request, reply) => {
+        const file = await context.novelDownloads.openFile(id(request.params));
+        return reply
+          .type("application/octet-stream")
+          .header(
+            "content-disposition",
+            `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+          )
+          .send(file.stream);
+      });
       api.post("/downloads", async (request) =>
         context.novelDownloads.create(
           z

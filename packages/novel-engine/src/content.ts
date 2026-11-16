@@ -18,6 +18,7 @@ export interface ContentOptions extends RuntimeOptions {
   script?: SourceScript;
 }
 export interface Catalog {
+  file?: import("./types.js").BookFile;
   bookUrl: string;
   tocUrl: string;
   tocComplete: boolean;

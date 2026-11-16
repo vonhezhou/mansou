@@ -33,6 +33,7 @@ describe("source protocol (worker)", () => {
       ] };
       account = {
         login: async (user, password) => { if (password !== "correct") throw new Error("secret:" + password); this.saveData("token", "ok"); await Network.setCookies("https://example.test", ["token=ok; Path=/"]); },
+        loginWithCookies: { fields: ["token"], validate: async (values) => { if (values[0] !== "cookie-correct") return false; await Network.setCookies("https://example.test", ["token=cookie-correct; Path=/"]); return true; } },
         logout: () => { this.deleteData("token"); }
       };
     }`,
@@ -146,7 +147,7 @@ describe("source protocol (worker)", () => {
   it("executes login/logout, persists state and never returns password or plugin login errors", async () => {
     expect((await request("auth")).json()).toMatchObject({
       loggedIn: false,
-      methods: ["password"],
+      methods: ["password", "cookies"],
     });
     const failed = await request("auth/login", "POST", {
       method: "password",
@@ -188,6 +189,22 @@ describe("source protocol (worker)", () => {
     expect(
       JSON.parse((await built.context.search.search("protocol", "x")).comics[0].title).cookies,
     ).toEqual([]);
+  });
+  it("同时声明密码与 Cookie 登录的插件可以选择 Cookie，失败验证不建立账号", async () => {
+    const invalid = await request("auth/login", "POST", {
+      method: "cookies",
+      values: ["invalid-cookie"],
+    });
+    expect(invalid.statusCode).toBe(422);
+    expect((await request("auth")).json().loggedIn).toBe(false);
+    const response = await request("auth/login", "POST", {
+      method: "cookies",
+      values: ["cookie-correct"],
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().loggedIn).toBe(true);
+    expect(response.body).not.toContain("cookie-correct");
+    await request("auth/logout", "POST");
   });
   it("supports cookie authentication and explicitly reports unsupported webview", async () => {
     const cookieFile = path.join(dir, "cookie_auth.js");

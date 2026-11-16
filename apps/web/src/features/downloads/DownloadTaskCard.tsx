@@ -26,7 +26,7 @@ export function DownloadTaskCard(props: DownloadTaskCardProps) {
   const showDetails = props.showDetails;
   const items = props.itemPage?.items;
   useEffect(() => {
-    if (showDetails && !props.itemPage && !props.busy && !props.itemError)
+    if (showDetails && !props.task.fileFormat && !props.itemPage && !props.busy && !props.itemError)
       props.onLoadDownloadItems(props.task);
   }, [showDetails, props.itemPage, props.busy, props.itemError, props.failedItemsOnly]);
 
@@ -56,9 +56,11 @@ export function DownloadTaskCard(props: DownloadTaskCardProps) {
           max={Math.max(props.task.total, 1)}
         />
         <span>
-          {props.task.totalKnown === false
-            ? `已完成 ${props.task.completed} / 已发现 ${props.task.total} 页，总页数待确认`
-            : `${getDownloadProgress(props.task)}%`}
+          {props.task.fileFormat
+            ? `${props.task.completed} / ${props.task.total || "待获取"} 字节`
+            : props.task.totalKnown === false
+              ? `已完成 ${props.task.completed} / 已发现 ${props.task.total} 页，总页数待确认`
+              : `${getDownloadProgress(props.task)}%`}
         </span>
       </div>
       {props.task.error && (
@@ -85,7 +87,8 @@ export function DownloadTaskCard(props: DownloadTaskCardProps) {
             aria-expanded={showDetails}
             disabled={props.busy}
             onClick={() => {
-              if (!showDetails) props.onLoadDownloadItems(props.task, props.itemPage?.offset ?? 0);
+              if (!showDetails && !props.task.fileFormat)
+                props.onLoadDownloadItems(props.task, props.itemPage?.offset ?? 0);
               props.onShowDetailsChange(!showDetails);
             }}
           >
@@ -157,26 +160,33 @@ export function DownloadTaskCard(props: DownloadTaskCardProps) {
           {props.task.logs?.length ? (
             <p className="muted">{props.task.logs.at(-1)?.message}</p>
           ) : null}
-          {props.itemError && (
-            <div className="alert" role="alert">
-              <p>{props.itemError}</p>
-              <button disabled={props.busy} onClick={() => props.onLoadDownloadItems(props.task)}>
-                重新加载明细
-              </button>
-            </div>
+          {!props.task.fileFormat && (
+            <>
+              {props.itemError && (
+                <div className="alert" role="alert">
+                  <p>{props.itemError}</p>
+                  <button
+                    disabled={props.busy}
+                    onClick={() => props.onLoadDownloadItems(props.task)}
+                  >
+                    重新加载明细
+                  </button>
+                </div>
+              )}
+              {!props.itemError && props.itemPage && items?.length === 0 && (
+                <p className="muted">
+                  {props.failedItemsOnly ? "没有失败的图片。" : "还没有图片下载记录。"}
+                </p>
+              )}
+              <DownloadItemsList
+                busy={props.busy}
+                task={props.task}
+                page={props.itemPage}
+                onPageChange={(offset) => props.onLoadDownloadItems(props.task, offset)}
+                onRetryDownloadItem={props.onRetryDownloadItem}
+              />
+            </>
           )}
-          {!props.itemError && props.itemPage && items?.length === 0 && (
-            <p className="muted">
-              {props.failedItemsOnly ? "没有失败的图片。" : "还没有图片下载记录。"}
-            </p>
-          )}
-          <DownloadItemsList
-            busy={props.busy}
-            task={props.task}
-            page={props.itemPage}
-            onPageChange={(offset) => props.onLoadDownloadItems(props.task, offset)}
-            onRetryDownloadItem={props.onRetryDownloadItem}
-          />
           <div className="task-actions">
             {!["queued", "running"].includes(props.task.status) &&
               Boolean(props.itemPage?.failedTotal) && (
@@ -210,6 +220,8 @@ export function DownloadTaskCard(props: DownloadTaskCardProps) {
 }
 
 function downloadScope(task: DownloadTask) {
+  if (task.fileFormat)
+    return task.fileFormat === "pending" ? "整本文件" : `${task.fileFormat.toUpperCase()} 整本文件`;
   if (task.all || task.episodeId === "__all__") return "全本";
   return task.episodeId ? `章节 ${task.episodeId}` : "首章";
 }
@@ -245,6 +257,7 @@ function phaseLabel(phase: string) {
         loading_details: "正在获取漫画详情",
         loading_pages: "正在解析章节",
         downloading_images: "正在下载图片",
+        downloading_file: "正在下载整本文件",
         writing_metadata: "正在保存漫画信息",
         completed: "已完成",
         paused: "已暂停",

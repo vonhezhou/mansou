@@ -255,3 +255,19 @@ it("keeps export feedback active until preparation succeeds and does not start a
   expect(state.taskErrors.a).toBe("打包失败");
   expect(state.taskOperations).toEqual({});
 });
+
+it("文件型漫画通过原始文件接口保存到本机", async () => {
+  const archive = vi.spyOn(mansouApi, "exportDownloadCbz");
+  const hrefs: string[] = [];
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+    this: HTMLAnchorElement,
+  ) {
+    hrefs.push(this.href);
+  });
+  await act(async () =>
+    state.downloadAction({ ...task("file", "completed"), fileFormat: "pdf" }, "download-local"),
+  );
+  expect(archive).not.toHaveBeenCalled();
+  expect(hrefs).toHaveLength(1);
+  expect(hrefs[0]).toContain("/downloads/file/file");
+});

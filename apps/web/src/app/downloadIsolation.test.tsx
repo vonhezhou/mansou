@@ -171,7 +171,15 @@ it("keeps source management independent of progress without losing its input sta
   expect(container.querySelector(".current-source-panel")).toBeNull();
   expect(container.querySelector(".repository-panel")).toBeNull();
   expect(mansouApi.getSourceAuth).not.toHaveBeenCalled();
-  await click(".installed-source-grid .source-actions button:nth-child(2)");
+  await act(async () =>
+    [
+      ...container.querySelectorAll<HTMLButtonElement>(
+        ".installed-source-grid .source-actions button",
+      ),
+    ]
+      .find((button) => button.textContent === "Cookie")!
+      .click(),
+  );
   const cookieUrl = container.querySelector<HTMLInputElement>(".current-source-panel input")!;
   await act(async () => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
@@ -187,7 +195,15 @@ it("keeps source management independent of progress without losing its input sta
   expect(container.querySelector(".current-source-panel input")).toBe(cookieUrl);
   expect(cookieUrl.value).toBe("https://example.com");
   await click('[aria-label="关闭Mock · Cookie"]');
-  await click(".installed-source-grid .source-actions button:nth-child(2)");
+  await act(async () =>
+    [
+      ...container.querySelectorAll<HTMLButtonElement>(
+        ".installed-source-grid .source-actions button",
+      ),
+    ]
+      .find((button) => button.textContent === "Cookie")!
+      .click(),
+  );
   expect(container.querySelector<HTMLInputElement>(".current-source-panel input")?.value).toBe(
     "https://example.com",
   );

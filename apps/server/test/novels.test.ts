@@ -544,12 +544,12 @@ it("小说 HTTP 闭环使用现有鉴权，校验参数并返回可操作的错�
     app.inject({ method, url: `/api/v1/novels${url}`, payload });
   expect((await request("POST", "/sources/import", { sources: [{}] })).statusCode).toBe(422);
   expect((await request("POST", "/sources/import", { sources: [raw, raw] })).statusCode).toBe(422);
-  expect(context.novelSources.state().sources).toHaveLength(0);
+  expect(context.novelSources.state().sources.filter((source) => !source.provider)).toHaveLength(0);
   const imported = await request("POST", "/sources/import", { sources: raw });
   expect(imported.statusCode).toBe(200);
   expect(imported.json().importedCount).toBe(1);
   expect(imported.json().rejected).toEqual([]);
-  const sourceId = imported.json().sources[0].id;
+  const sourceId = imported.json().sources.find((source) => source.url === raw.bookSourceUrl).id;
   expect((await request("POST", "/sources/batch", { ids: [], action: "delete" })).statusCode).toBe(
     400,
   );
@@ -557,12 +557,14 @@ it("小说 HTTP 闭环使用现有鉴权，校验参数并返回可操作的错�
     (await request("POST", "/sources/batch", { ids: [sourceId], action: "invalid" })).statusCode,
   ).toBe(400);
   expect(
-    (await request("POST", "/sources/batch", { ids: [sourceId], action: "disable" })).json()
-      .sources[0].enabled,
+    (await request("POST", "/sources/batch", { ids: [sourceId], action: "disable" }))
+      .json()
+      .sources.find((source) => source.id === sourceId).enabled,
   ).toBe(false);
   expect(
-    (await request("POST", "/sources/batch", { ids: [sourceId], action: "enable" })).json()
-      .sources[0].enabled,
+    (await request("POST", "/sources/batch", { ids: [sourceId], action: "enable" }))
+      .json()
+      .sources.find((source) => source.id === sourceId).enabled,
   ).toBe(true);
   expect((await request("POST", "/search", { keyword: "x", page: 1.5 })).statusCode).toBe(400);
   const result = await request("POST", "/search", { keyword: "凡人", sourceIds: [sourceId] });
@@ -810,7 +812,9 @@ it.each(["catalog", "preview"])(
     );
     cleanups.push(() => app.close());
     await initializeApp(context);
-    const sourceId = context.novelSources.import(raw).sources[0].id;
+    const sourceId = context.novelSources
+      .import(raw)
+      .sources.find((source) => source.url === raw.bookSourceUrl)!.id;
     await app.listen({ host: "127.0.0.1", port: 0 });
     const address = app.server.address();
     if (!address || typeof address === "string") throw new Error("测试服务未监听");

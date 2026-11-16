@@ -63,6 +63,40 @@ const passwordAuth: SourceAuth = {
   webview: "unavailable",
 };
 
+it("漫画源同时支持密码和 Cookie 时可显式切换，切换源取消旧请求", async () => {
+  vi.spyOn(mansouApi, "getSourceAuth").mockResolvedValue({
+    ...passwordAuth,
+    methods: ["password", "cookies"],
+    cookieFields: ["remix_userid", "remix_userkey"],
+  });
+  const pending = deferred<SourceAuth>();
+  const login = vi.spyOn(mansouApi, "loginSource").mockReturnValue(pending.promise);
+  await render(<SourceAccountPanel sourceKey="one" />);
+  await act(async () => {
+    const select = container.querySelector("select")!;
+    select.value = "cookies";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  const fields = container.querySelectorAll<HTMLInputElement>('input[type="password"]');
+  await input(fields[0], "7");
+  await input(fields[1], "secret");
+  await act(async () =>
+    container
+      .querySelector("form")!
+      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })),
+  );
+  expect(login).toHaveBeenCalledWith(
+    "one",
+    { method: "cookies", values: ["7", "secret"] },
+    expect.any(AbortSignal),
+  );
+  const signal = login.mock.calls[0][2]!;
+  await render(<SourceAccountPanel sourceKey="two" />);
+  expect(signal.aborted).toBe(true);
+  await act(async () => pending.resolve({ ...passwordAuth, loggedIn: true }));
+  expect(container.textContent).toContain("未登录此源");
+});
+
 it("recovers a failed source account load without reloading the page", async () => {
   const response = deferred<SourceAuth>();
   const load = vi
@@ -73,7 +107,7 @@ it("recovers a failed source account load without reloading the page", async () 
   expect(container.querySelector('[role="alert"]')?.textContent).toBe("账号状态暂不可用");
   await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
   expect(load).toHaveBeenCalledTimes(2);
-  expect(load).toHaveBeenLastCalledWith("one");
+  expect(load).toHaveBeenLastCalledWith("one", expect.any(AbortSignal));
   expect(container.textContent).toContain("正在加载源账号状态");
   expect(container.querySelector('[role="alert"]')).toBeNull();
   expect(container.querySelector("button")).toBeNull();
@@ -118,7 +152,7 @@ it("blocks duplicate login submissions and lets a failed login recover before lo
       .click(),
   );
   expect(container.textContent).toContain("正在退出此源");
-  expect(logout).toHaveBeenCalledWith("one");
+  expect(logout).toHaveBeenCalledWith("one", expect.any(AbortSignal));
   await act(async () => logoutResponse.resolve(passwordAuth));
   expect(container.textContent).toContain("未登录此源");
   expect(container.textContent).not.toContain("正在退出此源");
@@ -163,11 +197,15 @@ it("submits plugin credentials for the selected source and clears secrets after 
       .querySelector("form")!
       .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })),
   );
-  expect(login).toHaveBeenCalledWith("one", {
-    method: "password",
-    username: "user",
-    password: "secret",
-  });
+  expect(login).toHaveBeenCalledWith(
+    "one",
+    {
+      method: "password",
+      username: "user",
+      password: "secret",
+    },
+    expect.any(AbortSignal),
+  );
   expect((container.querySelector('input[type="password"]') as HTMLInputElement).value).toBe("");
   expect(container.textContent).toContain("已登录此源");
   await render(<SourceAccountPanel key="two" sourceKey="two" />);
@@ -263,7 +301,7 @@ it("blocks disabled-source settings and account requests until the source is ena
       sourceMetadata={[{ ...source, enabled: true }]}
     />,
   );
-  expect(auth).toHaveBeenCalledWith("one");
+  expect(auth).toHaveBeenCalledWith("one", expect.any(AbortSignal));
   expect(container.textContent).not.toContain("Cookie：one");
 });
 

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { RouteContext } from "./types.js";
+import { withCancellation } from "./cancellation.js";
 
 export async function registerSourceRoutes(
   app: FastifyInstance,
@@ -120,7 +121,7 @@ export async function registerSourceRoutes(
     const params = z.object({ sourceKey: z.string() }).parse(request.params);
     return context.sources.auth(params.sourceKey);
   });
-  app.post("/sources/:sourceKey/auth/login", async (request) => {
+  app.post("/sources/:sourceKey/auth/login", async (request, reply) => {
     const params = z.object({ sourceKey: z.string() }).parse(request.params);
     const body = z
       .discriminatedUnion("method", [
@@ -132,7 +133,9 @@ export async function registerSourceRoutes(
         z.object({ method: z.literal("cookies"), values: z.array(z.string()) }),
       ])
       .parse(request.body);
-    return context.sources.login(params.sourceKey, body);
+    return withCancellation(reply, (signal) =>
+      context.sources.login(params.sourceKey, body, signal),
+    );
   });
   app.post("/sources/:sourceKey/auth/logout", async (request) => {
     const params = z.object({ sourceKey: z.string() }).parse(request.params);

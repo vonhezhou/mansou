@@ -19,6 +19,7 @@ export type SearchResult = {
 };
 
 export type ComicDetails = {
+  file?: SourceFile;
   comicId: string;
   sourceKey: string;
   title: string;
@@ -81,6 +82,7 @@ export type SourceUiEvent =
   | { type: "dialog"; id: string; title: string; message: string; buttons: string[] };
 export type SourceSettingsActionResult = SourceSettings & { events: SourceUiEvent[] };
 export type SourceAuth = {
+  quota?: { used: number; limit: number; remaining: number };
   loggedIn: boolean;
   methods: Array<"password" | "cookies">;
   cookieFields: string[];
@@ -110,6 +112,12 @@ export type SourceMetadata = {
 };
 /** 稳定的单源协议；不支持的能力拒绝调用，推荐词发现接口则返回空数组。 */
 export interface SourceProvider {
+  downloadFile?(
+    id: string,
+    directory: string,
+    signal: AbortSignal,
+    progress: (received: number, total: number) => void,
+  ): Promise<SourceFile & { path: string; title: string }>;
   metadata(): Promise<SourceMetadata>;
   search(input: SearchInput): Promise<SearchResult>;
   searchRecommendations(): Promise<SearchRecommendationGroup[]>;
@@ -131,6 +139,13 @@ export interface SourceProvider {
   ): Promise<Array<Record<string, unknown>>>;
   clearCookies(): Promise<void>;
 }
+export type SourceFile = {
+  format: string;
+  size?: number;
+  language?: string;
+  publisher?: string;
+  year?: string;
+};
 export interface SourceRegistry {
   get(sourceKey: string): SourceProvider;
   list(): SourceMetadata[];

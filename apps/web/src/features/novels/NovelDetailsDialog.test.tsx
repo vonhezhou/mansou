@@ -105,6 +105,32 @@ const setValue = (input: HTMLInputElement, value: string) =>
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
 
+it("整本文件展示格式与版本，直接下载且隐藏章节范围和预览", async () => {
+  await act(async () =>
+    root.render(
+      <NovelDetailsDialog
+        {...base}
+        catalog={{
+          ...catalog(0),
+          file: {
+            format: "pdf",
+            size: 1024,
+            language: "Chinese",
+            publisher: "测试出版社",
+            year: "2026",
+          },
+        }}
+      />,
+    ),
+  );
+  expect(container.querySelector('[aria-label="起始目录项"]')).toBeNull();
+  expect(container.querySelector('[aria-label="小说目录"]')).toBeNull();
+  expect(container.textContent).toContain("测试出版社");
+  expect(button("下载 PDF 整本文件").disabled).toBe(false);
+  await act(async () => button("下载 PDF 整本文件").click());
+  expect(onDownload).toHaveBeenCalledWith(true, 1, 3, "public");
+});
+
 it("五万项目录只挂载一页，支持末页、名称/序号检索和定位，下载保持原目录序号及范围边界", async () => {
   await act(async () => root.render(<NovelDetailsDialog {...base} catalog={catalog(50_000)} />));
   const rows = () => container.querySelectorAll<HTMLButtonElement>(".novel-catalog li button");

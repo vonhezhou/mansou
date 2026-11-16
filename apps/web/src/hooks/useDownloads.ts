@@ -158,7 +158,9 @@ export function useDownloads(runWith: RunWith) {
       resume: "正在继续下载…",
       cancel: "正在取消任务…",
       rerun: "正在重新创建任务…",
-      "download-local": "正在准备 CBZ 文件，较大的漫画需要一些时间…",
+      "download-local": task.fileFormat
+        ? "正在获取原始文件…"
+        : "正在准备 CBZ 文件，较大的漫画需要一些时间…",
       delete: "正在删除任务…",
       "delete-files": "正在删除任务与文件…",
       "retry-failed": "正在重试失败图片…",
@@ -169,9 +171,11 @@ export function useDownloads(runWith: RunWith) {
       if (action === "cancel") await mansouApi.cancelDownload(task.id);
       if (action === "rerun") await mansouApi.rerunDownload(task.id);
       if (action === "download-local") {
-        await mansouApi.exportDownloadCbz(task.id);
+        if (!task.fileFormat) await mansouApi.exportDownloadCbz(task.id);
         const link = document.createElement("a");
-        link.href = mansouApi.downloadDownloadCbzUrl(task.id);
+        link.href = task.fileFormat
+          ? mansouApi.downloadFileUrl(task.id)
+          : mansouApi.downloadDownloadCbzUrl(task.id);
         link.download = "";
         link.rel = "noreferrer";
         link.click();

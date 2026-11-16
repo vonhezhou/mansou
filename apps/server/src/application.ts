@@ -21,6 +21,8 @@ import { createPaths } from "./storage/paths.js";
 import { createHttpClient } from "./utils/fetch.js";
 import { ensureDir } from "./utils/fs.js";
 import { SourceQualityService, type QualityOperation } from "./services/sourceQuality.js";
+import { ZlibraryClient, ZLIBRARY_KEY } from "./sources/zlibrary/client.js";
+import { ZlibraryProvider } from "./sources/zlibrary/provider.js";
 
 export function createApplication(
   config: AppConfig,
@@ -39,6 +41,18 @@ export function createApplication(
   const auth = new AuthService(storage, authConfig);
   const repository = new SourceRepositoryService(config, paths, http.fetch);
   const quality = new SourceQualityService(storage.sourceQuality);
+  const novelEngine = new NovelEngineExecutor(
+    http.fetch,
+    config.requestTimeoutMs,
+    storage.novels,
+    quality,
+  );
+  const zlibrary = new ZlibraryClient(
+    http.fetch,
+    novelEngine.sessions,
+    () => storage.getSetting<{ domain: string }>(ZLIBRARY_KEY)?.domain ?? "https://zlib.bz",
+  );
+  const zlibraryProvider = new ZlibraryProvider(zlibrary, storage, http.fetch, quality);
   const comicOperations: Record<string, QualityOperation> = {
     search: "search",
     comicDetails: "details",
@@ -64,6 +78,7 @@ export function createApplication(
     repository,
     storage,
     quality,
+    zlibraryProvider,
   );
   const search = new SearchService(sources, quality);
   const imageProxy = new ImageProxyService(
@@ -86,18 +101,13 @@ export function createApplication(
     quality,
     (value) => downloadDirectory.classify(value),
   );
-  const novelEngine = new NovelEngineExecutor(
-    http.fetch,
-    config.requestTimeoutMs,
-    storage.novels,
-    quality,
-  );
   const novelSources = new NovelSourceService(
     storage.novels,
     http.fetch,
     config.requestTimeoutMs,
     novelEngine,
     quality,
+    zlibrary,
   );
   const novelDownloads = new NovelDownloadService(
     storage.novels,
@@ -112,6 +122,7 @@ export function createApplication(
       classifyDirectory: (value) => downloadDirectory.classify(value),
       concurrency: config.downloadTaskConcurrency,
       retries: config.downloadRetries,
+      zlibrary,
     },
     onError,
     quality,
@@ -131,6 +142,7 @@ export function createApplication(
     novelDownloads,
     novelEngine,
     storage,
+    zlibrary,
     auth,
     quality,
     initialize() {
@@ -146,6 +158,7 @@ export function createApplication(
     },
     close() {
       return (closing ??= (async () => {
+        zlibrary.close();
         await initialization?.catch(() => undefined);
         try {
           await Promise.all([downloads.close(), novelDownloads.close()]);

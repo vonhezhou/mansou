@@ -314,27 +314,36 @@ export function NovelSourceList({ state, busy, run, onChange, onEdit }: Props) {
               >
                 {source.favorite ? "★ 已收藏" : "☆ 收藏"}
               </button>
-              <button
-                className="secondary-button"
-                disabled={busy}
-                onClick={() =>
-                  void run(async () =>
-                    onEdit(JSON.stringify(await novelApi.rule(source.id), null, 2)),
-                  )
-                }
-              >
-                编辑规则
-              </button>
-              <button
-                className="secondary-button"
-                disabled={busy}
-                onClick={() => {
-                  if (window.confirm(`删除书源“${source.name}”？订阅中的源下次刷新时会重新出现。`))
-                    void run(async () => onChange(await novelApi.removeSource(source.id)));
-                }}
-              >
-                删除
-              </button>
+              {!source.provider && (
+                <>
+                  <button
+                    className="secondary-button"
+                    disabled={busy}
+                    onClick={() =>
+                      void run(async () =>
+                        onEdit(JSON.stringify(await novelApi.rule(source.id), null, 2)),
+                      )
+                    }
+                  >
+                    编辑规则
+                  </button>
+                  <button
+                    className="secondary-button"
+                    disabled={busy}
+                    onClick={() => {
+                      if (
+                        window.confirm(`删除书源“${source.name}”？订阅中的源下次刷新时会重新出现。`)
+                      )
+                        void run(async () => onChange(await novelApi.removeSource(source.id)));
+                    }}
+                  >
+                    删除
+                  </button>
+                </>
+              )}
+              {source.provider && (
+                <span className="muted">与漫画源共享账号；域名在漫画源设置中配置。</span>
+              )}
             </div>
           </article>
         ))}

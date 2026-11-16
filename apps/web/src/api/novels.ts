@@ -83,5 +83,6 @@ export const novelApi = {
       action === "delete" ? "DELETE" : "POST",
     ),
   epubUrl: (id: string) => `${apiBase}/novels/downloads/${encodeURIComponent(id)}/epub`,
+  fileUrl: (id: string) => `${apiBase}/novels/downloads/${encodeURIComponent(id)}/file`,
   txtUrl: (id: string) => `${apiBase}/novels/downloads/${encodeURIComponent(id)}/txt`,
 };

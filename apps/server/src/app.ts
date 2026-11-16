@@ -2,6 +2,7 @@ import { registerNovelRoutes } from "./routes/novels.js";
 import { createApplication, type Application } from "./application.js";
 import { readConfig, validateConfig, type AppConfig } from "./config/config.js";
 import { AppError } from "./errors.js";
+import { SourceError } from "@mansou/novel-engine";
 import { applicationStatus, publicPluginErrorMessage } from "./routes/errors.js";
 import { readAuthConfig, type AuthConfig } from "./auth/config.js";
 import { registerAuthHook } from "./auth/http.js";
@@ -58,13 +59,17 @@ export async function buildApp(
       const statusCode =
         error instanceof ZodError
           ? 400
-          : error instanceof AppError
-            ? applicationStatus(error.code)
-            : ((error as { statusCode?: number }).statusCode ?? 500);
+          : error instanceof SourceError
+            ? 422
+            : error instanceof AppError
+              ? applicationStatus(error.code)
+              : ((error as { statusCode?: number }).statusCode ?? 500);
       const code =
         error instanceof ZodError || (error as { validation?: unknown }).validation
           ? "VALIDATION_ERROR"
-          : error instanceof PluginRuntimeError || error instanceof AppError
+          : error instanceof PluginRuntimeError ||
+              error instanceof AppError ||
+              error instanceof SourceError
             ? error.code
             : statusCode === 404
               ? "NOT_FOUND"

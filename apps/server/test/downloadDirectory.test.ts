@@ -192,14 +192,16 @@ it("历史任务根据实际目录识别归属，旧默认设置作为公共目�
 it("小说双目的地直接生成 EPUB/TXT，配置变更、暂停与重启后仍保持个人路径", async () => {
   const settings = await setup();
   built!.context.downloadDirectory.save(settings);
-  const source = built!.context.novelSources.import({
-    bookSourceName: "测试小说源",
-    bookSourceUrl: "https://novel.test",
-    searchUrl: "/search?q={{key}}",
-    ruleSearch: { bookList: ".book", name: "text", bookUrl: "href" },
-    ruleToc: { chapterList: ".chapter", chapterName: "text", chapterUrl: "href" },
-    ruleContent: { content: ".content@text" },
-  }).sources[0];
+  const source = built!.context.novelSources
+    .import({
+      bookSourceName: "测试小说源",
+      bookSourceUrl: "https://novel.test",
+      searchUrl: "/search?q={{key}}",
+      ruleSearch: { bookList: ".book", name: "text", bookUrl: "href" },
+      ruleToc: { chapterList: ".chapter", chapterName: "text", chapterUrl: "href" },
+      ruleContent: { content: ".content@text" },
+    })
+    .sources.find((source) => source.url === "https://novel.test")!;
   const book = { name: "测试小说", bookUrl: "https://novel.test/book" };
   const request = async (destination: string) => {
     const response = await built!.app.inject({

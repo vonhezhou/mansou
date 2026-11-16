@@ -33,11 +33,13 @@ export type AggregatedSearchItem = {
   error?: string;
 };
 export type Details = Comic & {
+  file?: import("@mansou/contracts").components["schemas"]["SourceFile"];
   comicId?: string;
   chapters?: Record<string, string>;
   thumbnails?: string[];
 };
 export type DownloadTask = {
+  fileFormat?: string;
   destination?: "public" | "personal" | "custom";
   id: string;
   title?: string;

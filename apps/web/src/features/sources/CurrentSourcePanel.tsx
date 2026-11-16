@@ -5,7 +5,7 @@ import { CookieImportPanel } from "./CookieImportPanel.js";
 import { SourceSettingsPanel } from "./SourceSettingsPanel.js";
 
 type CurrentSourcePanelProps = {
-  mode: "settings" | "cookies";
+  mode: "settings" | "cookies" | "account";
   busy: boolean;
   sourceKey: string;
   sourceMetadata: SourceMetadata[];
@@ -48,32 +48,37 @@ export function CurrentSourcePanel(props: CurrentSourcePanelProps) {
         </div>
       ) : (
         <div className="current-source-sections">
-          <div className="source-config-heading">
-            <div>
-              <span className="source-config-key">
-                {current?.subscriptionName
-                  ? `${current.subscriptionName} · ${current.originalKey ?? props.sourceKey}`
-                  : props.sourceKey}
-              </span>
-              <p className="muted">
-                {props.mode === "settings"
-                  ? "配置仅对当前漫画源生效。"
-                  : "Cookie 仅用于当前漫画源的请求。"}
-              </p>
+          {props.mode !== "account" && (
+            <div className="source-config-heading">
+              <div>
+                <span className="source-config-key">
+                  {current?.subscriptionName
+                    ? `${current.subscriptionName} · ${current.originalKey ?? props.sourceKey}`
+                    : props.sourceKey}
+                </span>
+                <p className="muted">
+                  {props.mode === "settings"
+                    ? "配置仅对当前漫画源生效。"
+                    : "Cookie 仅用于当前漫画源的请求。"}
+                </p>
+              </div>
+              {props.mode === "settings" && (
+                <button
+                  className="secondary-button"
+                  onClick={props.onLoadSourceSettings}
+                  disabled={props.busy}
+                >
+                  {props.sourceSettingsKey === props.sourceKey && props.sourceSettings
+                    ? "重新加载设置"
+                    : "加载设置"}
+                </button>
+              )}
             </div>
-            {props.mode === "settings" && (
-              <button
-                className="secondary-button"
-                onClick={props.onLoadSourceSettings}
-                disabled={props.busy}
-              >
-                {props.sourceSettingsKey === props.sourceKey && props.sourceSettings
-                  ? "重新加载设置"
-                  : "加载设置"}
-              </button>
-            )}
-          </div>
-          {props.mode !== "cookies" && (
+          )}
+          {props.mode === "account" && (
+            <SourceAccountPanel key={props.sourceKey} sourceKey={props.sourceKey} />
+          )}
+          {props.mode === "settings" && (
             <>
               <SourceSettingsPanel
                 key={`settings:${props.sourceKey}`}
@@ -97,7 +102,7 @@ export function CurrentSourcePanel(props: CurrentSourcePanelProps) {
               )}
             </>
           )}
-          {props.mode !== "settings" && (
+          {props.mode === "cookies" && (
             <CookieImportPanel
               busy={props.busy}
               sourceKey={props.sourceKey}

@@ -12,6 +12,8 @@ import type { StorageDatabase } from "@mansou/storage";
 import { PluginManager } from "@mansou/plugin-runtime";
 import { SourceRepositoryService } from "../repositories/sourceRepository.js";
 import type { SourceQualityService } from "./sourceQuality.js";
+import type { ZlibraryProvider } from "../sources/zlibrary/provider.js";
+import { ZLIBRARY_KEY } from "../sources/zlibrary/client.js";
 
 /** Application workflows; no Venera objects or executor details enter this service. */
 export class SourceService implements SourceRegistry {
@@ -23,17 +25,28 @@ export class SourceService implements SourceRegistry {
     private readonly repository: SourceRepositoryService,
     private readonly storage: StorageDatabase,
     private readonly quality?: SourceQualityService,
+    private readonly native?: ZlibraryProvider,
   ) {}
   get(key: string): SourceProvider {
+    if (this.closing) throw new AppError("APP_CLOSING", "服务正在关闭");
+    if (key === ZLIBRARY_KEY && this.native) {
+      if (!this.native.state().enabled)
+        throw new AppError("SOURCE_NOT_LOADED", "请先启用 Z-Library 漫画源");
+      return this.native;
+    }
     return this.manager.get(key);
   }
   list() {
-    return this.manager
-      .list()
-      .map((source) => ({ ...source, quality: this.quality?.snapshot("comic", source.key) }));
+    return [
+      ...this.manager.list(),
+      ...(this.native?.state().enabled ? [this.native.info()] : []),
+    ].map((source) => ({ ...source, quality: this.quality?.snapshot("comic", source.key) }));
   }
   all() {
-    return this.manager.listInstalled().map((source) => ({
+    return [
+      ...this.manager.listInstalled(),
+      ...(this.native?.state().enabled ? [this.native.info()] : []),
+    ].map((source) => ({
       ...source,
       enabled: true,
       hasSearch: source.capabilities.search,
@@ -116,6 +129,10 @@ export class SourceService implements SourceRegistry {
   }
   setEnabled(key: string, enabled: boolean) {
     return this.mutate(async () => {
+      if (key === ZLIBRARY_KEY && this.native) {
+        this.native.setEnabled(enabled);
+        return this.nativeMetadata()!;
+      }
       const source = this.storage.getSource(key);
       if (!source) return null;
       if (enabled) {
@@ -138,6 +155,10 @@ export class SourceService implements SourceRegistry {
   }
   setFavorite(key: string, favorite: boolean) {
     return this.mutate(async () => {
+      if (key === ZLIBRARY_KEY && this.native) {
+        this.native.setFavorite(favorite);
+        return this.nativeMetadata()!;
+      }
       if (!this.storage.getSource(key)) throw new AppError("SOURCE_NOT_FOUND", "漫画源不存在");
       this.storage.setSourceFavorite(key, favorite);
       return (await this.metadata()).find((source) => source.key === key)!;
@@ -145,6 +166,7 @@ export class SourceService implements SourceRegistry {
   }
   uninstall(key: string) {
     return this.mutate(async () => {
+      if (key === ZLIBRARY_KEY) throw new AppError("VALIDATION_ERROR", "内置 Z-Library 源可停用");
       const source = this.storage.getSource(key);
       if (!source) throw new AppError("SOURCE_NOT_FOUND", "漫画源不存在");
       if (
@@ -162,8 +184,8 @@ export class SourceService implements SourceRegistry {
       return { ok: true };
     });
   }
-  metadata() {
-    return this.repository.withAvailableUpdates(
+  async metadata() {
+    const sources = await this.repository.withAvailableUpdates(
       this.storage.listSources().map((source) => ({
         ...source,
         favorite: source.favorite === 1,
@@ -172,6 +194,26 @@ export class SourceService implements SourceRegistry {
         quality: this.quality?.snapshot("comic", source.key),
       })),
     );
+    return [...sources, ...(this.native ? [this.nativeMetadata()!] : [])];
+  }
+  private nativeMetadata() {
+    if (!this.native) return undefined;
+    const state = this.native.state();
+    return {
+      ...this.native.info(),
+      enabled: Number(state.enabled),
+      favorite: state.favorite,
+      canUninstall: false,
+      script_path: null,
+      script_url: null,
+      hash: "zlibrary-v1",
+      installed_at: null,
+      updated_at: null,
+      subscriptionName: "内置数据源",
+      originalKey: "zlibrary",
+      health: this.manager.health(ZLIBRARY_KEY),
+      quality: this.quality?.snapshot("comic", ZLIBRARY_KEY),
+    };
   }
   searchOptions(key: string) {
     this.get(key);
@@ -208,7 +250,11 @@ export class SourceService implements SourceRegistry {
   auth(key: string) {
     return this.get(key).auth();
   }
-  login(key: string, input: LoginInput) {
+  login(key: string, input: LoginInput, signal?: AbortSignal) {
+    if (key === ZLIBRARY_KEY && this.native) {
+      this.get(key);
+      return this.native.login(input, signal);
+    }
     return this.get(key).login(input);
   }
   logout(key: string) {

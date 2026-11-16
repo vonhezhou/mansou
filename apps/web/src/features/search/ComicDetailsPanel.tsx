@@ -56,40 +56,55 @@ export function ComicDetailsPanel(props: ComicDetailsPanelProps) {
               <h2>{props.details.title}</h2>
               <p>{props.details.description}</p>
               <p className="muted">
-                {props.detailSourceKey} · 共 {chapterIds.length} 章
+                {props.detailSourceKey} ·{" "}
+                {props.details.file
+                  ? [
+                      props.details.file.format.toUpperCase(),
+                      props.details.file.language,
+                      props.details.file.publisher,
+                      props.details.file.year,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
+                  : `共 ${chapterIds.length} 章`}
               </p>
             </div>
           </div>
-          <details className="disclosure">
-            <summary>章节页数统计</summary>
-            <div className="comic-stats">
-              <span>共 {chapterIds.length} 章</span>
-              <span>
-                {allPagesCounted
-                  ? `共 ${countedPageCount} 页`
-                  : `已统计 ${countedChapterCount}/${chapterIds.length} 章，${countedPageCount} 页`}
-              </span>
-            </div>
-            {chapterIds.length > 0 && !allPagesCounted && (
-              <button className="secondary-action" onClick={props.onCountAllPages}>
-                统计全部章节页数
-              </button>
-            )}
-          </details>
-          {chapterIds.length === 0 && (
-            <button onClick={() => props.onPreviewEpisode()}>预览内容</button>
+          {!props.details.file && (
+            <>
+              <details className="disclosure">
+                <summary>章节页数统计</summary>
+                <div className="comic-stats">
+                  <span>共 {chapterIds.length} 章</span>
+                  <span>
+                    {allPagesCounted
+                      ? `共 ${countedPageCount} 页`
+                      : `已统计 ${countedChapterCount}/${chapterIds.length} 章，${countedPageCount} 页`}
+                  </span>
+                </div>
+                {chapterIds.length > 0 && !allPagesCounted && (
+                  <button className="secondary-action" onClick={props.onCountAllPages}>
+                    统计全部章节页数
+                  </button>
+                )}
+              </details>
+              {chapterIds.length === 0 && (
+                <button onClick={() => props.onPreviewEpisode()}>预览内容</button>
+              )}
+              <ChapterSelector
+                key={`${props.detailSourceKey}:${props.details.comicId ?? props.details.id}`}
+                chapters={props.details.chapters ?? {}}
+                episodeId={props.episodeId}
+                selectedEpisodeIds={props.selectedEpisodeIds}
+                episodePageCounts={props.episodePageCounts}
+                onPreviewEpisode={props.onPreviewEpisode}
+                onToggleSelectedEpisode={props.onToggleSelectedEpisode}
+                onSelectEpisodes={props.onSelectEpisodes}
+              />
+            </>
           )}
-          <ChapterSelector
-            key={`${props.detailSourceKey}:${props.details.comicId ?? props.details.id}`}
-            chapters={props.details.chapters ?? {}}
-            episodeId={props.episodeId}
-            selectedEpisodeIds={props.selectedEpisodeIds}
-            episodePageCounts={props.episodePageCounts}
-            onPreviewEpisode={props.onPreviewEpisode}
-            onToggleSelectedEpisode={props.onToggleSelectedEpisode}
-            onSelectEpisodes={props.onSelectEpisodes}
-          />
           <DownloadActions
+            fileFormat={props.details.file?.format}
             selectedEpisodeIds={props.selectedEpisodeIds}
             downloadCreateStatus={props.downloadCreateStatus}
             onCreateDownload={props.onCreateDownload}

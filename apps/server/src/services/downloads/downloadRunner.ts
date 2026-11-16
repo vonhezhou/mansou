@@ -53,6 +53,46 @@ export class DownloadRunner {
   }
 
   async run(task: DownloadTask, signal: AbortSignal, progress: DownloadProgress) {
+    const provider = this.sources.get(task.sourceKey);
+    if (provider.downloadFile) {
+      const directory = path.join(task.downloadDir ?? this.options.outputDir, task.id);
+      progress({
+        outputDir: directory,
+        phase: "loading_details",
+        fileFormat: "pending",
+        total: 0,
+        completed: 0,
+      });
+      const details = await provider.comicDetails(task.comicId);
+      signal.throwIfAborted();
+      progress({ title: details.title, fileFormat: details.file?.format ?? "pending" });
+      let lastProgress = 0;
+      const file = await provider.downloadFile(
+        task.comicId,
+        directory,
+        signal,
+        (received, total) => {
+          if (performance.now() - lastProgress >= 500 || received === total) {
+            progress({
+              phase: "downloading_file",
+              total,
+              completed: received,
+              totalKnown: total > 0,
+            });
+            lastProgress = performance.now();
+          }
+        },
+      );
+      signal.throwIfAborted();
+      progress({
+        title: file.title,
+        fileFormat: file.format,
+        total: file.size ?? 0,
+        completed: file.size ?? 0,
+        totalKnown: true,
+      });
+      return;
+    }
     progress(
       { phase: "loading_details", total: 0, completed: 0, totalKnown: false },
       "Loading comic details",

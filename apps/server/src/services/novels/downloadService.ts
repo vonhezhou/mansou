@@ -17,6 +17,7 @@ import type { StorageDatabase } from "@mansou/storage";
 import { AppError } from "../../errors.js";
 import { DownloadScheduler } from "../downloads/downloadScheduler.js";
 import { NovelSourceService } from "./sourceService.js";
+import { ZlibraryClient, isZlibrary } from "../../sources/zlibrary/client.js";
 
 type Task = components["schemas"]["NovelTask"];
 type Input = Omit<components["schemas"]["NovelDownloadRequest"], "destination"> & {
@@ -39,6 +40,7 @@ export class NovelDownloadService {
       classifyDirectory?: (value: string) => Task["destination"];
       concurrency: number;
       retries: number;
+      zlibrary?: ZlibraryClient;
     },
     private readonly onError: (error: unknown) => void,
     private readonly quality?: SourceQualityService,
@@ -60,7 +62,7 @@ export class NovelDownloadService {
       // 成品缺失时沿用固定目录与章节缓存重建，不需要重新下载完整正文。
       if (
         task.status === "completed" &&
-        ["epub", "txt"].some(
+        (task.fileFormat ? [task.fileFormat] : ["epub", "txt"]).some(
           (format) => !existsSync(path.join(this.directory(task.id), `book.${format}`)),
         )
       )
@@ -91,7 +93,9 @@ export class NovelDownloadService {
   create(input: Input): Task {
     if (this.scheduler.closing) throw new AppError("APP_CLOSING", "服务正在关闭");
     const source = this.sources.source(input.sourceId);
-    assertDownloadSupported(source.raw);
+    if (!isZlibrary(source.raw)) assertDownloadSupported(source.raw);
+    if (isZlibrary(source.raw) && input.all === false)
+      throw new AppError("VALIDATION_ERROR", "Z-Library 支持整本文件下载");
     const downloadDir =
       this.options.resolveDirectory?.(input.downloadDir, input.destination) ??
       input.downloadDir ??
@@ -121,6 +125,7 @@ export class NovelDownloadService {
       sourceName: source.summary.name,
       name: input.book.name,
       author: input.book.author,
+      fileFormat: isZlibrary(source.raw) ? "pending" : undefined,
       bookUrl: input.book.bookUrl,
       all,
       start,
@@ -190,6 +195,34 @@ export class NovelDownloadService {
       signal.throwIfAborted();
       const row = this.record(id);
       const task = row.task;
+      if (isZlibrary(row.raw)) {
+        const client = this.options.zlibrary;
+        if (!client) throw new AppError("SOURCE_NOT_FOUND", "Z-Library 数据源未配置");
+        this.patch(id, { status: "running", phase: "下载整本文件", error: undefined });
+        const book = await client.book(task.bookUrl, signal);
+        this.patch(id, { fileFormat: book.format, total: book.size ?? 0, completed: 0 });
+        let lastProgress = 0;
+        const file = await client.download(
+          task.bookUrl,
+          this.directory(id),
+          signal,
+          (received, total) => {
+            if (performance.now() - lastProgress >= 500 || received === total) {
+              this.patch(id, { total, completed: received });
+              lastProgress = performance.now();
+            }
+          },
+        );
+        signal.throwIfAborted();
+        this.patch(id, {
+          status: "completed",
+          phase: "已完成",
+          fileFormat: file.format,
+          completed: file.size ?? 0,
+          total: file.size ?? 0,
+        });
+        return;
+      }
       this.patch(id, { status: "running", phase: "读取目录", error: undefined });
       let plan = this.db.get<Plan>("plan", id);
       if (!plan) {
@@ -324,6 +357,8 @@ export class NovelDownloadService {
   }
   async openExport(id: string, format: "epub" | "txt") {
     const task = this.record(id).task;
+    if (task.fileFormat && task.fileFormat !== format)
+      throw new AppError("VALIDATION_ERROR", "请下载该任务的原始文件格式");
     if (task.status !== "completed")
       throw new AppError("DOWNLOAD_NOT_COMPLETED", "选定章节尚未全部下载成功");
     const file = path.join(this.directory(id), `book.${format}`);
@@ -332,5 +367,17 @@ export class NovelDownloadService {
   }
   close() {
     return this.scheduler.close().catch(this.onError);
+  }
+  async openFile(id: string) {
+    const task = this.record(id).task;
+    if (
+      task.status !== "completed" ||
+      !task.fileFormat ||
+      !/^[a-z0-9]{1,12}$/.test(task.fileFormat)
+    )
+      throw new AppError("DOWNLOAD_NOT_COMPLETED", "整本文件尚未下载完成");
+    const file = path.join(this.directory(id), `book.${task.fileFormat}`);
+    await stat(file);
+    return { name: `${task.name}.${task.fileFormat}`, stream: createReadStream(file) };
   }
 }

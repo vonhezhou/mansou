@@ -114,6 +114,34 @@ test("HTTP 搜索经过重定向后使用最终 URL 解析链接，自动识别 
   }
 });
 
+test("文件型书籍保留同名同作者的不同格式和版本", () => {
+  const result = mergeBooks([
+    {
+      sourceId: "zlibrary",
+      sourceName: "Z-Library",
+      status: "ok",
+      elapsedMs: 0,
+      books: [
+        {
+          name: "书名",
+          author: "作者",
+          bookUrl: "https://zlib.bz/eapi/book/1/abc",
+          file: { format: "epub", year: "2020" },
+        },
+        {
+          name: "书名",
+          author: "作者",
+          bookUrl: "https://zlib.bz/eapi/book/2/def",
+          file: { format: "pdf", year: "2026" },
+        },
+      ],
+    },
+  ]);
+  assert.equal(result.length, 2);
+  assert.equal(result[0].origins[0].file?.format, "epub");
+  assert.equal(result[1].origins[0].file?.format, "pdf");
+});
+
 test("相同作品跨源合并；同名不同作者和未知作者分别保留", () => {
   const make = (id: string, author: string): SourceOutcome => ({
     sourceId: id,

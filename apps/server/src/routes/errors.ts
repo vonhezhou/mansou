@@ -11,6 +11,7 @@ export function applicationStatus(code: string) {
   if (code === "DOWNLOAD_BUSY" || code === "DOWNLOAD_NOT_COMPLETED" || code === "SOURCE_BUILTIN")
     return 409;
   if (code === "APP_CLOSING") return 503;
+  if (code === "SOURCE_NOT_LOADED") return 422;
   return 500;
 }
 
