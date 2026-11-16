@@ -882,7 +882,7 @@ it.each([
     1,
   ]);
   expect(result.error).toMatchObject({
-    code: "SOURCE_ERROR",
+    code: "NETWORK_ERROR",
     message: expect.stringContaining(reason),
   });
   expect(result.error.message).not.toContain("secret");

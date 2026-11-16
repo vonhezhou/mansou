@@ -245,7 +245,14 @@ export async function fetchHtml(
     });
     if (!response.ok && !script?.source.loginCheckJs) {
       await response.body?.cancel();
-      throw new SourceError("HTTP_ERROR", `上游返回 HTTP ${response.status}`);
+      throw new SourceError(
+        response.status === 429
+          ? "RATE_LIMITED"
+          : [401, 403].includes(response.status)
+            ? "AUTH_REQUIRED"
+            : "HTTP_ERROR",
+        `上游返回 HTTP ${response.status}`,
+      );
     }
     const chunks: Uint8Array[] = [];
     let size = 0;
@@ -292,7 +299,14 @@ export async function fetchHtml(
       }
     }
     if (!response.ok && !handledError)
-      throw new SourceError("HTTP_ERROR", `上游返回 HTTP ${response.status}`);
+      throw new SourceError(
+        response.status === 429
+          ? "RATE_LIMITED"
+          : [401, 403].includes(response.status)
+            ? "AUTH_REQUIRED"
+            : "HTTP_ERROR",
+        `上游返回 HTTP ${response.status}`,
+      );
     return { html, url: response.url || request.url };
   } catch (error) {
     if (error instanceof SourceError) throw error;

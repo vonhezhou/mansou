@@ -299,7 +299,7 @@ export class NovelEngineExecutor {
       const reason =
         typeof code === "string" && Object.hasOwn(reasons, code) ? reasons[code] : undefined;
       throw new SourceError(
-        "SOURCE_ERROR",
+        "NETWORK_ERROR",
         `书源网络请求失败${reason ? `：${reason}（${code}）` : ""}，请检查站点可达性及服务器代理设置`,
       );
     }

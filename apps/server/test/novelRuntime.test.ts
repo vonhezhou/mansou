@@ -158,7 +158,7 @@ it("JS 登录、令牌和 Cookie 经 Worker 持久化，搜索/目录/同步正�
   expect((await env.sources.search("凡人", 1)).results).toHaveLength(1);
   env.sources.logout(env.id);
   expect(env.sources.account(env.id).loggedIn).toBe(false);
-  expect((await env.sources.search("凡人", 1)).sources[0]!.error?.code).toBe("HTTP_ERROR");
+  expect((await env.sources.search("凡人", 1)).sources[0]!.error?.code).toBe("AUTH_REQUIRED");
 });
 
 it("失败登录会清理 Cookie 和令牌，不覆盖其他书源会话", async () => {

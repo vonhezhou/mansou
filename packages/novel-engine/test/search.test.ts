@@ -155,7 +155,7 @@ test("聚合隔离 HTTP 错误和规则不匹配；不会把验证脚本标记�
     assert.equal(result.results.length, 1);
     assert.deepEqual(
       result.sources.map((s) => s.error?.code ?? "ok"),
-      ["ok", "HTTP_ERROR", "CHALLENGE", "PARSE_MISMATCH"],
+      ["ok", "AUTH_REQUIRED", "CHALLENGE", "PARSE_MISMATCH"],
     );
   } finally {
     await close(upstream);
@@ -299,4 +299,32 @@ test("正常空结果携带验证脚本时不误判；未知页面仍保留错�
     () => parseSearchHtml(s, "<title>陌生页面</title>", s.source.bookSourceUrl),
     /未找到搜索列表/,
   );
+});
+
+test("同站点源按组轮转，受限并发下其他站点仍能先返回", async () => {
+  const sources = ["a1", "a2", "b1"].map((id) => ({
+    id,
+    supported: true,
+    source: source(`https://${id[0]}.test`, "/search", id),
+  }));
+  const active = new Set<string>();
+  const finished: string[] = [];
+  let overlap = false;
+  const result = await searchAll(sources, "test", 1, {
+    concurrency: 3,
+    timeoutMs: 1000,
+    sourceGroup: (item) => new URL(item.source.bookSourceUrl).hostname,
+    runSource: async (item) => {
+      const group = item.id[0];
+      if (active.has(group)) overlap = true;
+      active.add(group);
+      await new Promise((resolve) => setTimeout(resolve, group === "a" ? 15 : 1));
+      active.delete(group);
+      finished.push(item.id);
+      return { sourceId: item.id, sourceName: item.id, status: "ok", elapsedMs: 1, books: [] };
+    },
+  });
+  assert.equal(overlap, false);
+  assert.deepEqual(finished, ["b1", "a1", "a2"]);
+  assert.equal(result.completedSources, 3);
 });

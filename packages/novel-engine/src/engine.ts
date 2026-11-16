@@ -89,6 +89,7 @@ export function parseSearchHtml(
 export interface SearchOptions extends RuntimeOptions {
   timeoutMs: number;
   concurrency: number;
+  sourceGroup?: (source: RegisteredSource) => string;
   signal?: AbortSignal;
   fetcher?: typeof fetch;
   runSource?: typeof searchOne;
@@ -177,12 +178,20 @@ export async function searchAll(
     throw new Error("concurrency 必须为 1–16");
   const started = performance.now();
   const outcomes: SourceOutcome[] = new Array(sources.length);
-  let cursor = 0;
+  const groups = new Map<string, number[]>();
+  sources.forEach((source, index) => {
+    const group = options.sourceGroup?.(source) ?? String(index);
+    const indexes = groups.get(group) ?? [];
+    indexes.push(index);
+    groups.set(group, indexes);
+  });
+  const pending = [...groups.values()];
   let completedSources = 0;
   await options.onProgress?.({ totalSources: sources.length, completedSources, elapsedMs: 0 });
   const worker = async () => {
-    while (cursor < sources.length && !options.signal?.aborted) {
-      const index = cursor++;
+    while (pending.length && !options.signal?.aborted) {
+      const group = pending.shift()!;
+      const index = group.shift()!;
       outcomes[index] = await (options.runSource ?? searchOne)(sources[index]!, key, page, options);
       completedSources++;
       await options.onProgress?.({
@@ -191,6 +200,7 @@ export async function searchAll(
         elapsedMs: Math.round(performance.now() - started),
         source: outcomes[index],
       });
+      if (group.length) pending.push(group);
     }
   };
   await Promise.all(Array.from({ length: Math.min(options.concurrency, sources.length) }, worker));

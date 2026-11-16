@@ -50,6 +50,9 @@ export type ErrorCode =
   | "TIMEOUT"
   | "CANCELLED"
   | "HTTP_ERROR"
+  | "RATE_LIMITED"
+  | "AUTH_REQUIRED"
+  | "NETWORK_ERROR"
   | "RESPONSE_TOO_LARGE"
   | "CHALLENGE"
   | "PARSE_MISMATCH";
