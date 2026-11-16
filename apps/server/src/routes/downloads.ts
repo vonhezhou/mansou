@@ -51,9 +51,10 @@ export async function registerDownloadRoutes(
         sourceKey: z.string(),
         comicId: z.string(),
         episodeId: z.string().optional(),
-        downloadDir: z.string().trim().min(1).max(4096).optional(),
+        destination: z.enum(["public", "personal"]).optional(),
         all: z.boolean().optional(),
       })
+      .strict()
       .parse(request.body);
     return context.downloads.create(body);
   });

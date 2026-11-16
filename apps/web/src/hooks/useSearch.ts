@@ -453,7 +453,10 @@ export function useSearch(options: UseSearchOptions) {
     );
   }
 
-  async function createDownload(mode: "first" | "selected" | "all", downloadDir?: string) {
+  async function createDownload(
+    mode: "first" | "selected" | "all",
+    destination?: "public" | "personal",
+  ) {
     if (!details || (mode === "selected" && selectedEpisodeIds.length === 0)) return;
     const requestId = detailRequest.current;
     setCountProgress(null);
@@ -484,7 +487,7 @@ export function useSearch(options: UseSearchOptions) {
           try {
             const task = await mansouApi.createDownload({
               ...request,
-              ...(downloadDir ? { downloadDir } : {}),
+              ...(destination ? { destination } : {}),
             });
             if (task?.id)
               rememberInterestDownload(

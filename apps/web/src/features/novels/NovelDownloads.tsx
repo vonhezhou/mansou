@@ -24,7 +24,12 @@ export function NovelDownloads({ tasks, busy, run, reload }: Props) {
           <article className="novel-panel" key={task.id}>
             <h2>{task.name}</h2>
             <p className="muted">
-              {task.author || "作者未知"} · {task.sourceName} ·{" "}
+              {task.destination === "personal"
+                ? "个人"
+                : task.destination === "public"
+                  ? "公共"
+                  : "自定义目录"}{" "}
+              · {task.author || "作者未知"} · {task.sourceName} ·{" "}
               {task.all ? "下载目录全部章节" : `从第 ${task.start} 项起下载 ${task.limit} 项`}
             </p>
             <p role="status">

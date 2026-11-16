@@ -171,7 +171,7 @@ export const mansouApi = {
     comicId: string;
     episodeId?: string;
     all?: boolean;
-    downloadDir?: string;
+    destination?: "public" | "personal";
   }) => api<DownloadTask>("/downloads", { method: "POST", body: JSON.stringify(input) }),
   listDownloadItemsPage: (
     taskId: string,

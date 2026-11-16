@@ -28,6 +28,7 @@ export type DownloadTask = {
   current?: string;
   logs: Array<{ time: string; phase: DownloadPhase; message: string }>;
   downloadDir?: string;
+  destination?: "public" | "personal" | "custom";
   outputDir?: string;
   createdAt: string;
   updatedAt: string;

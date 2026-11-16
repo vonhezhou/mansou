@@ -1,11 +1,14 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import * as client from "../api/client.js";
 import { App } from "../App.js";
 import { authApi } from "../api/auth.js";
 import { novelApi, type NovelTask, type NovelState } from "../api/novels.js";
 import { mansouApi } from "../api/mansou.js";
 import type { DownloadTask } from "../types.js";
+
+const originalApi = client.api;
 
 const initialNovelState: NovelState = {
   subscriptions: [{ id: "local", name: "自定义书源", enabled: true, count: 1 }],
@@ -78,6 +81,17 @@ async function click(selector: string) {
 }
 beforeEach(async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  vi.spyOn(client, "api").mockImplementation(
+    async <T,>(url: string, init?: RequestInit): Promise<T> => {
+      if (url === "/settings/downloads")
+        return {
+          publicDir: "/public",
+          personalDir: "/personal",
+          defaultDestination: "public",
+        } as T;
+      return originalApi<T>(url, init);
+    },
+  );
   Object.defineProperties(HTMLDialogElement.prototype, {
     showModal: {
       configurable: true,

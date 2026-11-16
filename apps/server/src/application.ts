@@ -82,8 +82,9 @@ export function createApplication(
     }),
     config.downloadTaskConcurrency,
     onError,
-    (value) => downloadDirectory.resolve(value),
+    (value, destination) => downloadDirectory.resolve(value, destination),
     quality,
+    (value) => downloadDirectory.classify(value),
   );
   const novelEngine = new NovelEngineExecutor(
     http.fetch,
@@ -104,7 +105,11 @@ export function createApplication(
     novelEngine,
     {
       outputDir: path.join(paths.downloads, "novels"),
-      resolveDirectory: (value) => path.join(downloadDirectory.resolve(value), "novels"),
+      resolveDirectory: (value, destination) =>
+        value
+          ? downloadDirectory.resolve(value)
+          : path.join(downloadDirectory.resolve(undefined, destination), "novels"),
+      classifyDirectory: (value) => downloadDirectory.classify(value),
       concurrency: config.downloadTaskConcurrency,
       retries: config.downloadRetries,
     },

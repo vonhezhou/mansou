@@ -66,7 +66,7 @@ export const novelApi = {
     all: boolean,
     start: number,
     limit: number,
-    downloadDir?: string,
+    destination?: "public" | "personal",
   ) =>
     call<NovelTask>("/downloads", {
       sourceId: origin.sourceId,
@@ -74,7 +74,7 @@ export const novelApi = {
       all,
       start,
       limit,
-      downloadDir,
+      destination,
     }),
   action: (id: string, action: "pause" | "resume" | "cancel" | "delete") =>
     call<NovelTask>(

@@ -15,7 +15,10 @@ type ComicDetailsPanelProps = {
   onCountAllPages: () => void;
   onToggleSelectedEpisode: (episodeId: string) => void;
   onSelectEpisodes: (action: "all" | "clear" | "invert") => void;
-  onCreateDownload: (mode: "first" | "selected" | "all", downloadDir?: string) => void;
+  onCreateDownload: (
+    mode: "first" | "selected" | "all",
+    destination?: "public" | "personal",
+  ) => void;
 };
 
 export function ComicDetailsPanel(props: ComicDetailsPanelProps) {

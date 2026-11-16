@@ -39,7 +39,12 @@ export function DownloadTaskCard(props: DownloadTaskCardProps) {
         <div className="download-title">
           <strong>{props.task.title ?? props.task.comicId}</strong>
           <span className="muted">
-            {props.task.sourceKey} · {downloadScope(props.task)}
+            {props.task.destination === "personal"
+              ? "个人"
+              : props.task.destination === "public"
+                ? "公共"
+                : "自定义目录"}{" "}
+            · {props.task.sourceKey} · {downloadScope(props.task)}
           </span>
         </div>
         <span className="status-badge">{statusLabel(props.task.status)}</span>

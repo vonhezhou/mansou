@@ -2877,21 +2877,30 @@ components:
             type: string
       required:
         - images
+    DownloadDestination:
+      type: string
+      enum: [public, personal]
     DownloadSettings:
       type: object
-      required: [downloadDir]
+      additionalProperties: false
+      required: [publicDir, personalDir, defaultDestination]
       properties:
-        downloadDir:
+        publicDir:
           type: string
           minLength: 1
           maxLength: 4096
+        personalDir:
+          type: string
+          minLength: 1
+          maxLength: 4096
+        defaultDestination:
+          $ref: "#/components/schemas/DownloadDestination"
     CreateDownloadRequest:
       type: object
+      additionalProperties: false
       properties:
-        downloadDir:
-          type: string
-          minLength: 1
-          maxLength: 4096
+        destination:
+          $ref: "#/components/schemas/DownloadDestination"
         sourceKey:
           type: string
         comicId:
@@ -2920,6 +2929,9 @@ components:
       type: object
       additionalProperties: true
       properties:
+        destination:
+          type: string
+          enum: [public, personal, custom]
         downloadDir:
           type: string
         id:
@@ -3549,6 +3561,9 @@ components:
     NovelTask:
       type: object
       properties:
+        destination:
+          type: string
+          enum: [public, personal, custom]
         downloadDir:
           type: string
           minLength: 1
@@ -3677,11 +3692,10 @@ components:
       required: [chapter, content]
     NovelDownloadRequest:
       type: object
+      additionalProperties: false
       properties:
-        downloadDir:
-          type: string
-          minLength: 1
-          maxLength: 4096
+        destination:
+          $ref: "#/components/schemas/DownloadDestination"
         sourceId: *a1
         book:
           $ref: "#/components/schemas/NovelBook"

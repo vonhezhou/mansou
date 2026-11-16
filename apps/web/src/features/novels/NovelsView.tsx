@@ -143,7 +143,12 @@ export function NovelsView({
     },
     [result, runSearch],
   );
-  const download = async (all: boolean, start: number, limit: number, downloadDir?: string) => {
+  const download = async (
+    all: boolean,
+    start: number,
+    limit: number,
+    destination?: "public" | "personal",
+  ) => {
     if (creating.current || !origin || !catalog?.tocComplete) return;
     const selected = selection.current;
     creating.current = true;
@@ -151,7 +156,7 @@ export function NovelsView({
     setDownloadError(undefined);
     let created = false;
     try {
-      const task = await novelApi.download(origin, all, start, limit, downloadDir);
+      const task = await novelApi.download(origin, all, start, limit, destination);
       if (task?.id)
         rememberInterestDownload(
           "novel",

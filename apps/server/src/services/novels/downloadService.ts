@@ -19,7 +19,10 @@ import { DownloadScheduler } from "../downloads/downloadScheduler.js";
 import { NovelSourceService } from "./sourceService.js";
 
 type Task = components["schemas"]["NovelTask"];
-type Input = components["schemas"]["NovelDownloadRequest"];
+type Input = Omit<components["schemas"]["NovelDownloadRequest"], "destination"> & {
+  downloadDir?: string;
+  destination?: Task["destination"];
+};
 type TaskRecord = { task: Task; raw: BookSource };
 type Plan = { catalog: Catalog; indexes: number[] };
 
@@ -32,7 +35,8 @@ export class NovelDownloadService {
     private readonly engine: NovelEngineExecutor,
     private readonly options: {
       outputDir: string;
-      resolveDirectory?: (value?: string) => string;
+      resolveDirectory?: (value?: string, destination?: Task["destination"]) => string;
+      classifyDirectory?: (value: string) => Task["destination"];
       concurrency: number;
       retries: number;
     },
@@ -65,7 +69,13 @@ export class NovelDownloadService {
     this.scheduler.kick();
   }
   all(): Task[] {
-    return this.db.list<TaskRecord>("task").map((row) => row.task);
+    return this.db.list<TaskRecord>("task").map((row) => ({
+      ...row.task,
+      destination:
+        row.task.destination ??
+        this.options.classifyDirectory?.(row.task.downloadDir ?? this.options.outputDir) ??
+        "custom",
+    }));
   }
   private record(id: string): TaskRecord {
     const record = this.db.get<TaskRecord>("task", id);
@@ -83,7 +93,7 @@ export class NovelDownloadService {
     const source = this.sources.source(input.sourceId);
     assertDownloadSupported(source.raw);
     const downloadDir =
-      this.options.resolveDirectory?.(input.downloadDir) ??
+      this.options.resolveDirectory?.(input.downloadDir, input.destination) ??
       input.downloadDir ??
       this.options.outputDir;
     const all = input.all ?? true;
@@ -104,8 +114,9 @@ export class NovelDownloadService {
     const now = new Date().toISOString();
     const task: Task = {
       id: randomUUID(),
-      // 内置目录随数据目录备份恢复，自定义目录固定为用户指定的绝对路径。
-      downloadDir: downloadDir === this.options.outputDir ? undefined : downloadDir,
+      // 创建时固定目录，修改目的地配置后恢复任务仍使用原路径。
+      downloadDir,
+      destination: input.destination ?? this.options.classifyDirectory?.(downloadDir) ?? "custom",
       sourceId: input.sourceId,
       sourceName: source.summary.name,
       name: input.book.name,

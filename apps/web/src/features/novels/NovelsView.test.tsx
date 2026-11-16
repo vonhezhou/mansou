@@ -92,6 +92,15 @@ it.each(["完成后进入任务", "关闭后不跳转", "关闭后创建失败",
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, options?: RequestInit) => {
+        if (url === "/api/v1/settings/downloads")
+          return new Response(
+            JSON.stringify({
+              publicDir: "/public",
+              personalDir: "/personal",
+              defaultDestination: "public",
+            }),
+            { headers: { "content-type": "application/json" } },
+          );
         const path = url.replace("/api/v1/novels", "");
         const body = options?.body ? JSON.parse(String(options.body)) : undefined;
         requests.push({ path, body });
@@ -224,7 +233,14 @@ it.each(["完成后进入任务", "关闭后不跳转", "关闭后创建失败",
     });
     expect(
       requests.find((request) => request.path === "/downloads" && request.body)?.body,
-    ).toMatchObject({ sourceId: origin.sourceId, all: false, start: 1, limit: 2, book: origin });
+    ).toMatchObject({
+      sourceId: origin.sourceId,
+      all: false,
+      start: 1,
+      limit: 2,
+      book: origin,
+      destination: "public",
+    });
     expect(
       requests.filter((request) => request.path === "/downloads" && request.body),
     ).toHaveLength(1);

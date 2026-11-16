@@ -2,7 +2,10 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { NovelCatalog, NovelOrigin, NovelSource } from "../../api/novels.js";
+import * as client from "../../api/client.js";
 import { NovelDetailsDialog } from "./NovelDetailsDialog.js";
+
+const originalApi = client.api;
 
 const source: NovelSource = {
   id: "a",
@@ -54,6 +57,17 @@ const base = {
 };
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  vi.spyOn(client, "api").mockImplementation(
+    async <T,>(url: string, init?: RequestInit): Promise<T> => {
+      if (url === "/settings/downloads")
+        return {
+          publicDir: "/public",
+          personalDir: "/personal",
+          defaultDestination: "public",
+        } as T;
+      return originalApi<T>(url, init);
+    },
+  );
   Object.defineProperties(HTMLDialogElement.prototype, {
     showModal: {
       configurable: true,
@@ -123,7 +137,7 @@ it("五万项目录只挂载一页，支持末页、名称/序号检索和定位
   expect(button("下载全部 50,000 项").disabled).toBe(false);
   await setValue(inputs[1], "2");
   await act(async () => button("下载所选范围").click());
-  expect(onDownload).toHaveBeenCalledWith(false, 49999, 2, undefined);
+  expect(onDownload).toHaveBeenCalledWith(false, 49999, 2, "public");
   await setValue(inputs[0], "");
   expect(button("下载所选范围").disabled).toBe(true);
 });
@@ -178,10 +192,13 @@ it("正文独立预览关闭后保留详情，切换来源清理预览且不遗�
   expect(document.body.style.overflow).toBe(previousOverflow);
 });
 
-it("小说下载允许覆盖本次服务器目录", async () => {
+it("小说下载提交选择的个人目的地", async () => {
   await act(async () => root.render(<NovelDetailsDialog {...base} catalog={catalog(3)} />));
-  const input = container.querySelector<HTMLInputElement>('input[maxlength="4096"]')!;
-  await setValue(input, "/custom-novels");
+  const select = container.querySelector<HTMLSelectElement>("select")!;
+  await act(async () => {
+    select.value = "personal";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
   await act(async () => button("下载所选范围").click());
-  expect(onDownload).toHaveBeenCalledWith(false, 1, 3, "/custom-novels");
+  expect(onDownload).toHaveBeenCalledWith(false, 1, 3, "personal");
 });

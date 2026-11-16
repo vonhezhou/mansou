@@ -1647,11 +1647,15 @@ export interface components {
     EpisodePages: {
       images: string[];
     };
+    /** @enum {string} */
+    DownloadDestination: "public" | "personal";
     DownloadSettings: {
-      downloadDir: string;
+      publicDir: string;
+      personalDir: string;
+      defaultDestination: components["schemas"]["DownloadDestination"];
     };
     CreateDownloadRequest: {
-      downloadDir?: string;
+      destination?: components["schemas"]["DownloadDestination"];
       sourceKey: string;
       comicId: string;
       episodeId?: string;
@@ -1663,6 +1667,8 @@ export interface components {
       message: string;
     };
     DownloadTask: {
+      /** @enum {string} */
+      destination?: "public" | "personal" | "custom";
       downloadDir?: string;
       id: string;
       sourceKey: string;
@@ -1934,6 +1940,8 @@ export interface components {
       chapters: components["schemas"]["NovelChapter"][];
     };
     NovelTask: {
+      /** @enum {string} */
+      destination?: "public" | "personal" | "custom";
       downloadDir?: string;
       id: string;
       sourceId: string;
@@ -1999,7 +2007,7 @@ export interface components {
       content: string;
     };
     NovelDownloadRequest: {
-      downloadDir?: string;
+      destination?: components["schemas"]["DownloadDestination"];
       sourceId: string;
       book: components["schemas"]["NovelBook"];
       /** @default true */

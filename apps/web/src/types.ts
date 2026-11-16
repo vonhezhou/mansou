@@ -38,6 +38,7 @@ export type Details = Comic & {
   thumbnails?: string[];
 };
 export type DownloadTask = {
+  destination?: "public" | "personal" | "custom";
   id: string;
   title?: string;
   sourceKey: string;

@@ -2480,15 +2480,22 @@ export const openApiDocument = {
         properties: { images: { type: "array", items: { type: "string" } } },
         required: ["images"],
       },
+      DownloadDestination: { type: "string", enum: ["public", "personal"] },
       DownloadSettings: {
         type: "object",
-        required: ["downloadDir"],
-        properties: { downloadDir: { type: "string", minLength: 1, maxLength: 4096 } },
+        additionalProperties: false,
+        required: ["publicDir", "personalDir", "defaultDestination"],
+        properties: {
+          publicDir: { type: "string", minLength: 1, maxLength: 4096 },
+          personalDir: { type: "string", minLength: 1, maxLength: 4096 },
+          defaultDestination: { $ref: "#/components/schemas/DownloadDestination" },
+        },
       },
       CreateDownloadRequest: {
         type: "object",
+        additionalProperties: false,
         properties: {
-          downloadDir: { type: "string", minLength: 1, maxLength: 4096 },
+          destination: { $ref: "#/components/schemas/DownloadDestination" },
           sourceKey: { type: "string" },
           comicId: { type: "string" },
           episodeId: { type: "string" },
@@ -2509,6 +2516,7 @@ export const openApiDocument = {
         type: "object",
         additionalProperties: true,
         properties: {
+          destination: { type: "string", enum: ["public", "personal", "custom"] },
           downloadDir: { type: "string" },
           id: { type: "string" },
           sourceKey: { type: "string" },
@@ -3009,6 +3017,7 @@ export const openApiDocument = {
       NovelTask: {
         type: "object",
         properties: {
+          destination: { type: "string", enum: ["public", "personal", "custom"] },
           downloadDir: { type: "string", minLength: 1, maxLength: 4096 },
           id: { type: "string" },
           sourceId: { type: "string" },
@@ -3114,8 +3123,9 @@ export const openApiDocument = {
       },
       NovelDownloadRequest: {
         type: "object",
+        additionalProperties: false,
         properties: {
-          downloadDir: { type: "string", minLength: 1, maxLength: 4096 },
+          destination: { $ref: "#/components/schemas/DownloadDestination" },
           sourceId: { type: "string" },
           book: { $ref: "#/components/schemas/NovelBook" },
           all: { type: "boolean", default: true },

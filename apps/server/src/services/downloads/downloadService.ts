@@ -18,6 +18,7 @@ type DownloadInput = {
   episodeId?: string;
   all?: boolean;
   downloadDir?: string;
+  destination?: DownloadTask["destination"];
 };
 const terminal = new Set(["completed", "failed", "cancelled"]);
 
@@ -36,8 +37,12 @@ export class DownloadService {
     private readonly runner: DownloadRunner,
     concurrency: number,
     private readonly onError: (error: unknown) => void,
-    private readonly resolveDirectory: (value?: string) => string | undefined = (value) => value,
+    private readonly resolveDirectory: (
+      value?: string,
+      destination?: DownloadTask["destination"],
+    ) => string | undefined = (value) => value,
     private readonly quality?: SourceQualityService,
+    private readonly classifyDirectory?: (value: string) => DownloadTask["destination"],
   ) {
     this.scheduler = new DownloadScheduler(
       concurrency,
@@ -76,10 +81,20 @@ export class DownloadService {
     this.scheduler.kick();
   }
   all() {
-    return this.repository.all();
+    return this.repository.all().map((task) => this.withDestination(task));
   }
   find(id: string) {
-    return this.repository.find(id);
+    const task = this.repository.find(id);
+    return task ? this.withDestination(task) : task;
+  }
+  private withDestination(task: DownloadTask): DownloadTask {
+    return {
+      ...task,
+      destination:
+        task.destination ??
+        this.classifyDirectory?.(task.downloadDir ?? this.runner.defaultDirectory) ??
+        "custom",
+    };
   }
   items(id: string) {
     return this.find(id) ? this.repository.items(id) : null;
@@ -91,7 +106,7 @@ export class DownloadService {
 
   create(input: DownloadInput) {
     this.assertOpen();
-    const downloadDir = this.resolveDirectory(input.downloadDir);
+    const downloadDir = this.resolveDirectory(input.downloadDir, input.destination);
     const episodeId = input.episodeId ?? "_default";
     const tasks = this.repository.forComic(input.sourceKey, input.comicId);
     if (tasks.some((task) => this.deleting.has(task.id))) {
@@ -105,11 +120,15 @@ export class DownloadService {
         (input.all || task.episodeId === episodeId || task.episodeId === "__all__") &&
         ["queued", "running", "paused", "completed"].includes(task.status),
     );
-    if (existing) return existing;
+    if (existing) return this.withDestination(existing);
     const now = new Date().toISOString();
     const task: DownloadTask = {
       id: randomUUID(),
       downloadDir,
+      destination:
+        input.destination ??
+        (downloadDir ? this.classifyDirectory?.(downloadDir) : undefined) ??
+        "custom",
       sourceKey: input.sourceKey,
       comicId: input.comicId,
       all: input.all,
