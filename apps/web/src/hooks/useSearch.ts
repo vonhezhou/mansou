@@ -1,3 +1,8 @@
+import {
+  recordSourceInterest,
+  rememberInterestDownload,
+  sourcePreferences,
+} from "../lib/sourceInterest.js";
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import type { Comic } from "@mansou/contracts";
 import { mansouApi } from "../api/mansou.js";
@@ -31,6 +36,8 @@ export function useSearch(options: UseSearchOptions) {
   const aggregateSelectionInitialized = useRef(
     initialPreferences.aggregateSourceKeys !== undefined,
   );
+  const [includeIsolated, setIncludeIsolated] = useState(false);
+  const interestSession = useRef(0);
   const [keyword, setKeyword] = useState("");
   const [searchMode, setSearchMode] = useState<"single" | "aggregate">(
     initialPreferences.searchMode,
@@ -191,6 +198,7 @@ export function useSearch(options: UseSearchOptions) {
     if (!query.keyword) return;
     rememberSearch(query.keyword);
     await runSearch(async (signal, request) => {
+      interestSession.current = Date.now();
       // 提交时即切换结果上下文，避免慢请求期间把旧结果误认为新结果。
       setSearchQuery(query);
       setResults([]);
@@ -200,7 +208,9 @@ export function useSearch(options: UseSearchOptions) {
       setSearchMaxPage(undefined);
       setHasSearched(true);
       const data = await mansouApi.search(query.sourceKey, query.keyword, { page: 1 }, signal);
-      if (request !== searchRequest.current) return;
+      if (request !== searchRequest.current || signal.aborted) return;
+      if (data.comics?.length)
+        recordSourceInterest("comic", query.sourceKey, "exposure", String(interestSession.current));
       startTransition(() => {
         setResults(data.comics ?? []);
         setSearchNext(data.next ?? null);
@@ -221,15 +231,27 @@ export function useSearch(options: UseSearchOptions) {
     rememberSearch(query.keyword);
     const keys = [...new Set(aggregateSourceKeys)];
     await runSearch(async (signal, request) => {
+      const plan = await mansouApi.searchPlan(
+        keys,
+        includeIsolated,
+        sourcePreferences("comic"),
+        signal,
+      );
+      if (signal.aborted || request !== searchRequest.current) return;
+      const scheduledKeys = plan.sources.map((source) => source.sourceKey);
+      interestSession.current = Date.now();
       setSearchQuery(query);
       setAggregatedResults(
-        keys.map((sourceKey) => ({
+        [...scheduledKeys, ...plan.skipped.map((source) => source.sourceKey)].map((sourceKey) => ({
+          skipped: plan.skipped.some((source) => source.sourceKey === sourceKey),
+          cooldownUntil: plan.skipped.find((source) => source.sourceKey === sourceKey)
+            ?.cooldownUntil,
           sourceKey,
           sourceName:
             options.sources?.find((source) => source.key === sourceKey)?.name ?? sourceKey,
         })),
       );
-      setAggregatePendingKeys(keys);
+      setAggregatePendingKeys(scheduledKeys);
       setResults([]);
       setSearchPage(1);
       setSearchNext(null);
@@ -237,10 +259,17 @@ export function useSearch(options: UseSearchOptions) {
       setHasSearched(true);
       setDetails(null);
       setPreviewImages([]);
-      let nextSource = 0;
+      const groups = new Map<string, string[]>();
+      for (const source of plan.sources) {
+        const group = groups.get(source.groupKey) ?? [];
+        group.push(source.sourceKey);
+        groups.set(source.groupKey, group);
+      }
+      const pending = [...groups.values()];
       async function worker() {
-        while (nextSource < keys.length && !signal.aborted) {
-          const sourceKey = keys[nextSource++];
+        while (pending.length && !signal.aborted) {
+          const group = pending.shift()!;
+          const sourceKey = group.shift()!;
           let patch: Pick<AggregatedSearchItem, "result" | "error">;
           try {
             patch = {
@@ -251,16 +280,19 @@ export function useSearch(options: UseSearchOptions) {
             patch = { error: error instanceof Error ? error.message : String(error) };
           }
           if (request !== searchRequest.current || signal.aborted) return;
+          if (patch.result?.comics?.length)
+            recordSourceInterest("comic", sourceKey, "exposure", String(interestSession.current));
           startTransition(() =>
             setAggregatedResults((current) =>
               current.map((item) => (item.sourceKey === sourceKey ? { ...item, ...patch } : item)),
             ),
           );
           setAggregatePendingKeys((current) => current.filter((key) => key !== sourceKey));
+          if (group.length) pending.push(group);
         }
       }
       // 保留浏览器连接给详情、图片和 SSE，避免大量慢源占满所有连接。
-      await Promise.all(Array.from({ length: Math.min(3, keys.length) }, () => worker()));
+      await Promise.all(Array.from({ length: Math.min(3, scheduledKeys.length) }, () => worker()));
     });
   }
 
@@ -308,6 +340,12 @@ export function useSearch(options: UseSearchOptions) {
             // 关闭弹窗或打开另一本漫画后，旧请求不能重新打开或覆盖详情。
             if (request !== detailRequest.current) return;
             const firstEpisode = Object.keys(data.chapters ?? {})[0] ?? "_default";
+            recordSourceInterest(
+              "comic",
+              nextSourceKey,
+              "details",
+              `${interestSession.current}:${comic.id}`,
+            );
             setDetails(data);
             setEpisodeId(firstEpisode);
             setSelectedEpisodeIds([]);
@@ -348,6 +386,12 @@ export function useSearch(options: UseSearchOptions) {
             controller.signal,
           );
           if (controller.signal.aborted || request !== detailRequest.current) return;
+          recordSourceInterest(
+            "comic",
+            options.detailSourceKey,
+            "catalog",
+            `${interestSession.current}:${details.comicId ?? details.id}`,
+          );
           setEpisodeId(nextEpisodeId);
           setPreviewImages(data.images ?? []);
           setPreviewSummary(
@@ -438,7 +482,17 @@ export function useSearch(options: UseSearchOptions) {
         setDownloadCreateStatus(`创建中：0/${requests.length}`);
         for (const request of requests) {
           try {
-            await mansouApi.createDownload({ ...request, ...(downloadDir ? { downloadDir } : {}) });
+            const task = await mansouApi.createDownload({
+              ...request,
+              ...(downloadDir ? { downloadDir } : {}),
+            });
+            if (task?.id)
+              rememberInterestDownload(
+                "comic",
+                request.sourceKey,
+                task.id,
+                `${interestSession.current}:${comicId}`,
+              );
             success += 1;
           } catch (error) {
             failed += 1;
@@ -530,6 +584,8 @@ export function useSearch(options: UseSearchOptions) {
     searchHistory,
     removeSearchHistory,
     clearSearchHistory,
+    includeIsolated,
+    setIncludeIsolated,
     aggregateResultLayout,
     aggregatePendingKeys,
     aggregateSourceKeys,

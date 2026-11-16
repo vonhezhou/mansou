@@ -11,6 +11,7 @@ import type {
 import type { StorageDatabase } from "@mansou/storage";
 import { PluginManager } from "@mansou/plugin-runtime";
 import { SourceRepositoryService } from "../repositories/sourceRepository.js";
+import type { SourceQualityService } from "./sourceQuality.js";
 
 /** Application workflows; no Venera objects or executor details enter this service. */
 export class SourceService implements SourceRegistry {
@@ -21,12 +22,15 @@ export class SourceService implements SourceRegistry {
     private readonly manager: PluginManager,
     private readonly repository: SourceRepositoryService,
     private readonly storage: StorageDatabase,
+    private readonly quality?: SourceQualityService,
   ) {}
   get(key: string): SourceProvider {
     return this.manager.get(key);
   }
   list() {
-    return this.manager.list();
+    return this.manager
+      .list()
+      .map((source) => ({ ...source, quality: this.quality?.snapshot("comic", source.key) }));
   }
   all() {
     return this.manager.listInstalled().map((source) => ({
@@ -34,6 +38,7 @@ export class SourceService implements SourceRegistry {
       enabled: true,
       hasSearch: source.capabilities.search,
       hasComic: source.capabilities.details,
+      quality: this.quality?.snapshot("comic", source.key),
     }));
   }
   loadScript(filePath: string) {
@@ -164,6 +169,7 @@ export class SourceService implements SourceRegistry {
         favorite: source.favorite === 1,
         canUninstall: this.repository.canUninstall(source.script_path),
         health: this.manager.health(source.key),
+        quality: this.quality?.snapshot("comic", source.key),
       })),
     );
   }

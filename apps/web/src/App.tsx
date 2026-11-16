@@ -215,6 +215,8 @@ function Workspace({
           onToggleAggregateSource={searchState.toggleAggregateSource}
           onSelectAggregateSources={searchState.selectAggregateSources}
           onAggregateResultLayoutChange={searchState.setAggregateResultLayout}
+          includeIsolated={searchState.includeIsolated}
+          onIncludeIsolatedChange={searchState.setIncludeIsolated}
           onSearch={() => void searchState.submitSearch()}
           onLoadMore={() => void searchState.loadMoreResults()}
           onOpenComic={searchState.openComic}

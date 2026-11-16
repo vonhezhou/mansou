@@ -1,3 +1,4 @@
+import { recordSourceInterest, rememberInterestDownload } from "../../lib/sourceInterest.js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { novelApi, type NovelOrigin, type NovelSearch } from "../../api/novels.js";
 import { LoadingStatus } from "../../app/LoadingStatus.js";
@@ -23,6 +24,8 @@ export function NovelsView({
   const [downloadError, setDownloadError] = useState<string>();
   const creating = useRef(false);
   const selection = useRef(0);
+  const interestSession = useRef(0);
+  const [includeIsolated, setIncludeIsolated] = useState(false);
   const [keyword, setKeyword] = useState("");
   const [result, setResult] = useState<NovelSearch>();
   const [searching, setSearching] = useState(false);
@@ -70,6 +73,7 @@ export function NovelsView({
       closeCatalog();
       const controller = new AbortController();
       searchController.current = controller;
+      interestSession.current = Date.now();
       setSearching(true);
       setSearchError(undefined);
       setResult(undefined);
@@ -86,6 +90,7 @@ export function NovelsView({
               setResult(value);
           },
           controller.signal,
+          includeIsolated,
         );
       } catch (error) {
         if (active.current && !controller.signal.aborted)
@@ -94,7 +99,7 @@ export function NovelsView({
         if (active.current && searchController.current === controller) setSearching(false);
       }
     },
-    [closeCatalog],
+    [closeCatalog, includeIsolated],
   );
   const search = () => runSearch(1, keyword);
   useEffect(() => {
@@ -111,6 +116,12 @@ export function NovelsView({
       const source = state.sources.find((source) => source.id === value.sourceId);
       const enabled =
         source && state.subscriptions.some((group) => group.id === source.groupId && group.enabled);
+      recordSourceInterest(
+        "novel",
+        value.sourceId,
+        "details",
+        `${interestSession.current}:${value.bookUrl}`,
+      );
       void load(value, enabled ? source : undefined, refresh);
     },
     [load, state.sources, state.subscriptions],
@@ -140,7 +151,14 @@ export function NovelsView({
     setDownloadError(undefined);
     let created = false;
     try {
-      await novelApi.download(origin, all, start, limit, downloadDir);
+      const task = await novelApi.download(origin, all, start, limit, downloadDir);
+      if (task?.id)
+        rememberInterestDownload(
+          "novel",
+          origin.sourceId,
+          task.id,
+          `${interestSession.current}:${origin.bookUrl}`,
+        );
       created = true;
       await onDownloadCreated();
       // 请求提交后允许关闭弹窗；后台任务仍保留，但迟到结果不能把用户带离当前页面。
@@ -188,6 +206,8 @@ export function NovelsView({
       <section className="search-hero">
         <SearchControls
           kind="小说"
+          includeIsolated={includeIsolated}
+          onIncludeIsolatedChange={setIncludeIsolated}
           cancelLabel="取消搜索"
           busy={sourceBusy || downloading || searching}
           searching={searching}

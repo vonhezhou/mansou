@@ -166,6 +166,68 @@ it("健康源优先，新源有探索名额，浏览器偏好不能解除冷却"
   expect(quality.plan("comic", [{ key: "source" }], false, { source: 10 }).sources).toEqual([]);
 });
 
+it("小说真实 Worker 的限流会冷却，默认跳过并报告数量，显式重试可恢复", async () => {
+  const { NovelEngineExecutor } = await import("../src/services/novels/engineExecutor.js");
+  const { NovelSourceService } = await import("../src/services/novels/sourceService.js");
+  let limited = true;
+  let calls = 0;
+  const fetcher: typeof fetch = async () => {
+    calls++;
+    return new Response(
+      limited ? "limited" : '<div class="book"><a href="/book">测试小说</a></div>',
+      { status: limited ? 429 : 200 },
+    );
+  };
+  const engine = new NovelEngineExecutor(fetcher, 1000, db.novels, quality);
+  const sources = new NovelSourceService(db.novels, fetcher, 1000, engine, quality);
+  try {
+    const state = sources.import([
+      {
+        bookSourceName: "质量测试",
+        bookSourceUrl: "https://quality.test",
+        searchUrl: "/search?q={{key}}",
+        ruleSearch: { bookList: ".book", name: "a@text", bookUrl: "a@href" },
+        ruleToc: { chapterList: "a", chapterName: "text", chapterUrl: "href" },
+        ruleContent: { content: ".content@text" },
+      },
+    ]);
+    const key = state.sources[0].id;
+    const failed = await sources.search("测试", 1);
+    expect(failed.sources[0].error?.code).toBe("RATE_LIMITED");
+    expect(sources.state().sources[0].quality?.state).toBe("isolated");
+    const updates: any[] = [];
+    const skipped = await sources.search("测试", 1, undefined, undefined, (update) => {
+      updates.push(update);
+    });
+    expect(skipped).toMatchObject({
+      candidateSources: 1,
+      totalSources: 0,
+      completedSources: 0,
+      skippedSources: [{ sourceKey: key }],
+    });
+    expect(updates[0]).toMatchObject({
+      candidateSources: 1,
+      totalSources: 0,
+      skippedSources: [{ sourceKey: key }],
+    });
+    expect(calls).toBe(1);
+    limited = false;
+    const retry = await sources.search("测试", 1, undefined, undefined, undefined, true);
+    expect(retry.results).toHaveLength(1);
+    expect(retry.skippedSources).toEqual([]);
+    expect(sources.state().sources[0].quality?.state).toBe("degraded");
+    await sources.search("测试", 1);
+    expect(sources.state().sources[0].quality?.state).not.toBe("degraded");
+    quality.delete("novel", key);
+    new NovelSourceService(db.novels, fetcher, 1000, engine, quality);
+    expect(quality.version("novel", key)).toBe(state.sources[0].hash);
+    sources.deleteSource(key);
+    expect(db.sourceQuality.get("novel", key)).toBeUndefined();
+  } finally {
+    await engine.close();
+  }
+});
+
 it("受控快慢源基线中，排序提前有效结果且保留全量覆盖", async () => {
   const { searchAll } = await import("@mansou/novel-engine");
   const { vi } = await import("vitest");

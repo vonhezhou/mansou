@@ -110,6 +110,8 @@ export async function registerNovelRoutes(
             keyword: z.string().trim().min(1).max(100),
             page: z.number().int().min(1).max(1000).default(1),
             sourceIds: z.array(z.string().max(200)).max(100).optional(),
+            includeIsolated: z.boolean().default(false),
+            preferences: z.record(z.number().finite().min(0).max(10)).default({}),
           })
           .parse(request.body);
         return withCancellation(reply, async (signal) => {
@@ -148,8 +150,12 @@ export async function registerNovelRoutes(
                         keyword: body.keyword,
                         page: body.page,
                         totalSources: progress.totalSources,
+                        candidateSources: progress.candidateSources,
+                        skippedSources: progress.skippedSources,
                       },
                 ),
+              body.includeIsolated,
+              body.preferences,
             );
             await send({
               type: "complete",

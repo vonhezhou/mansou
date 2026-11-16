@@ -646,6 +646,39 @@ export const openApiDocument = {
         },
       },
     },
+    "/api/v1/search/plan": {
+      post: {
+        operationId: "planComicSearch",
+        summary: "按本地质量与浏览器偏好排列漫画搜索队列",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["sourceKeys"],
+                properties: {
+                  sourceKeys: { type: "array", maxItems: 2000, items: { type: "string" } },
+                  includeIsolated: { type: "boolean", default: false },
+                  preferences: {
+                    type: "object",
+                    additionalProperties: { type: "number", minimum: 0, maximum: 10 },
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "执行顺序与冷却跳过记录",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/SearchPlan" } },
+            },
+          },
+        },
+      },
+    },
     "/api/v1/search": {
       get: {
         operationId: "aggregatedSearch",
@@ -2147,9 +2180,94 @@ export const openApiDocument = {
           },
         },
       },
+      SourceQuality: {
+        type: "object",
+        required: ["score", "state", "checkedAt", "operations"],
+        properties: {
+          score: { type: "integer", minimum: 0, maximum: 100 },
+          state: {
+            type: "string",
+            enum: ["observing", "normal", "preferred", "degraded", "isolated"],
+          },
+          cooldownUntil: { type: "string", format: "date-time" },
+          checkedAt: { type: "string", format: "date-time" },
+          operations: {
+            type: "array",
+            items: {
+              type: "object",
+              required: [
+                "operation",
+                "score",
+                "state",
+                "successCount",
+                "failureCount",
+                "nonemptyCount",
+                "consecutiveFailures",
+                "meanMs",
+                "p50Ms",
+                "p95Ms",
+              ],
+              properties: {
+                operation: {
+                  type: "string",
+                  enum: ["search", "details", "catalog", "content", "download"],
+                },
+                score: { type: "integer" },
+                state: {
+                  type: "string",
+                  enum: ["observing", "normal", "preferred", "degraded", "isolated"],
+                },
+                successCount: { type: "integer" },
+                failureCount: { type: "integer" },
+                nonemptyCount: { type: "integer" },
+                consecutiveFailures: { type: "integer" },
+                meanMs: { type: "integer" },
+                p50Ms: { type: "integer" },
+                p95Ms: { type: "integer" },
+                lastSuccessAt: { type: "string", format: "date-time" },
+                lastFailureAt: { type: "string", format: "date-time" },
+                lastError: {
+                  type: "string",
+                  enum: ["timeout", "network", "limited", "restricted", "parse", "source"],
+                },
+                cooldownUntil: { type: "string", format: "date-time" },
+              },
+            },
+          },
+        },
+      },
+      SearchSkippedSource: {
+        type: "object",
+        required: ["sourceKey", "cooldownUntil"],
+        properties: {
+          sourceKey: { type: "string" },
+          sourceName: { type: "string" },
+          cooldownUntil: { type: "string", format: "date-time" },
+        },
+      },
+      SearchPlan: {
+        type: "object",
+        required: ["sources", "skipped"],
+        properties: {
+          sources: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["sourceKey", "quality", "groupKey"],
+              properties: {
+                sourceKey: { type: "string" },
+                groupKey: { type: "string" },
+                quality: { $ref: "#/components/schemas/SourceQuality" },
+              },
+            },
+          },
+          skipped: { type: "array", items: { $ref: "#/components/schemas/SearchSkippedSource" } },
+        },
+      },
       SourceMetadata: {
         type: "object",
         properties: {
+          quality: { $ref: "#/components/schemas/SourceQuality" },
           favorite: { type: "boolean" },
           subscriptionId: { type: "string" },
           subscriptionName: { type: "string" },
@@ -2334,6 +2452,8 @@ export const openApiDocument = {
       AggregatedSearchItem: {
         type: "object",
         properties: {
+          skipped: { type: "boolean" },
+          cooldownUntil: { type: "string", format: "date-time" },
           sourceKey: { type: "string" },
           sourceName: { type: "string" },
           result: { $ref: "#/components/schemas/SearchResult" },
@@ -2651,6 +2771,7 @@ export const openApiDocument = {
       NovelSource: {
         type: "object",
         properties: {
+          quality: { $ref: "#/components/schemas/SourceQuality" },
           favorite: { type: "boolean" },
           missingFromSubscription: {
             type: "boolean",
@@ -2769,6 +2890,11 @@ export const openApiDocument = {
           elapsedMs: { type: "number" },
           cancelled: { type: "boolean" },
           totalSources: { type: "integer" },
+          candidateSources: { type: "integer" },
+          skippedSources: {
+            type: "array",
+            items: { $ref: "#/components/schemas/SearchSkippedSource" },
+          },
           completedSources: { type: "integer" },
           results: {
             type: "array",
@@ -2791,6 +2917,8 @@ export const openApiDocument = {
           "cancelled",
           "totalSources",
           "completedSources",
+          "candidateSources",
+          "skippedSources",
           "results",
           "sources",
         ],
@@ -2817,12 +2945,24 @@ export const openApiDocument = {
         oneOf: [
           {
             type: "object",
-            required: ["type", "keyword", "page", "totalSources"],
+            required: [
+              "type",
+              "keyword",
+              "page",
+              "totalSources",
+              "candidateSources",
+              "skippedSources",
+            ],
             properties: {
               type: { type: "string", enum: ["start"] },
               keyword: { type: "string" },
               page: { type: "integer" },
               totalSources: { type: "integer" },
+              candidateSources: { type: "integer" },
+              skippedSources: {
+                type: "array",
+                items: { $ref: "#/components/schemas/SearchSkippedSource" },
+              },
             },
           },
           {
@@ -2933,6 +3073,11 @@ export const openApiDocument = {
       NovelSearchRequest: {
         type: "object",
         properties: {
+          includeIsolated: { type: "boolean", default: false },
+          preferences: {
+            type: "object",
+            additionalProperties: { type: "number", minimum: 0, maximum: 10 },
+          },
           keyword: { type: "string", minLength: 1, maxLength: 100 },
           page: { type: "integer", minimum: 1, maximum: 1000, default: 1 },
           sourceIds: {

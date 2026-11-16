@@ -1,11 +1,17 @@
 import { writeEpub } from "./epub.js";
 import { NovelEngineExecutor } from "./engineExecutor.js";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { createReadStream, existsSync } from "node:fs";
 import { mkdir, open, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
-import { assertDownloadSupported, type BookSource, type Catalog } from "@mansou/novel-engine";
+import {
+  assertDownloadSupported,
+  SourceError,
+  type BookSource,
+  type Catalog,
+} from "@mansou/novel-engine";
+import type { SourceQualityService } from "../sourceQuality.js";
 import type { components } from "@mansou/contracts";
 import type { StorageDatabase } from "@mansou/storage";
 import { AppError } from "../../errors.js";
@@ -31,6 +37,7 @@ export class NovelDownloadService {
       retries: number;
     },
     private readonly onError: (error: unknown) => void,
+    private readonly quality?: SourceQualityService,
   ) {
     this.scheduler = new DownloadScheduler(
       options.concurrency,
@@ -165,6 +172,9 @@ export class NovelDownloadService {
     return path.join(this.directory(id), `${index}.txt`);
   }
   private async run(id: string, signal: AbortSignal) {
+    const source = this.record(id);
+    const version = createHash("sha256").update(JSON.stringify(source.raw)).digest("hex");
+    const started = performance.now();
     try {
       signal.throwIfAborted();
       const row = this.record(id);
@@ -234,7 +244,19 @@ export class NovelDownloadService {
       await this.export(id, plan, signal);
       signal.throwIfAborted();
       this.patch(id, { status: "completed", phase: "已完成" });
+      this.quality?.record("novel", source.task.sourceId, version, {
+        id: `${id}:completed`,
+        operation: "download",
+        elapsedMs: performance.now() - started,
+      });
     } catch (error) {
+      if (!signal.aborted && error instanceof SourceError)
+        this.quality?.record("novel", source.task.sourceId, version, {
+          id: `${id}:failed`,
+          operation: "download",
+          elapsedMs: performance.now() - started,
+          errorCode: error.code,
+        });
       if (!signal.aborted)
         this.patch(id, {
           status: "failed",

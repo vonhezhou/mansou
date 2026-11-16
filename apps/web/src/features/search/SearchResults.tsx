@@ -29,6 +29,8 @@ type SearchResultsProps = {
 
 export function SearchResults(props: SearchResultsProps) {
   const [layout, setLayout] = useState<"grid" | "list">("grid");
+  const skippedSources = props.aggregatedResults.filter((item) => item.skipped);
+  const executingSources = props.aggregatedResults.length - skippedSources.length;
   const failedSources = props.aggregatedResults.filter((item) => item.error);
   const aggregateCount = props.aggregatedResults.reduce(
     (count, item) => count + (item.result?.comics.length ?? 0),
@@ -108,7 +110,7 @@ export function SearchResults(props: SearchResultsProps) {
       </header>
       {Boolean(props.pendingSourceKeys?.length) && (
         <LoadingStatus
-          label={`正在搜索 ${props.pendingSourceKeys!.length} 个源，已完成 ${props.aggregatedResults.length - props.pendingSourceKeys!.length}/${props.aggregatedResults.length} 个源…`}
+          label={`正在搜索 ${props.pendingSourceKeys!.length} 个源，已完成 ${executingSources - props.pendingSourceKeys!.length}/${executingSources} 个源…`}
         />
       )}
       {props.searchError && (
@@ -120,6 +122,20 @@ export function SearchResults(props: SearchResultsProps) {
               : "请重试搜索，或更换漫画源。"}
           </p>
         </div>
+      )}
+      {skippedSources.length > 0 && (
+        <details className="search-source-errors">
+          <summary>已跳过 {skippedSources.length} 个冷却中的源</summary>
+          <p>勾选“包含隔离源重试”后重新搜索可立即试搜。</p>
+          <ul>
+            {skippedSources.map((source) => (
+              <li key={source.sourceKey}>
+                {source.sourceName} · 冷却至{" "}
+                {new Date(source.cooldownUntil!).toLocaleString("zh-CN")}
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
       {props.searchMode === "aggregate" && failedSources.length > 0 && (
         <details className="search-source-errors">
@@ -230,42 +246,44 @@ export function SearchResults(props: SearchResultsProps) {
       )}
       {props.searchMode === "aggregate" && props.aggregateResultLayout === "grouped" && (
         <div className="aggregate-results">
-          {props.aggregatedResults.map((item) => (
-            <section className="aggregate-source" key={item.sourceKey}>
-              <header>
-                <div className="section-identity">
-                  <span className="source-avatar" aria-hidden="true">
-                    {item.sourceName.slice(0, 1)}
+          {props.aggregatedResults
+            .filter((item) => !item.skipped)
+            .map((item) => (
+              <section className="aggregate-source" key={item.sourceKey}>
+                <header>
+                  <div className="section-identity">
+                    <span className="source-avatar" aria-hidden="true">
+                      {item.sourceName.slice(0, 1)}
+                    </span>
+                    <h3>{item.sourceName}</h3>
+                  </div>
+                  <span className="muted">
+                    {item.sourceKey}
+                    {props.pendingSourceKeys?.includes(item.sourceKey)
+                      ? " / 搜索中…"
+                      : item.cancelled
+                        ? " / 已停止"
+                        : item.error
+                          ? " / 搜索失败"
+                          : ` / ${item.result?.comics.length ?? 0} 项`}
                   </span>
-                  <h3>{item.sourceName}</h3>
-                </div>
-                <span className="muted">
-                  {item.sourceKey}
-                  {props.pendingSourceKeys?.includes(item.sourceKey)
-                    ? " / 搜索中…"
-                    : item.cancelled
-                      ? " / 已停止"
-                      : item.error
-                        ? " / 搜索失败"
-                        : ` / ${item.result?.comics.length ?? 0} 项`}
-                </span>
-              </header>
-              {item.result?.comics.length ? (
-                <div className="cards">
-                  {item.result.comics.map((comic) => (
-                    <ComicCard
-                      comic={comic}
-                      key={`${item.sourceKey}:${comic.id}`}
-                      sourceKey={item.sourceKey}
-                      sourceName={item.sourceName}
-                      onOpenComic={props.onOpenComic}
-                      busy={props.interactionBusy ?? props.busy}
-                    />
-                  ))}
-                </div>
-              ) : null}
-            </section>
-          ))}
+                </header>
+                {item.result?.comics.length ? (
+                  <div className="cards">
+                    {item.result.comics.map((comic) => (
+                      <ComicCard
+                        comic={comic}
+                        key={`${item.sourceKey}:${comic.id}`}
+                        sourceKey={item.sourceKey}
+                        sourceName={item.sourceName}
+                        onOpenComic={props.onOpenComic}
+                        busy={props.interactionBusy ?? props.busy}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+            ))}
         </div>
       )}
     </section>

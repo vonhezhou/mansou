@@ -2,6 +2,8 @@ import { Worker } from "node:worker_threads";
 import { SourceError } from "@mansou/novel-engine";
 import { NovelSessionStore } from "./sessionStore.js";
 import type { StorageDatabase } from "@mansou/storage";
+import { createHash } from "node:crypto";
+import type { SourceQualityService, QualityOperation } from "../sourceQuality.js";
 
 /** 将 HTML、选择器和正则处理放在线程中，超时或取消时可终止同步解析。网络仍使用应用代理。 */
 export class NovelEngineExecutor {
@@ -15,6 +17,7 @@ export class NovelEngineExecutor {
     private readonly fetcher: typeof fetch,
     private readonly timeoutMs: number,
     storage?: StorageDatabase["novels"],
+    private readonly quality?: SourceQualityService,
   ) {
     this.sessions = new NovelSessionStore(storage);
   }
@@ -34,6 +37,7 @@ export class NovelEngineExecutor {
     };
     const scope = sourceId ?? (operation === "search" ? (args[0] as any).id : raw.bookSourceUrl);
     const version = this.sessions.version(scope);
+    const fingerprint = createHash("sha256").update(JSON.stringify(raw)).digest("hex");
     const work = this.run<T>(
       operation,
       args,
@@ -41,6 +45,7 @@ export class NovelEngineExecutor {
       scope,
       version,
       raw.enabledCookieJar !== false,
+      fingerprint,
     )
       .then((result) => {
         if (operation === "login") this.sessions.loggedIn(scope, version);
@@ -60,6 +65,7 @@ export class NovelEngineExecutor {
     scope: string,
     version: number,
     useCookies: boolean,
+    fingerprint: string,
   ): Promise<T> {
     signal.throwIfAborted();
     // 移交槽位给首个等待者，避免唤醒后与新调用争抢造成超额线程。
@@ -78,6 +84,9 @@ export class NovelEngineExecutor {
       });
     else this.active++;
     let worker: Worker | undefined;
+    const started = performance.now();
+    let resultValue: unknown;
+    let errorCode: string | undefined;
     try {
       signal.throwIfAborted();
       const entry = new URL(
@@ -98,7 +107,7 @@ export class NovelEngineExecutor {
       const controller = new AbortController();
       const requestSignal = AbortSignal.any([signal, controller.signal]);
       try {
-        return await new Promise<T>((resolve, reject) => {
+        const result = await new Promise<T>((resolve, reject) => {
           let settled = false;
           const abort = () => finish(new SourceError("CANCELLED", "小说操作已取消"));
           const timer = setTimeout(
@@ -188,9 +197,14 @@ export class NovelEngineExecutor {
           running.once("error", (error) => finish(error));
           running.once("exit", () => finish(new SourceError("SOURCE_ERROR", "小说工作线程已退出")));
         });
+        resultValue = result;
+        return result;
       } finally {
         controller.abort();
       }
+    } catch (error) {
+      errorCode = error instanceof SourceError ? error.code : "SOURCE_ERROR";
+      throw error;
     } finally {
       await worker?.terminate();
       const next = this.queue.values().next().value;
@@ -198,6 +212,22 @@ export class NovelEngineExecutor {
         this.queue.delete(next);
         next();
       } else this.active--;
+      const operations: Record<string, QualityOperation> = {
+        search: "search",
+        catalog: "catalog",
+        chapter: "content",
+      };
+      const tracked = operations[operation];
+      if (tracked) {
+        const search = resultValue as { books?: unknown[]; error?: { code: string } } | undefined;
+        this.quality?.record("novel", scope, fingerprint, {
+          operation: tracked,
+          elapsedMs: performance.now() - started,
+          cancelled: signal.aborted,
+          errorCode: errorCode ?? search?.error?.code,
+          nonempty: operation === "search" && Boolean(search?.books?.length),
+        });
+      }
     }
   }
   private async fetch(

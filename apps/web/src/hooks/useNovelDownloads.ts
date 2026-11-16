@@ -1,3 +1,4 @@
+import { observeInterestDownloads } from "../lib/sourceInterest.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { novelApi, type NovelTask } from "../api/novels.js";
 import { createDownloadSnapshotStore } from "../lib/downloadSnapshot.js";
@@ -20,6 +21,7 @@ export function useNovelDownloads() {
       if (!controller.signal.aborted) {
         const snapshot = JSON.stringify(tasks);
         if (snapshot !== lastSnapshot.current) {
+          observeInterestDownloads("novel", tasks);
           store.setSnapshot(tasks);
           lastSnapshot.current = snapshot;
         }

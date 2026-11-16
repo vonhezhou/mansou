@@ -40,6 +40,8 @@ export function SearchView(props: SearchViewProps) {
       <section className="search-hero">
         <SearchControls
           inputRef={searchInputRef}
+          includeIsolated={props.includeIsolated}
+          onIncludeIsolatedChange={props.onIncludeIsolatedChange}
           busy={props.busy}
           searching={props.searching}
           onCancelSearch={props.onCancelSearch}

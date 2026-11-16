@@ -1,3 +1,4 @@
+import { SourceQualityStatus } from "../sources/SourceQualityStatus.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { novelApi, type NovelState } from "../../api/novels.js";
 import { NovelAccountDialog } from "./NovelAccountDialog.js";
@@ -291,6 +292,7 @@ export function NovelSourceList({ state, busy, run, onChange, onEdit }: Props) {
                 下载 <b>{source.downloadSupported ? "支持" : "不支持"}</b>
               </span>
             </div>
+            <SourceQualityStatus kind="novel" sourceKey={source.id} quality={source.quality} />
             <div className="source-actions">
               <button
                 className="secondary-button"

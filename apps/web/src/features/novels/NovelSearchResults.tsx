@@ -122,7 +122,7 @@ export const NovelSearchResults = memo(function NovelSearchResults({
               </span>
               <span className="muted" role="status">
                 {result.results.length} 本 · {result.completedSources}/{result.totalSources}{" "}
-                个源已返回
+                个源已返回 · 共 {result.candidateSources} 个候选源
               </span>
             </>
           )}
@@ -162,6 +162,20 @@ export const NovelSearchResults = memo(function NovelSearchResults({
         <p className="alert" role="alert">
           {error}
         </p>
+      )}
+      {Boolean(result?.skippedSources?.length) && (
+        <details className="search-source-errors">
+          <summary>已跳过 {result!.skippedSources.length} 个冷却中的源</summary>
+          <p>勾选“包含隔离源重试”后重新搜索可立即试搜。</p>
+          <ul>
+            {result!.skippedSources.map((source) => (
+              <li key={source.sourceKey}>
+                {source.sourceName ?? source.sourceKey} · 冷却至{" "}
+                {new Date(source.cooldownUntil).toLocaleString("zh-CN")}
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
       {failed.length > 0 && (
         <details className="search-source-errors">

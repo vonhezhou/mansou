@@ -418,6 +418,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/search/plan": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** 按本地质量与浏览器偏好排列漫画搜索队列 */
+    post: operations["planComicSearch"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/search": {
     parameters: {
       query?: never;
@@ -1438,7 +1455,53 @@ export interface components {
         };
       }[];
     };
+    SourceQuality: {
+      score: number;
+      /** @enum {string} */
+      state: "observing" | "normal" | "preferred" | "degraded" | "isolated";
+      /** Format: date-time */
+      cooldownUntil?: string;
+      /** Format: date-time */
+      checkedAt: string;
+      operations: {
+        /** @enum {string} */
+        operation: "search" | "details" | "catalog" | "content" | "download";
+        score: number;
+        /** @enum {string} */
+        state: "observing" | "normal" | "preferred" | "degraded" | "isolated";
+        successCount: number;
+        failureCount: number;
+        nonemptyCount: number;
+        consecutiveFailures: number;
+        meanMs: number;
+        p50Ms: number;
+        p95Ms: number;
+        /** Format: date-time */
+        lastSuccessAt?: string;
+        /** Format: date-time */
+        lastFailureAt?: string;
+        /** @enum {string} */
+        lastError?: "timeout" | "network" | "limited" | "restricted" | "parse" | "source";
+        /** Format: date-time */
+        cooldownUntil?: string;
+      }[];
+    };
+    SearchSkippedSource: {
+      sourceKey: string;
+      sourceName?: string;
+      /** Format: date-time */
+      cooldownUntil: string;
+    };
+    SearchPlan: {
+      sources: {
+        sourceKey: string;
+        groupKey: string;
+        quality: components["schemas"]["SourceQuality"];
+      }[];
+      skipped: components["schemas"]["SearchSkippedSource"][];
+    };
     SourceMetadata: {
+      quality?: components["schemas"]["SourceQuality"];
       favorite?: boolean;
       subscriptionId?: string;
       subscriptionName?: string;
@@ -1563,6 +1626,9 @@ export interface components {
       next?: string | null;
     };
     AggregatedSearchItem: {
+      skipped?: boolean;
+      /** Format: date-time */
+      cooldownUntil?: string;
       sourceKey: string;
       sourceName: string;
       result?: components["schemas"]["SearchResult"];
@@ -1742,6 +1808,7 @@ export interface components {
       };
     };
     NovelSource: {
+      quality?: components["schemas"]["SourceQuality"];
       favorite?: boolean;
       /** @description 收藏源已从订阅消失，保留最后一次规则。 */
       missingFromSubscription?: boolean;
@@ -1805,6 +1872,8 @@ export interface components {
       elapsedMs: number;
       cancelled: boolean;
       totalSources: number;
+      candidateSources: number;
+      skippedSources: components["schemas"]["SearchSkippedSource"][];
       completedSources: number;
       results: {
         name: string;
@@ -1833,6 +1902,8 @@ export interface components {
           keyword: string;
           page: number;
           totalSources: number;
+          candidateSources: number;
+          skippedSources: components["schemas"]["SearchSkippedSource"][];
         }
       | {
           /** @enum {string} */
@@ -1899,6 +1970,11 @@ export interface components {
       enabled?: boolean;
     };
     NovelSearchRequest: {
+      /** @default false */
+      includeIsolated: boolean;
+      preferences?: {
+        [key: string]: number;
+      };
       keyword: string;
       /** @default 1 */
       page: number;
@@ -2775,6 +2851,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["Ok"];
+        };
+      };
+    };
+  };
+  planComicSearch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          sourceKeys: string[];
+          /** @default false */
+          includeIsolated?: boolean;
+          preferences?: {
+            [key: string]: number;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description 执行顺序与冷却跳过记录 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SearchPlan"];
         };
       };
     };

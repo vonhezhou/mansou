@@ -8,6 +8,8 @@ import { zipDirectory } from "./archive.js";
 import { DownloadRepository } from "./downloadRepository.js";
 import { DownloadRunner, classifyDownloadError } from "./downloadRunner.js";
 import { DownloadScheduler } from "./downloadScheduler.js";
+import type { SourceQualityService } from "../sourceQuality.js";
+import { PluginRuntimeError } from "@mansou/plugin-runtime";
 export type { DownloadTask } from "@mansou/storage";
 
 type DownloadInput = {
@@ -35,6 +37,7 @@ export class DownloadService {
     concurrency: number,
     private readonly onError: (error: unknown) => void,
     private readonly resolveDirectory: (value?: string) => string | undefined = (value) => value,
+    private readonly quality?: SourceQualityService,
   ) {
     this.scheduler = new DownloadScheduler(
       concurrency,
@@ -325,6 +328,8 @@ export class DownloadService {
   private async run(id: string, signal: AbortSignal) {
     const task = this.find(id);
     if (!task || task.status !== "queued" || signal.aborted || this.deleting.has(id)) return;
+    const version = this.quality?.version("comic", task.sourceKey);
+    const started = performance.now();
     const progress = (patch: Partial<DownloadTask>, log?: string) => {
       signal.throwIfAborted();
       if (this.deleting.has(id)) return;
@@ -332,12 +337,26 @@ export class DownloadService {
     };
     try {
       progress({ status: "running" });
-      await this.runner.run(task, signal, progress);
+      const work = () => this.runner.run(task, signal, progress);
+      await (this.quality ? this.quality.withSignal(signal, work) : work());
       progress({ status: "completed", phase: "completed", current: undefined }, "Task completed");
+      if (version)
+        this.quality?.record("comic", task.sourceKey, version, {
+          id: `${id}:completed`,
+          operation: "download",
+          elapsedMs: performance.now() - started,
+        });
     } catch (error) {
       // The command that aborted this execution already persisted its desired state.
       if (signal.aborted || this.deleting.has(id)) return;
       const classified = classifyDownloadError(error);
+      if (version && error instanceof PluginRuntimeError)
+        this.quality?.record("comic", task.sourceKey, version, {
+          id: `${id}:failed`,
+          operation: "download",
+          elapsedMs: performance.now() - started,
+          errorCode: error.code,
+        });
       this.update(
         id,
         {

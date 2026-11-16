@@ -27,6 +27,8 @@ export type AggregatedSearchItem = {
   sourceKey: string;
   sourceName: string;
   cancelled?: boolean;
+  skipped?: boolean;
+  cooldownUntil?: string;
   result?: SearchResult;
   error?: string;
 };
@@ -80,6 +82,7 @@ export type SettingsResponse = import("@mansou/contracts").components["schemas"]
 export type SourceAuth = import("@mansou/contracts").components["schemas"]["SourceAuth"];
 export type SourceLogin = import("@mansou/contracts").components["schemas"]["SourceLogin"];
 export type SourceMetadata = {
+  quality?: import("@mansou/contracts").components["schemas"]["SourceQuality"];
   favorite?: boolean;
   subscriptionId?: string;
   subscriptionName?: string;

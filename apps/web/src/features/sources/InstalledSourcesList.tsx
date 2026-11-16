@@ -1,3 +1,4 @@
+import { SourceQualityStatus } from "./SourceQualityStatus.js";
 import { useState } from "react";
 import type { SourceMetadata } from "../../types.js";
 
@@ -83,6 +84,7 @@ export function InstalledSourcesList(props: InstalledSourcesListProps) {
                   </span>
                 </div>
                 <SourceHealthStatus health={source.health} />
+                <SourceQualityStatus kind="comic" sourceKey={source.key} quality={source.quality} />
                 <div className="source-actions">
                   {source.availableVersion && (
                     <button disabled={props.busy} onClick={() => props.onUpdateSource(source.key)}>

@@ -1,4 +1,5 @@
-import { useEffect, useRef, type RefObject } from "react";
+import { resetSourceInterest } from "../../lib/sourceInterest.js";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { LoadingStatus } from "../../app/LoadingStatus.js";
 import { Icon } from "../../app/Icon.js";
 import type { Source } from "../../types.js";
@@ -6,6 +7,8 @@ import type { Source } from "../../types.js";
 type SearchControlsProps = {
   kind?: "漫画" | "小说";
   cancelLabel?: string;
+  includeIsolated?: boolean;
+  onIncludeIsolatedChange?: (value: boolean) => void;
   inputRef?: RefObject<HTMLInputElement | null>;
   busy: boolean;
   searching?: boolean;
@@ -24,6 +27,7 @@ type SearchControlsProps = {
 };
 
 export function SearchControls(props: SearchControlsProps) {
+  const [interestNotice, setInterestNotice] = useState("");
   const kind = props.kind ?? "漫画";
   const localInputRef = useRef<HTMLInputElement>(null);
   const inputRef = props.inputRef ?? localInputRef;
@@ -111,6 +115,34 @@ export function SearchControls(props: SearchControlsProps) {
         <button className="secondary-button stop-search" onClick={props.onCancelSearch}>
           {props.cancelLabel ?? "停止搜索，保留已有结果"}
         </button>
+      )}
+      {props.searchMode === "aggregate" && props.onIncludeIsolatedChange && (
+        <div className="search-mode-row">
+          <label className="novel-checkbox">
+            <input
+              type="checkbox"
+              checked={props.includeIsolated ?? false}
+              disabled={props.busy}
+              onChange={(event) => props.onIncludeIsolatedChange?.(event.target.checked)}
+            />
+            包含隔离源重试
+          </label>
+          <button
+            className="quiet-button"
+            disabled={props.busy}
+            onClick={() => {
+              resetSourceInterest(props.kind === "小说" ? "novel" : "comic");
+              setInterestNotice("已重置本浏览器源偏好，下次搜索生效。");
+            }}
+          >
+            重置本浏览器源偏好
+          </button>
+        </div>
+      )}
+      {interestNotice && (
+        <p className="muted" role="status">
+          {interestNotice}
+        </p>
       )}
       {props.onSearchModeChange && (
         <div className="search-mode-row">

@@ -273,6 +273,8 @@ it("从小说详情创建下载后进入统一下载页并刷新任务快照", a
       results: [{ name: book.name, author: book.author, origins: [book] }],
       sources: [],
       totalSources: 1,
+      candidateSources: 1,
+      skippedSources: [],
       completedSources: 1,
     });
   });

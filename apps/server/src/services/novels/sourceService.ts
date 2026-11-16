@@ -18,6 +18,7 @@ import {
 import type { components } from "@mansou/contracts";
 import type { StorageDatabase } from "@mansou/storage";
 import { AppError } from "../../errors.js";
+import type { SourceQualityService } from "../sourceQuality.js";
 
 type Source = components["schemas"]["NovelSource"];
 type Subscription = components["schemas"]["NovelSubscription"];
@@ -42,6 +43,7 @@ export class NovelSourceService {
     private readonly fetcher: typeof fetch,
     private readonly timeoutMs: number,
     private readonly engine: NovelEngineExecutor,
+    private readonly quality?: SourceQualityService,
   ) {
     // 运行时能力升级后重算旧记录，避免旧的“不支持”标记挡住新实现；用户状态和规则快照保持不变。
     this.db.transaction(() => {
@@ -56,6 +58,7 @@ export class NovelSourceService {
         };
         if (JSON.stringify(summary) !== JSON.stringify(row.summary))
           this.db.save("source", row.summary.id, { ...row, summary });
+        this.quality?.register("novel", row.summary.id, row.summary.hash);
       }
     });
   }
@@ -65,7 +68,13 @@ export class NovelSourceService {
     return next;
   }
   state(): components["schemas"]["NovelState"] {
-    const sources = this.db.list<SourceRecord>("source").map((row) => row.summary);
+    const sources = this.db.list<SourceRecord>("source").map((row) => {
+      this.quality?.register("novel", row.summary.id, row.summary.hash);
+      return {
+        ...row.summary,
+        quality: this.quality?.snapshot("novel", row.summary.id, row.summary.hash),
+      };
+    });
     const subscriptions = [local, ...this.db.list<Subscription>("subscription")].map((group) => ({
       ...group,
       count: sources.filter((source) => source.groupId === group.id).length,
@@ -141,6 +150,7 @@ export class NovelSourceService {
         if (action === "delete") {
           this.engine.sessions.clear(row.summary.id);
           this.db.delete("source", row.summary.id);
+          this.quality?.delete("novel", row.summary.id);
         } else
           this.db.save("source", row.summary.id, {
             ...row,
@@ -166,6 +176,7 @@ export class NovelSourceService {
     this.source(id, false);
     this.engine.sessions.clear(id);
     this.db.delete("source", id);
+    this.quality?.delete("novel", id);
     return this.state();
   }
   account(id: string) {
@@ -214,6 +225,7 @@ export class NovelSourceService {
         if (!row.summary.downloadSupported) {
           this.engine.sessions.clear(row.summary.id);
           this.db.delete("source", row.summary.id);
+          this.quality?.delete("novel", row.summary.id);
         }
       const ids = new Set(records.map((row) => row.summary.id));
       for (const old of this.db.list<SourceRecord>("source"))
@@ -226,6 +238,7 @@ export class NovelSourceService {
           else {
             this.engine.sessions.clear(old.summary.id);
             this.db.delete("source", old.summary.id);
+            this.quality?.delete("novel", old.summary.id);
           }
         }
       for (const row of records) this.db.save("source", row.summary.id, row);
@@ -292,6 +305,7 @@ export class NovelSourceService {
           if (source.summary.groupId === id) {
             this.engine.sessions.clear(source.summary.id);
             this.db.delete("source", source.summary.id);
+            this.quality?.delete("novel", source.summary.id);
           }
         this.db.delete("subscription", id);
       });
@@ -303,7 +317,14 @@ export class NovelSourceService {
     page: number,
     ids?: string[],
     signal?: AbortSignal,
-    onProgress?: SearchOptions["onProgress"],
+    onProgress?: (
+      progress: Parameters<NonNullable<SearchOptions["onProgress"]>>[0] & {
+        candidateSources: number;
+        skippedSources: Array<{ sourceKey: string; sourceName: string; cooldownUntil: string }>;
+      },
+    ) => void | Promise<void>,
+    includeIsolated = false,
+    preferences: Record<string, number> = {},
   ) {
     const state = this.state();
     const selected = ids?.length
@@ -319,7 +340,18 @@ export class NovelSourceService {
           .map((source) => source.id);
     if (ids?.length && selected.length > 100)
       throw new AppError("VALIDATION_ERROR", "每次最多搜索 100 个书源，请选择部分书源");
-    const sources: RegisteredSource[] = selected.map((id) => {
+    const plan = this.quality?.plan(
+      "novel",
+      selected.map((key) => ({ key, version: this.source(key).summary.hash })),
+      includeIsolated,
+      preferences,
+    );
+    const scheduled = plan?.sources.map((item) => item.sourceKey) ?? selected;
+    const skippedSources = (plan?.skipped ?? []).map((item) => ({
+      ...item,
+      sourceName: this.source(item.sourceKey).summary.name,
+    }));
+    const sources: RegisteredSource[] = scheduled.map((id) => {
       const row = this.source(id);
       return {
         id,
@@ -331,9 +363,17 @@ export class NovelSourceService {
     return searchAll(sources, keyword, page, {
       timeoutMs: this.timeoutMs,
       concurrency: 3,
+      sourceGroup: (source) => {
+        try {
+          return new URL(source.source.bookSourceUrl).hostname;
+        } catch {
+          return source.id;
+        }
+      },
       fetcher: this.fetcher,
       signal,
-      onProgress,
+      onProgress: (progress) =>
+        onProgress?.({ ...progress, candidateSources: selected.length, skippedSources }),
       runSource: async (source, key, page, options) => {
         const started = performance.now();
         try {
@@ -357,7 +397,7 @@ export class NovelSourceService {
           };
         }
       },
-    });
+    }).then((result) => ({ ...result, candidateSources: selected.length, skippedSources }));
   }
   async catalog(sourceId: string, bookUrl: string, signal?: AbortSignal) {
     const source = this.source(sourceId);

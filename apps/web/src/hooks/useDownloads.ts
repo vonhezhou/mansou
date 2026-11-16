@@ -1,3 +1,4 @@
+import { observeInterestDownloads } from "../lib/sourceInterest.js";
 import { useRef, useState } from "react";
 import { mansouApi } from "../api/mansou.js";
 import type { CacheStats, DownloadItem, DownloadItemsPage, DownloadTask } from "../types.js";
@@ -25,6 +26,7 @@ export function useDownloads(runWith: RunWith) {
 
   function setDownloads(tasks: DownloadTask[]) {
     downloadsVersion.current++;
+    observeInterestDownloads("comic", tasks);
     snapshotStore.setSnapshot(tasks);
   }
 
@@ -32,7 +34,7 @@ export function useDownloads(runWith: RunWith) {
     const version = ++downloadsVersion.current;
     const tasks = await mansouApi.listDownloads();
     // 实时事件到达后，旧的列表请求不能把进度回滚到先前快照。
-    if (version === downloadsVersion.current) snapshotStore.setSnapshot(tasks);
+    if (version === downloadsVersion.current) setDownloads(tasks);
   }
 
   async function loadCacheStats() {

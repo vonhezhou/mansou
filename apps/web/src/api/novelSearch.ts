@@ -1,3 +1,4 @@
+import { recordSourceInterest, sourcePreferences } from "../lib/sourceInterest.js";
 import type { components } from "@mansou/contracts";
 import { apiResponse } from "./client.js";
 
@@ -9,10 +10,16 @@ export async function searchNovels(
   page: number,
   onUpdate: (result: Search) => void,
   signal?: AbortSignal,
+  includeIsolated = false,
 ): Promise<void> {
   const response = await apiResponse("/novels/search", {
     method: "POST",
-    body: JSON.stringify({ keyword, page }),
+    body: JSON.stringify({
+      keyword,
+      page,
+      includeIsolated,
+      preferences: sourcePreferences("novel"),
+    }),
     signal,
   });
   if (!response.body || !response.headers.get("content-type")?.includes("application/x-ndjson"))
@@ -20,6 +27,7 @@ export async function searchNovels(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let pending = "";
+  const session = Date.now();
   let result: Search | undefined;
   let complete = false;
   const groups = new Map<string, Search["results"][number]>();
@@ -46,6 +54,8 @@ export async function searchNovels(
         const source = event.source;
         if (result.sources.some((row) => row.sourceId === source.sourceId))
           throw new Error("收到重复的书源结果");
+        if (source.books.length)
+          recordSourceInterest("novel", source.sourceId, "exposure", String(session));
         for (const book of source.books) {
           // 与引擎保持一致：作者缺失时不跨源合并，仅规范化后的同名同作者聚合。
           const key = book.author

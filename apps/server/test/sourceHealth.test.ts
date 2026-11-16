@@ -53,8 +53,21 @@ it("通过真实插件调用更新源元数据，空结果算成功且不泄漏�
       operations: [{ lastErrorCode: "PLUGIN_RATE_LIMITED" }],
     });
 
+    const plan = await app.inject({
+      method: "POST",
+      url: "/api/v1/search/plan",
+      payload: { sourceKeys: ["health"] },
+    });
+    expect(plan.json().skipped).toHaveLength(1);
     await context.sources.loadScript(file);
+    expect((await context.sources.metadata())[0].quality).toMatchObject({
+      state: "isolated",
+      operations: [{ successCount: 1, failureCount: 2 }],
+    });
     expect(await metadata()).toMatchObject({ status: "unknown", operations: [] });
+    expect(await context.search.aggregatedSearch("empty", [])).toMatchObject([
+      { sourceKey: "health", skipped: true },
+    ]);
   } finally {
     await app.close();
     await rm(dataDir, { recursive: true, force: true });

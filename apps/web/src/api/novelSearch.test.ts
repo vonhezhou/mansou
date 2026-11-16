@@ -7,7 +7,14 @@ afterEach(() => {
   setCsrfToken("");
 });
 const encoder = new TextEncoder();
-const start = { type: "start", keyword: "凡人", page: 1, totalSources: 3 };
+const start = {
+  type: "start",
+  keyword: "凡人",
+  page: 1,
+  totalSources: 3,
+  candidateSources: 3,
+  skippedSources: [],
+};
 const source = (id: string, author = "测试作者") => ({
   type: "source",
   elapsedMs: 1,
@@ -108,4 +115,31 @@ it("取消时释放未结束的响应读取，停止后续更新", async () => {
   ).rejects.toThrow();
   expect(updates).toHaveLength(2);
   expect(cancel).toHaveBeenCalledOnce();
+});
+
+it("全部源冷却时接受零执行完成，并保留候选和跳过信息供重试", async () => {
+  const skippedSources = [
+    {
+      sourceKey: "cooling",
+      sourceName: "冷却源",
+      cooldownUntil: new Date(Date.now() + 60000).toISOString(),
+    },
+  ];
+  const fetcher = vi.fn<(input: unknown, init?: RequestInit) => Promise<Response>>(
+    async () =>
+      new Response(
+        encode({ ...start, totalSources: 0, candidateSources: 1, skippedSources }, complete),
+        { headers: { "content-type": "application/x-ndjson" } },
+      ),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const updates: any[] = [];
+  await searchNovels("测试", 1, (value) => updates.push(value), undefined, true);
+  expect(updates.at(-1)).toMatchObject({
+    totalSources: 0,
+    candidateSources: 1,
+    completedSources: 0,
+    skippedSources,
+  });
+  expect(JSON.parse(fetcher.mock.calls[0][1]?.body as string).includeIsolated).toBe(true);
 });

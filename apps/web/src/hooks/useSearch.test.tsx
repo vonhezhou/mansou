@@ -39,6 +39,19 @@ function Harness({
   return null;
 }
 beforeEach(async () => {
+  vi.spyOn(mansouApi, "searchPlan").mockImplementation(async (keys) => ({
+    sources: keys.map((sourceKey) => ({
+      sourceKey,
+      groupKey: sourceKey,
+      quality: {
+        score: 50,
+        state: "observing",
+        checkedAt: new Date().toISOString(),
+        operations: [],
+      },
+    })),
+    skipped: [],
+  }));
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const stored = new Map<string, string>();
   vi.stubGlobal("localStorage", {
@@ -613,4 +626,38 @@ it("selects or inverts only searchable sources and persists the resulting select
   await act(async () => root.render(<Harness key="restore-bulk-empty" sources={sources} />));
   await act(async () => state.syncAggregateSources(sources));
   expect(state.aggregateSourceKeys).toEqual([]);
+});
+
+it("质量计划改变执行顺序并保留冷却跳过，人工重试选项传给服务端", async () => {
+  const quality = {
+    score: 90,
+    state: "preferred" as const,
+    checkedAt: new Date().toISOString(),
+    operations: [],
+  };
+  const plan = vi.mocked(mansouApi.searchPlan).mockResolvedValue({
+    sources: [
+      { sourceKey: "b", groupKey: "b", quality },
+      { sourceKey: "a", groupKey: "a", quality },
+    ],
+    skipped: [{ sourceKey: "cooling", cooldownUntil: new Date(Date.now() + 60000).toISOString() }],
+  });
+  const searched: string[] = [];
+  vi.spyOn(mansouApi, "search").mockImplementation(async (key) => {
+    searched.push(key);
+    return { comics: [] };
+  });
+  await act(async () => {
+    state.setSearchMode("aggregate");
+    state.toggleAggregateSource("a");
+    state.toggleAggregateSource("b");
+    state.toggleAggregateSource("cooling");
+    state.setKeyword("测试");
+    state.setIncludeIsolated(true);
+  });
+  await act(async () => state.submitSearch());
+  expect(searched).toEqual(["b", "a"]);
+  expect(state.aggregatedResults.find((item) => item.sourceKey === "cooling")?.skipped).toBe(true);
+  expect(state.aggregatePendingKeys).toEqual([]);
+  expect(plan).toHaveBeenCalledWith(["a", "b", "cooling"], true, {}, expect.any(AbortSignal));
 });

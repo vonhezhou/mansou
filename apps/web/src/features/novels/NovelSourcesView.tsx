@@ -1,9 +1,21 @@
 import { LoadingStatus } from "../../app/LoadingStatus.js";
 import type { NovelSourcesState } from "../../hooks/useNovelSources.js";
 import { NovelSources } from "./NovelSources.js";
+import { useEffect } from "react";
 
 export function NovelSourcesView({ sourceState }: { sourceState: NovelSourcesState }) {
-  const { state, setState, busy, error, run } = sourceState;
+  const { state, setState, busy, error, run, reload } = sourceState;
+  useEffect(() => {
+    const controller = new AbortController();
+    void run(async () => {
+      try {
+        await reload(controller.signal);
+      } catch (error) {
+        if (!controller.signal.aborted) throw error;
+      }
+    });
+    return () => controller.abort();
+  }, [run, reload]);
   return (
     <>
       {error && (

@@ -20,6 +20,7 @@ import { ImageCache } from "./storage/imageCache.js";
 import { createPaths } from "./storage/paths.js";
 import { createHttpClient } from "./utils/fetch.js";
 import { ensureDir } from "./utils/fs.js";
+import { SourceQualityService, type QualityOperation } from "./services/sourceQuality.js";
 
 export function createApplication(
   config: AppConfig,
@@ -37,8 +38,34 @@ export function createApplication(
   }
   const auth = new AuthService(storage, authConfig);
   const repository = new SourceRepositoryService(config, paths, http.fetch);
-  const sources = new SourceService(new PluginManager(config), repository, storage);
-  const search = new SearchService(sources);
+  const quality = new SourceQualityService(storage.sourceQuality);
+  const comicOperations: Record<string, QualityOperation> = {
+    search: "search",
+    comicDetails: "details",
+    comicPages: "catalog",
+    loadImageBytes: "content",
+  };
+  const sources = new SourceService(
+    new PluginManager(config, {
+      loaded: (key, version) => quality.register("comic", key, version),
+      completed: (key, version, operation, elapsedMs, result, errorCode) => {
+        const tracked = comicOperations[operation];
+        if (!tracked) return;
+        quality.record("comic", key, version, {
+          operation: tracked,
+          elapsedMs,
+          errorCode,
+          nonempty:
+            operation === "search" &&
+            Boolean((result as { comics?: unknown[] } | undefined)?.comics?.length),
+        });
+      },
+    }),
+    repository,
+    storage,
+    quality,
+  );
+  const search = new SearchService(sources, quality);
   const imageProxy = new ImageProxyService(
     sources,
     new ImageCache(paths.imageCache, config.imageCacheMaxBytes),
@@ -56,13 +83,20 @@ export function createApplication(
     config.downloadTaskConcurrency,
     onError,
     (value) => downloadDirectory.resolve(value),
+    quality,
   );
-  const novelEngine = new NovelEngineExecutor(http.fetch, config.requestTimeoutMs, storage.novels);
+  const novelEngine = new NovelEngineExecutor(
+    http.fetch,
+    config.requestTimeoutMs,
+    storage.novels,
+    quality,
+  );
   const novelSources = new NovelSourceService(
     storage.novels,
     http.fetch,
     config.requestTimeoutMs,
     novelEngine,
+    quality,
   );
   const novelDownloads = new NovelDownloadService(
     storage.novels,
@@ -75,6 +109,7 @@ export function createApplication(
       retries: config.downloadRetries,
     },
     onError,
+    quality,
   );
   let initialization: Promise<void> | undefined;
   let closing: Promise<void> | undefined;
@@ -92,6 +127,7 @@ export function createApplication(
     novelEngine,
     storage,
     auth,
+    quality,
     initialize() {
       if (closing) return Promise.reject(new AppError("APP_CLOSING", "Service is closing"));
       return (initialization ??= (async () => {

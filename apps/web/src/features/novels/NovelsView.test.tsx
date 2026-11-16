@@ -426,7 +426,12 @@ it("固定搜索全部可用源，移除选择控件，翻页沿用原查询", a
         .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })),
     );
   await submit();
-  expect(requests[0]).toEqual({ keyword: "test", page: 1 });
+  expect(requests[0]).toEqual({
+    keyword: "test",
+    page: 1,
+    includeIsolated: false,
+    preferences: expect.any(Object),
+  });
   expect(container.querySelector('[aria-label="搜索模式"]')).toBeNull();
   expect(container.querySelector('input[type="radio"], .source-pill')).toBeNull();
   expect(container.textContent).toContain("1 个源搜索失败");
@@ -434,7 +439,12 @@ it("固定搜索全部可用源，移除选择控件，翻页沿用原查询", a
   expect(container.querySelector(".aggregate-source")?.textContent).not.toContain("local:other");
   expect(container.querySelector(".search-source-errors")?.textContent).toContain("连接失败");
   await act(async () => button("下一页").click());
-  expect(requests[1]).toEqual({ keyword: "test", page: 2 });
+  expect(requests[1]).toEqual({
+    keyword: "test",
+    page: 2,
+    includeIsolated: false,
+    preferences: expect.any(Object),
+  });
 });
 
 it.each(["完成", "取消", "断开", "卸载"])(

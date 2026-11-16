@@ -10,6 +10,20 @@ import {
 } from "./executors/protocol.js";
 import { classifyPluginError, PluginRuntimeError } from "./errors.js";
 import { SourceHealthTracker } from "./health.js";
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+
+type QualityObserver = {
+  loaded(key: string, version: string): void;
+  completed(
+    key: string,
+    version: string,
+    operation: Operation,
+    elapsedMs: number,
+    result?: unknown,
+    errorCode?: string,
+  ): void;
+};
 
 type Entry = {
   filePath: string;
@@ -19,6 +33,7 @@ type Entry = {
   queue: Array<() => void>;
   closed: boolean;
   health: SourceHealthTracker;
+  version: string;
 };
 type Diagnostic = {
   time: string;
@@ -31,10 +46,17 @@ type Diagnostic = {
 export class PluginManager implements SourceRegistry {
   private readonly entries = new Map<string, Entry>();
   private readonly errors: Diagnostic[] = [];
-  constructor(private readonly options: RuntimeOptions) {}
+  constructor(
+    private readonly options: RuntimeOptions,
+    private readonly quality?: QualityObserver,
+  ) {}
   async load(filePath: string, identity?: { sourceKey: string; originalSourceKey: string }) {
     let executor: Executor;
+    let version: string;
     try {
+      version = createHash("sha256")
+        .update(await readFile(filePath))
+        .digest("hex");
       executor = await WorkerExecutor.load(filePath, { ...this.options, ...identity });
     } catch (error) {
       this.record(undefined, "source.load", error);
@@ -50,6 +72,7 @@ export class PluginManager implements SourceRegistry {
       queue: [],
       closed: false,
       health: new SourceHealthTracker(),
+      version,
     };
     // The executor transports only the explicitly allowed, typed source protocol.
     entry.provider = Object.fromEntries(
@@ -58,6 +81,12 @@ export class PluginManager implements SourceRegistry {
         (...args: Arguments<Operation>) => this.invoke(entry, method as Operation, args),
       ]),
     ) as unknown as SourceProvider;
+    try {
+      this.quality?.loaded(key, version);
+    } catch (error) {
+      await executor.close();
+      throw error;
+    }
     this.entries.set(key, entry);
     if (previous) await this.dispose(previous);
     return { ...executor.metadata, filePath };
@@ -119,19 +148,33 @@ export class PluginManager implements SourceRegistry {
       await new Promise<void>((resolve) => entry.queue.push(resolve));
     else entry.active++;
     if (entry.closed) throw new PluginRuntimeError("SOURCE_NOT_LOADED", "Source closed");
+    const started = performance.now();
+    let value: unknown;
+    let errorCode: string | undefined;
     try {
       const result = await entry.executor.call(operation, args);
+      value = result;
       if (!entry.closed) entry.health.record(operation);
       return result;
     } catch (error) {
       this.record(entry.executor.metadata.key, operation, error);
       const classified = classifyPluginError(error, entry.executor.metadata.key, operation);
+      errorCode = classified.code;
       if (!entry.closed) entry.health.record(operation, classified.code);
       throw classified;
     } finally {
       const resume = entry.queue.shift();
       if (resume) resume();
       else entry.active--;
+      if (!entry.closed)
+        this.quality?.completed(
+          entry.executor.metadata.key,
+          entry.version,
+          operation,
+          performance.now() - started,
+          value,
+          errorCode,
+        );
     }
   }
   private record(sourceKey: string | undefined, operation: string, cause: unknown) {

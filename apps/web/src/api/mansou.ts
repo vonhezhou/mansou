@@ -47,6 +47,17 @@ export function downloadsEventUrl() {
 }
 
 export const mansouApi = {
+  searchPlan: (
+    sourceKeys: string[],
+    includeIsolated: boolean,
+    preferences: Record<string, number>,
+    signal?: AbortSignal,
+  ) =>
+    api<components["schemas"]["SearchPlan"]>("/search/plan", {
+      method: "POST",
+      body: JSON.stringify({ sourceKeys, includeIsolated, preferences }),
+      signal,
+    }),
   health: () => api<Health>("/health"),
   listInstalledSources: () => api<Source[]>("/sources/installed"),
   setSourceFavorite: (key: string, favorite: boolean) =>

@@ -23,6 +23,8 @@ export type SearchViewProps = {
   detailSourceKey: string;
   sources: Source[];
   keyword: string;
+  includeIsolated?: boolean;
+  onIncludeIsolatedChange?: (value: boolean) => void;
   searchHistory: string[];
   onRemoveSearchHistory: (term: string) => void;
   onClearSearchHistory: () => void;

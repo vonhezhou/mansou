@@ -1,3 +1,4 @@
+import { recordSourceInterest } from "../lib/sourceInterest.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { novelApi, type NovelCatalog, type NovelOrigin, type NovelSource } from "../api/novels.js";
 
@@ -65,6 +66,7 @@ export function useNovelCatalog() {
     try {
       const result = await novelApi.catalog(value, controller.signal);
       if (!active.current || controller.signal.aborted || request.current !== controller) return;
+      recordSourceInterest("novel", value.sourceId, "catalog", value.bookUrl);
       setCatalog(result);
       if (result.tocComplete && result.chapters.length <= cacheChapterBudget) {
         cache.current.set(key, { value: result, expires: Date.now() + cacheLifetimeMs });
