@@ -1,0 +1,14 @@
+services:
+  mansou:
+    platform: linux/amd64
+    environment:
+      MANSOU_DOWNLOAD_CONCURRENCY: "2"
+      MANSOU_DOWNLOAD_TASK_CONCURRENCY: "1"
+      MANSOU_PLUGIN_SOURCE_CONCURRENCY: "2"
+    volumes:
+      - "${MANSOU_NAS_DATA_DIR:-/volume1/docker/venera-web/data}:/data"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

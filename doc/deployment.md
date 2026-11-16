@@ -49,6 +49,19 @@ MANSOU_BIND=0.0.0.0
 
 执行 `docker compose up -d --build`，访问 `http://NAS局域网地址:3210`，无需初始化管理员。此模式信任所有能够访问服务的人；路由器不要将该端口映射到公网。若需要登录，改为 required 并配置实际 origin；公网必须使用 HTTPS。
 
+### 使用 NAS 覆盖配置
+
+`docker-compose.nas.yml` 覆盖通用配置中的 `mansou` 服务，使用 `linux/amd64`，默认挂载 `/volume1/docker/venera-web/data` 到容器的 `/data`。下载图片、下载任务和单源插件的并发分别为 2、1、2，Docker 日志每个文件达到 `10m` 时轮转，最多保留 3 个文件。可以在 `.env` 中用 `MANSOU_NAS_DATA_DIR` 指定其他宿主机目录。若只监听 NAS 的局域网地址，将上例的 `MANSOU_BIND` 设为该地址，例如 `192.168.100.243`。
+
+先验证配置，再查看合并结果。通用文件放在前，NAS 覆盖文件放在后。
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.nas.yml config --quiet
+docker compose -f docker-compose.yml -f docker-compose.nas.yml config
+```
+
+这两条命令只解析配置。核对结果中只有一个 `mansou` 服务、一个端口映射和一个指向预期宿主机目录的 `/data` 挂载。后续部署、查看日志或升级时使用相同的 `-f` 文件顺序。
+
 ### 公共与个人目录挂载
 
 在现有 `mansou` 服务的 `volumes` 中保留数据卷，并加入两个书库目录。以下宿主机路径仅作示例，请替换为 NAS 上的实际位置。
@@ -113,7 +126,7 @@ docker compose up -d --build
 
 ## 数据与备份
 
-容器 `/data` 挂载到宿主机 `./data`，包含 SQLite、管理员/会话/Token 哈希、源脚本、图片缓存，以及使用默认目的地的下载文件。升级容器时保留此挂载。备份与恢复应包含整个数据目录，并限制目录和备份的访问权限。
+容器 `/data` 默认挂载到宿主机 `./data`。使用 NAS 覆盖配置时，以合并结果中的宿主机路径为准。该目录包含 SQLite、管理员/会话/Token 哈希、源脚本、图片缓存，以及使用默认目的地的下载文件。升级容器时保留此挂载。备份与恢复应包含整个数据目录，并限制目录和备份的访问权限。
 
 自定义公共或个人目录位于 `/data` 之外时，还需备份对应宿主机目录，包括小说逐章缓存、最终成品和漫画文件。修改目的地配置后，已有任务仍可能引用旧目录，因此备份范围需同时覆盖这些任务记录中的实际路径。
 
