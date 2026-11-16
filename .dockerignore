@@ -7,3 +7,6 @@
 **/.env
 **/.env.*
 .pnpm-store
+.agents
+.codex
+**/*.log

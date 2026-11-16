@@ -78,6 +78,7 @@ it("fetches the repository on first use and rechecks installed versions after re
     .mockResolvedValueOnce([{ ...metadata[0], availableVersion: "1.1.0" }]);
   await act(async () => {
     await state.loadSources();
+    await state.loadRepository();
   });
   expect(mansouApi.refreshRepository).toHaveBeenCalledOnce();
   expect(state.availableSources).toEqual(repository);
@@ -89,6 +90,7 @@ it("uses the cached repository without requiring network access", async () => {
   vi.mocked(mansouApi.listAvailableSources).mockResolvedValue(repository);
   await act(async () => {
     await state.loadSources();
+    await state.loadRepository();
   });
   expect(mansouApi.refreshRepository).not.toHaveBeenCalled();
   expect(state.availableSources).toEqual(repository);
@@ -97,7 +99,8 @@ it("uses the cached repository without requiring network access", async () => {
 it("preserves installed sources if the initial repository fetch fails", async () => {
   vi.mocked(mansouApi.refreshRepository).mockRejectedValue(new Error("仓库不可达"));
   await act(async () => {
-    await expect(state.loadSources()).rejects.toThrow("仓库不可达");
+    await expect(state.loadSources()).resolves.toEqual(installed);
+    await expect(state.loadRepository()).rejects.toThrow("仓库不可达");
   });
   expect(state.sources).toEqual(installed);
   expect(state.sourceMetadata).toEqual(metadata);

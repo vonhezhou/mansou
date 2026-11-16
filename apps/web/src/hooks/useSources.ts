@@ -90,13 +90,16 @@ export function useSources(
     const searchable = loaded.filter((source) => source.hasSearch);
     if (!searchable.some((source) => source.key === sourceKey))
       changeSourceKey(searchable[0]?.key ?? "");
-    let repository = await mansouApi.listAvailableSources();
-    if (repository.length === 0) {
-      repository = (await mansouApi.refreshRepository()).sources;
-      setSourceMetadata(await mansouApi.listSourceMetadata());
-    }
-    setAvailableSources(repository);
     return loaded;
+  }
+
+  async function loadRepository() {
+    const repository = await mansouApi.listAvailableSources();
+    if (repository.length) {
+      setAvailableSources(repository);
+    } else {
+      await fetchRepository();
+    }
   }
 
   function repositorySaved(available: RepositorySource[]) {
@@ -199,14 +202,16 @@ export function useSources(
     );
   }
 
+  async function fetchRepository() {
+    const data = await mansouApi.refreshRepository();
+    setAvailableSources(data.sources);
+    setSourceMetadata(await mansouApi.listSourceMetadata());
+  }
+
   async function refreshRepository() {
     await withSourceOperation(
       { kind: "repository", label: "正在刷新仓库并检查更新…" },
-      async () => {
-        const data = await mansouApi.refreshRepository();
-        setAvailableSources(data.sources ?? []);
-        setSourceMetadata(await mansouApi.listSourceMetadata());
-      },
+      fetchRepository,
     );
   }
 
@@ -261,6 +266,7 @@ export function useSources(
     sourceSettings,
     sources,
     loadSources,
+    loadRepository,
     setCookieText,
     setCookieUrl,
     setSettingsJson,

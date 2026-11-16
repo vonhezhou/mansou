@@ -128,11 +128,13 @@ function Workspace({
 
   async function refresh() {
     await runWith(setRefreshing, async () => {
-      await Promise.all([
-        refreshSources(),
+      const results = await Promise.allSettled([
+        refreshSources().then(sourcesState.loadRepository),
         downloadsState.loadDownloads(),
         downloadsState.loadCacheStats(),
       ]);
+      const failure = results.find((result) => result.status === "rejected");
+      if (failure) throw failure.reason;
     });
   }
 

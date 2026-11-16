@@ -1,6 +1,8 @@
 import { act, useState, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { App } from "../App.js";
+import { authApi } from "../api/auth.js";
 import { mansouApi } from "../api/mansou.js";
 import { AppShell } from "./AppShell.js";
 import type { TabKey } from "./navigation.js";
@@ -57,6 +59,41 @@ async function click(button: Element | null | undefined) {
 function button(label: string) {
   return [...container.querySelectorAll("button")].find((item) => item.textContent === label);
 }
+
+it("refreshes downloads, cache and aggregate search sources when the initial repository fetch fails", async () => {
+  vi.stubGlobal(
+    "EventSource",
+    class {
+      addEventListener() {}
+      close() {}
+    },
+  );
+  vi.spyOn(authApi, "session").mockResolvedValue({
+    mode: "none",
+    authenticated: true,
+    initialized: true,
+  });
+  vi.spyOn(mansouApi, "health").mockResolvedValue({ ok: true, name: "test", dataDir: "/data" });
+  vi.spyOn(mansouApi, "listInstalledSources").mockResolvedValue([
+    { key: "example", name: "示例源", hasSearch: true },
+  ]);
+  vi.spyOn(mansouApi, "listSourceMetadata").mockResolvedValue([]);
+  vi.spyOn(mansouApi, "listAvailableSources").mockResolvedValue([]);
+  vi.spyOn(mansouApi, "refreshRepository").mockRejectedValue(new Error("仓库不可达"));
+  const listDownloads = vi.spyOn(mansouApi, "listDownloads").mockResolvedValue([]);
+  const getCacheStats = vi
+    .spyOn(mansouApi, "getCacheStats")
+    .mockResolvedValue({ files: 0, bytes: 0 });
+
+  await render(<App />);
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe("仓库不可达");
+  expect(listDownloads).toHaveBeenCalledOnce();
+  expect(getCacheStats).toHaveBeenCalledOnce();
+  await click(button("聚合搜索"));
+  expect(
+    container.querySelector<HTMLInputElement>('.source-picker input[value="example"]')?.checked,
+  ).toBe(true);
+});
 
 it("opens settings from the server profile after collapsing navigation, keeps account and refresh reachable, and persists the theme", async () => {
   const refresh = vi.fn();
