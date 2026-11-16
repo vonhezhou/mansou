@@ -23,7 +23,7 @@ export class AuthStorage {
         );
         INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (5, datetime('now'));
       `);
-    })();
+    }).immediate();
   }
 
   admin(): Admin | undefined {

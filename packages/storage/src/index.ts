@@ -1,4 +1,5 @@
 import { NovelStorage } from "./novels.js";
+import { SourceQualityStorage } from "./sourceQuality.js";
 import type { DownloadTask, DownloadItem, SourceRecord } from "./records.js";
 export type {
   DownloadTask,
@@ -32,10 +33,12 @@ export function createStorage(dataDir: string) {
 class AppStorage {
   readonly auth: AuthStorage;
   readonly novels: NovelStorage;
+  readonly sourceQuality: SourceQualityStorage;
 
   constructor(private readonly db: Database.Database) {
     this.auth = new AuthStorage(db);
     this.novels = new NovelStorage(db);
+    this.sourceQuality = new SourceQualityStorage(db);
   }
 
   close() {
@@ -134,6 +137,7 @@ class AppStorage {
       this.db.prepare("delete from source_cookies where source_key = ?").run(key);
       this.db.prepare("delete from plugin_data where source_key = ?").run(key);
       this.db.prepare("delete from sources where key = ?").run(key);
+      this.sourceQuality.delete("comic", key);
     })();
   }
 
@@ -471,6 +475,19 @@ function migrate(db: Database.Database) {
       db.exec(`
         alter table sources add column favorite integer not null default 0;
         insert into schema_migrations(version, applied_at) values (8, datetime('now'));
+      `);
+    })();
+  }
+  if (version < 9) {
+    db.transaction(() => {
+      db.exec(`
+        create table if not exists source_quality (
+          kind text not null,
+          source_key text not null,
+          value_json text not null,
+          primary key(kind, source_key)
+        );
+        insert into schema_migrations(version, applied_at) values (9, datetime('now'));
       `);
     })();
   }

@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { createStorage, type DownloadTask } from "./index.js";
+import { Worker } from "node:worker_threads";
+import { once } from "node:events";
 
 describe("storage migrations", () => {
   it("creates a database without reading history", async () => {
@@ -24,7 +26,7 @@ describe("storage migrations", () => {
     }
   });
 
-  it.each([1, 3, 4, 5, 6, 7, 8])(
+  it.each([1, 3, 4, 5, 6, 7, 8, 9])(
     "opens a version %i database without changing existing history",
     async (version) => {
       const dir = await mkdtemp(path.join(os.tmpdir(), "mansou-storage-test-"));
@@ -37,6 +39,7 @@ describe("storage migrations", () => {
           if (version < 6) db.exec("drop index idx_download_items_task_order");
           if (version < 7) db.exec("drop table novel_records");
           if (version < 8) db.exec("alter table sources drop column favorite");
+          if (version < 9) db.exec("drop table source_quality");
           db.exec(
             "create table history (id text primary key, page integer); insert into history values ('mock:comic-1', 3)",
           );
@@ -57,7 +60,7 @@ describe("storage migrations", () => {
           ]);
           expect(
             reopened.prepare("select max(version) as version from schema_migrations").get(),
-          ).toEqual({ version: 8 });
+          ).toEqual({ version: 9 });
           expect(
             reopened.prepare("select name from sqlite_master where name = 'novel_records'").get(),
           ).toEqual({ name: "novel_records" });
@@ -240,6 +243,56 @@ it("漫画收藏按源身份隔离，更新及重启后保留", async () => {
     expect(storage.getSource("first")?.favorite).toBe(0);
   } finally {
     storage.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+it("多个 Worker 同时初始化并更新质量记录时保持完整计数", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "mansou-quality-concurrent-"));
+  const initial = createStorage(dir);
+  initial.close();
+  const barrier = new SharedArrayBuffer(4);
+  const workers = Array.from(
+    { length: 2 },
+    () =>
+      new Worker(
+        `
+    const { parentPort, workerData } = require('node:worker_threads');
+    (async () => {
+      const { createStorage } = await import(workerData.module);
+      const db = createStorage(workerData.directory);
+      parentPort.postMessage('ready');
+      Atomics.wait(new Int32Array(workerData.barrier), 0, 0);
+      for (let index = 0; index < 100; index++) {
+        db.sourceQuality.update('comic', 'same', value => ({ count: (value?.count ?? 0) + 1 }));
+      }
+      db.close();
+    })().catch(error => { throw error; });
+  `,
+        {
+          eval: true,
+          workerData: {
+            directory: dir,
+            barrier,
+            module: new URL("../dist/index.js", import.meta.url).href,
+          },
+        },
+      ),
+  );
+  try {
+    const exits = workers.map((worker) => once(worker, "exit").catch((error) => [error]));
+    await Promise.all(workers.map((worker) => once(worker, "message")));
+    Atomics.store(new Int32Array(barrier), 0, 1);
+    Atomics.notify(new Int32Array(barrier), 0);
+    expect(await Promise.all(exits)).toEqual([[0], [0]]);
+    const db = createStorage(dir);
+    try {
+      expect(db.sourceQuality.get("comic", "same")).toEqual({ count: 200 });
+    } finally {
+      db.close();
+    }
+  } finally {
+    await Promise.all(workers.map((worker) => worker.terminate()));
     await rm(dir, { recursive: true, force: true });
   }
 });
