@@ -242,3 +242,13 @@ data: [{"id":"task-id","status":"running"}]
 ## 小说实验接口
 
 `/api/v1/novels` 提供书源 JSON 导入与规则读取、合集订阅、搜索、目录、文本下载任务及 EPUB / TXT 导出。接口类型和请求参数以 OpenAPI YAML 为准；小说与漫画任务分别列出。兼容范围、更新语义和恢复粒度见[小说说明](novels.md)。
+
+## 源质量与搜索计划
+
+漫画源元数据和小说源列表的 `quality` 返回持久化质量评分、调度状态、冷却截止时间及各操作的分类统计。`meanMs` 为成功请求的衰减平均耗时，`p50Ms` 和 `p95Ms` 为耗时直方图分位上界，零成功样本时为 0。`checkedAt` 为本次评估时间。
+
+`POST /api/v1/search/plan` 接受漫画源 `sourceKeys`、`includeIsolated` 和浏览器偏好 `preferences`。响应 `sources` 按执行优先级排列，包含 `sourceKey`、`groupKey` 和 `quality`，`skipped` 返回冷却跳过记录。网页按站点组轮转并逐源调用搜索接口，服务端聚合搜索也使用质量队列，汇总响应保持所选源的顺序。
+
+小说 `POST /api/v1/novels/search` 同样接受 `includeIsolated` 和 `preferences`。默认 `includeIsolated` 为 false，偏好值范围为 0–10。流式 `start` 事件增加 `candidateSources` 和 `skippedSources`，`totalSources` 表示本次实际安排执行的源数。正常完成时 `completedSources` 等于 `totalSources`，候选数等于安排执行数加跳过数。全部源冷却时仍返回开始和完成事件，执行数为 0。
+
+小说错误新增 `RATE_LIMITED`、`AUTH_REQUIRED` 和 `NETWORK_ERROR`，分别用于上游限流、登录或访问受限、网络连接失败。完整字段以 OpenAPI YAML 为准。
