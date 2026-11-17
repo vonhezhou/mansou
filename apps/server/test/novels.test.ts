@@ -720,9 +720,14 @@ it("正则解析卡住时仍能取消线程，主服务事件循环继续响应"
 });
 it("关闭引擎同时终止在途网络与排队操作，不遗留等待者", async () => {
   const signals: AbortSignal[] = [];
+  let allRequestsStarted!: () => void;
+  const requestsStarted = new Promise<void>((resolve) => {
+    allRequestsStarted = resolve;
+  });
   const engine = new NovelEngineExecutor(async (_input, init) => {
     const signal = init!.signal!;
     signals.push(signal);
+    if (signals.length === 4) allRequestsStarted();
     return new Promise((_resolve, reject) =>
       signal.addEventListener("abort", () => reject(signal.reason), { once: true }),
     );
@@ -730,8 +735,10 @@ it("关闭引擎同时终止在途网络与排队操作，不遗留等待者", a
   cleanups.push(() => engine.close());
   const tasks = Array.from({ length: 7 }, () => engine.execute("catalog", [raw, book.bookUrl]));
   const settled = Promise.allSettled(tasks);
-  await vi.waitFor(() => expect(signals.length).toBe(4));
+  // 等待真实请求占满槽位，避免 Worker 启动耗时触发轮询的默认超时。
+  await requestsStarted;
   await engine.close();
+  expect(signals).toHaveLength(4);
   expect((await settled).every((result) => result.status === "rejected")).toBe(true);
   expect(signals.every((signal) => signal.aborted)).toBe(true);
 });

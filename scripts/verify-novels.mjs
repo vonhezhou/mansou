@@ -5,7 +5,7 @@ import { spawn, execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { once } from "node:events";
 import { createHash } from "node:crypto";
-import { cp, mkdtemp, mkdir, readdir, rm, unlink, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, mkdir, readdir, rename, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,7 +33,6 @@ if (image) assert.equal(process.platform, "linux", "Docker 验收模式需要 Li
 const entry = path.resolve(value("--server-entry", path.join(root, "apps/server/dist/server.js")));
 const dataDir = await mkdtemp(path.join(tmpdir(), "mansou-novels-acceptance-"));
 const backupDir = `${dataDir}-restored`;
-let activeDataDir = dataDir;
 const containerName = `mansou-novel-verify-${path
   .basename(dataDir)
   .replace(/[^a-z0-9-]/gi, "")
@@ -165,7 +164,7 @@ async function startServer() {
     AUTH_ORIGIN: "",
     HOST: "127.0.0.1",
     PORT: "0",
-    MANSOU_DATA_DIR: image ? "/data" : activeDataDir,
+    MANSOU_DATA_DIR: image ? "/data" : dataDir,
     MANSOU_ACCESS_TOKEN: "",
     MANSOU_PROXY: "",
     MANSOU_NO_PROXY: "*",
@@ -184,7 +183,7 @@ async function startServer() {
         "--user",
         `${process.getuid()}:${process.getgid()}`,
         "--mount",
-        `type=bind,src=${activeDataDir},dst=/data`,
+        `type=bind,src=${dataDir},dst=/data`,
         ...Object.entries(environment).flatMap(([key, value]) => ["--env", `${key}=${value}`]),
         image,
       ]
@@ -324,7 +323,13 @@ try {
     name: "验收订阅",
     url: `${fixtureUrl}/sources`,
   });
-  const sourceId = imported.sources[0].id;
+  const subscription = imported.subscriptions.find(
+    (group) => group.url === `${fixtureUrl}/sources`,
+  );
+  assert(subscription, "验收订阅必须存在");
+  const importedSource = imported.sources.find((source) => source.groupId === subscription.id);
+  assert(importedSource, "验收订阅必须包含夹具书源");
+  const sourceId = importedSource.id;
   const search = await api("/novels/search", { keyword: "合成长篇", sourceIds: [sourceId] });
   assert.equal(search[0].type, "start");
   assert.equal(search.find((event) => event.type === "source").source.books[0].name, "合成长篇");
@@ -423,11 +428,15 @@ try {
   await stopServer();
   await cp(dataDir, backupDir, { recursive: true });
   await rm(dataDir, { recursive: true, force: true });
-  activeDataDir = backupDir;
+  // 任务固定保存下载绝对路径，恢复备份时保留服务实际使用的路径。
+  await rename(backupDir, dataDir);
   await startServer();
   const restored = (await api("/novels/downloads")).find((value) => value.id === task.id);
   assert.equal(restored.status, "completed");
-  assert.equal((await api("/novels/sources")).sources[0].hash, imported.sources[0].hash);
+  assert.equal(
+    (await api("/novels/sources")).sources.find((source) => source.id === sourceId)?.hash,
+    importedSource.hash,
+  );
   const restoredEpub = await fetch(`${current.url}/api/v1/novels/downloads/${task.id}/epub`);
   assert.equal(restoredEpub.status, 200);
   assert.equal(digest(Buffer.from(await restoredEpub.arrayBuffer())), report.sha256);
@@ -445,10 +454,7 @@ try {
     report.soak = { requestedMinutes: soakMinutes, running: true, cycles, cancellations, retries };
     while (performance.now() < deadline) {
       cycles++;
-      await api(
-        `/novels/subscriptions/${imported.subscriptions.find((group) => group.id !== "local").id}/refresh`,
-        {},
-      );
+      await api(`/novels/subscriptions/${subscription.id}/refresh`, {});
       if (cycles % 5 === 0) failedOnce = false;
       let work = await api("/novels/downloads", {
         sourceId,
